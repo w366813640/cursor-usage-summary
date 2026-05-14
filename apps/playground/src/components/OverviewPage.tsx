@@ -25,7 +25,9 @@ import {
   ratioOver,
 } from '@cu/pricing';
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { ExportButton } from '../export/ExportButton';
+import { CompareRangesPanel } from './CompareRangesPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { MetricToggle, Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
@@ -47,6 +49,10 @@ export interface OverviewPageProps {
  */
 export function OverviewPage({ summary, rows }: OverviewPageProps) {
   const [heatMetric, setHeatMetric] = useState<'cost' | 'requests'>('cost');
+  // Refs are passed to ExportButton so the chosen sections can be captured
+  // as PNG without us having to thread DOM IDs through every component.
+  const weekHourRef = useRef<HTMLDivElement>(null);
+  const burnsRef = useRef<HTMLDivElement>(null);
 
   const daysSpan = useMemo(() => {
     if (!summary.dateRange.firstISO || !summary.dateRange.lastISO) return summary.byDay.length;
@@ -277,6 +283,14 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
         <MonthlyBudgetPanel summary={summary} />
       </motion.section>
 
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
+      >
+        <CompareRangesPanel rows={rows} />
+      </motion.section>
+
       {/* —— Act 2 · System view —— */}
       <motion.section
         initial={{ opacity: 0 }}
@@ -320,14 +334,20 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
               />
             </div>
           </Panel>
-          <Panel title="Hour × Weekday" subtitle="UTC · cost density">
-            <WeekHourHeatmap
-              cells={weekHour}
-              metricLabel="USD / slot"
-              responsive
-              minCellSize={9}
-              maxCellSize={14}
-            />
+          <Panel
+            title="Hour × Weekday"
+            subtitle="UTC · cost density"
+            action={<ExportButton targetRef={weekHourRef} fileBase="cursor-usage-heatmap" />}
+          >
+            <div ref={weekHourRef} className="bg-[var(--color-surface)]">
+              <WeekHourHeatmap
+                cells={weekHour}
+                metricLabel="USD / slot"
+                responsive
+                minCellSize={9}
+                maxCellSize={14}
+              />
+            </div>
           </Panel>
         </div>
 
@@ -373,6 +393,7 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
               ? `Each request ≈ N regular Sonnet calls · baseline ${fmtUSDCompact(sonnetBaseline)} / call (median Sonnet in this dataset)`
               : 'No Sonnet baseline in this dataset'
           }
+          action={<ExportButton targetRef={burnsRef} fileBase="cursor-usage-burns" />}
         />
         {hottestDay.date ? (
           <p className="font-serif text-[15px] italic leading-snug text-[var(--color-text-muted)]">
@@ -382,7 +403,10 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
             the past {daysSpan} days — each one tells its own token-mix story.
           </p>
         ) : null}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <div
+          ref={burnsRef}
+          className="grid grid-cols-1 gap-4 bg-[var(--color-bg)] p-2 lg:grid-cols-2 2xl:grid-cols-3"
+        >
           {top5.map((r, idx) => {
             const ratio = ratioOver(r.cost, sonnetBaseline);
             const equivalence = formatSonnetEquivalence(ratio);

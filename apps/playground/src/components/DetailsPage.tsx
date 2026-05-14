@@ -52,6 +52,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const pageRows = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const hasActiveFilter = query.trim().length > 0 || modelFilter.length > 0;
 
   const allModels = useMemo(() => {
     return summary.byModel.map((m) => m.model);
@@ -157,11 +158,30 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="px-3 py-8 text-center font-mono text-[11px] text-[var(--color-text-subtle)]"
-                  >
-                    No matching requests — try a different filter
+                  <td colSpan={7} className="px-3 py-10 text-center">
+                    <div className="mx-auto flex max-w-[420px] flex-col items-center gap-2 font-mono text-[11px] text-[var(--color-text-subtle)]">
+                      <span className="font-serif text-[16px] text-[var(--color-text)]">
+                        No matching requests
+                      </span>
+                      <span>
+                        {hasActiveFilter
+                          ? 'Your current filters returned 0 rows.'
+                          : 'There are no rows to show.'}
+                      </span>
+                      {hasActiveFilter ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery('');
+                            setModelFilter('');
+                            setPage(0);
+                          }}
+                          className="mt-1 rounded-sm border border-[var(--color-border)] px-2 py-1 uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                        >
+                          Clear filters
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ) : (

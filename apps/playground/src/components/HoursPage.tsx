@@ -333,7 +333,11 @@ export function HoursPage({ summary, rows }: HoursPageProps) {
         </div>
       </Panel>
 
-      <SelectionDetailPanel filter={filter} rows={filteredRows} />
+      <SelectionDetailPanel
+        filter={filter}
+        rows={filteredRows}
+        onClear={() => setFilter({ kind: 'all' })}
+      />
     </motion.div>
   );
 }
@@ -341,6 +345,7 @@ export function HoursPage({ summary, rows }: HoursPageProps) {
 interface SelectionDetailPanelProps {
   filter: DateFilter;
   rows: ReadonlyArray<RowWithCost>;
+  onClear: () => void;
 }
 
 const DETAIL_CAP = 500;
@@ -355,7 +360,7 @@ const DETAIL_CAP = 500;
  * Capped to 500 rows so a wide range doesn't blow up the DOM; the cap pretty
  * much never bites for the single-day path that motivated this panel.
  */
-function SelectionDetailPanel({ filter, rows }: SelectionDetailPanelProps) {
+function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelProps) {
   // Hooks must run unconditionally — even when the panel is hidden — so React's
   // hook-order invariant is preserved across renders.
   const sorted = useMemoSorted(rows);
@@ -371,8 +376,18 @@ function SelectionDetailPanel({ filter, rows }: SelectionDetailPanelProps) {
   if (sorted.length === 0) {
     return (
       <Panel title="Requests in selection" subtitle={`${scopeLabel} · 0 requests`}>
-        <div className="py-4 text-center font-mono text-[11px] text-[var(--color-text-subtle)]">
-          No requests in this date selection.
+        <div className="flex flex-col items-center gap-2 py-6 text-center font-mono text-[11px] text-[var(--color-text-subtle)]">
+          <span className="font-serif text-[16px] text-[var(--color-text)]">
+            No requests in this date selection
+          </span>
+          <span>The day(s) you picked don’t contain any rows from your dataset.</span>
+          <button
+            type="button"
+            onClick={onClear}
+            className="mt-1 rounded-sm border border-[var(--color-border)] px-2 py-1 uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            Clear selection
+          </button>
         </div>
       </Panel>
     );

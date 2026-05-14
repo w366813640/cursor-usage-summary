@@ -1,5 +1,14 @@
 import { useBrand, useBrandSwitcher } from '@cu/brand';
-import { CuMark, FileSpreadsheet, Loader2, Moon, Sun, Upload } from '@cu/icons';
+import {
+  AlertTriangle,
+  CuMark,
+  FileSpreadsheet,
+  Loader2,
+  Moon,
+  RefreshCw,
+  Sun,
+  Upload,
+} from '@cu/icons';
 import { Badge, BrandMark, Button, IconButton, Tooltipped, useTheme } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -261,9 +270,55 @@ export function WelcomePage() {
                   Privacy · 100% in-browser parsing
                 </div>
                 {errMsg && (
-                  <div className="mt-5 text-[12px] font-mono text-[var(--color-destructive)]">
-                    {errMsg}
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
+                    role="alert"
+                    className="mt-5 flex w-full max-w-[480px] flex-col gap-2 rounded-md border px-3.5 py-3 text-left text-[12px]"
+                    style={{
+                      borderColor:
+                        'color-mix(in oklab, var(--color-destructive) 55%, var(--color-border))',
+                      background: 'color-mix(in oklab, var(--color-destructive) 8%, transparent)',
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle
+                        size={14}
+                        className="mt-0.5 shrink-0 text-[var(--color-destructive)]"
+                        aria-hidden="true"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <span className="font-serif text-[14px] leading-tight text-[var(--color-destructive)]">
+                          Couldn’t parse that CSV
+                        </span>
+                        <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
+                          {errMsg}
+                        </span>
+                      </div>
+                    </div>
+                    <ul className="ml-5 list-disc font-mono text-[10px] leading-relaxed text-[var(--color-text-subtle)]">
+                      <li>
+                        Make sure you exported{' '}
+                        <code className="rounded-sm bg-[var(--color-surface-raised)] px-1">
+                          usage-events-YYYY-MM-DD.csv
+                        </code>{' '}
+                        from cursor.com/dashboard/usage (not the monthly summary).
+                      </li>
+                      <li>Files larger than 16 MB are rejected — split them by month.</li>
+                      <li>If you re-saved the file via Excel, re-export from Cursor instead.</li>
+                    </ul>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={reset}
+                        className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                      >
+                        <RefreshCw size={10} aria-hidden="true" />
+                        try again
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
               </div>
             </motion.div>

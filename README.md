@@ -22,7 +22,7 @@ Cursor 的 dashboard 给你一个 monthly bill 数字，但不会告诉你：
 
 | 路由 | 内容 |
 |---|---|
-| **Overview** | 4 张 KPI 卡（总花费 / hottest request / top model / cache savings · hover 加 accent rail）+ **月度请求预算面板 v2**（500-req/月 plan vs 实际，含 4 KPI strip + 月度柱图 + cap 线 + 历史均值线 + linear projection + alert strip + cost-per-request 趋势 sparkline）+ 60 天 calendar heatmap + week-hour heat（responsive · 不再 overflow）+ token & provider breakdown + model treemap + small-multiples + Top 5 burn stories |
+| **Overview** | 4 张 KPI 卡（总花费 / hottest request / top model / cache savings · hover 加 accent rail）+ **月度请求预算面板 v2**（500-req/月 plan vs 实际，含 4 KPI strip + 月度柱图 + cap 线 + 历史均值线 + linear projection + alert strip + cost-per-request 趋势 sparkline）+ **Compare ranges 面板**（last 7d / 14d / 30d / mtd vs 之前一个等长窗口，4 项 delta + 并排日柱）+ 60 天 calendar heatmap + week-hour heat（responsive · 不再 overflow · 一键 PNG 导出）+ token & provider breakdown + model treemap + small-multiples + Top 5 burn stories（一键 PNG 导出整组卡片） |
 | **Models** | 全部 34 个模型的表格，按 cost / rows / avg / tokens 排序 · sticky thead · 每行 chevron + mini sparkline + cache hit % + share-of-cost mini-bar · 点击展开 token mix bar + daily-cost 大图（带 accent 渐变 inset rail） |
 | **Details** | 全部 row 表格（2300+ 条），含 search / model filter / 3 种排序 / 分页 · sticky thead · cost ≥ $1 自动放大 + accent 着色 · 鼠标悬停整行带 accent rail + raised bg · tabular-nums 对齐 |
 | **Hours** | 24 小时 bar / 7 weekday bar（peak slot 用 accent 高亮 + "peak" 角标 / 周末 cool tone）/ 7×24 大热点图 / Top 5 hot slots leaderboard（#1 hero 化 · 每张卡底部 magnitude rail）· **顶部小日历**：rounded-[14px] panel · presets toolbar · today 用 ring 标注 · range edge 加大圆点 · 当月数据天数 badge · **底部明细表**：单日 / 多日选择时按 cost 倒序 + sticky thead + 4 张 summary stat（Requests / Total cost / Tokens / Avg / req）+ accent rail row hover |
@@ -120,6 +120,10 @@ cursor_usage/
 │   ├── data/                        CSV 解析 + Aggregator + redact
 │   ├── pricing/                     Cursor 32+ 模型定价表 + costRows() + calcCacheSavings()
 │   └── charts/                      Heatmap / WeekHourHeatmap / Sparkline / Treemap / KpiCard / StackBar / StatGrid / SmallMultiples / BurnStoryCard
+│       apps/playground/src/
+│           └── export/              html-to-image 包装 + ExportButton 复用组件（PNG 截图）
+│           └── components/
+│               └── CompareRangesPanel  Overview 的「last Nd vs prior Nd」对比卡片
 ├── input/                           把你的 usage-events-*.csv 放这里（不入 git）
 └── scripts/
     ├── e2e-pr3.mjs                  Playwright 截图脚本 · charts 库
@@ -127,7 +131,8 @@ cursor_usage/
     ├── e2e-pr5.mjs                  Playwright · 4 路由
     ├── e2e-pr10.mjs                 Playwright · 自动恢复 / 日期筛选器 / responsive heatmap
     ├── e2e-pr12.mjs                 Playwright · KpiCard hover / Details polish / Monthly v2
-    └── e2e-pr13.mjs                 Playwright · Models 表格 / Hours 日历 + bars + selection 明细
+    ├── e2e-pr13.mjs                 Playwright · Models 表格 / Hours 日历 + bars + selection 明细
+    └── e2e-pr14.mjs                 Playwright · Compare ranges / Export PNG / 错误 UX / Clear filters
 ```
 
 ## 数据流
@@ -187,6 +192,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR11** | 月度请求预算面板（500-req plan · 月柱图 · cap 线 · linear projection）+ UI 美化（SectionHeader 加 accent dot + 渐变 hairline / Panel 加 inset highlight + hover border / 页面背景 radial gradient ambience / 顶部 header backdrop-blur） | ✅ |
 | **PR12** | MonthlyBudgetPanel v2（historical avg 点线 + alert strip 智能提示 + cost-per-request 趋势 sparkline）+ KpiCard 强化（hover 时 accent rail 横扫 / inset shadow / 平滑过渡） + Details 表格美化（sticky thead + cost hero font + tabular-nums + 行 hover accent rail）+ FileToolbar 重设计（icon + 分组 + danger 样式 clear） | ✅ |
 | **PR13** | Models 页深度美化（chevron drilldown + share-of-cost mini-bar + sort chip group + 展开 inset rail）+ Hours 页深度美化（DateRangeFilter rounded-[14px] panel + today ring + range edge 大圆点 + 当月数据 badge / 小时和星期 bar 加 peak 高亮 + weekend tone / Top 5 hot slots #1 hero 化 + magnitude rail / SelectionDetailPanel 加 4 张 summary stat + sticky thead + accent rail） | ✅ |
+| **PR14** | UX 三件套：H. CSV 解析错误升级（warn-tone alert card + tips + retry）+ Details/Hours 空状态加 'Clear filters / selection' 按钮；G. **CompareRangesPanel**（last 7d/14d/30d/mtd vs 之前一个等长窗口，4 张 KPI delta + 并排日 bar）；I. **ExportButton**（html-to-image，Hour×Weekday 和 Top 5 burns 一键 PNG 下载，自动用 theme 背景） | ✅ |
 
 ## 技术栈
 
