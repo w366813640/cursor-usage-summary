@@ -1,0 +1,26 @@
+node_modules
+.pnpm-store
+.turbo
+dist
+build
+.vite
+out
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+coverage
+storybook-static
+
+# 用户的 Cursor 用量数据，不入版本控制
+input/*.csv
+!input/.gitkeep
+
+# 本地 E2E 验收截图 / 缓存日志 — 太大且会变化
+_temp/
+
+# Trellis / Cursor / Codex 本地编辑器配置（按需可取消注释）
+# .cursor/
+# .codex/
+# .agents/
