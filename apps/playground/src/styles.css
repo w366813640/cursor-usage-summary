@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@cu/tokens/css";
+@import "@cu/ui/styles.css";
+
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource-variable/source-serif-4/index.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";
+
+/* Make sure body inherits theme bg painted by the pre-React inline script. */
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}

@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": false,
+    "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cu/ui": ["packages/ui/src/index.ts"],
+      "@cu/ui/*": ["packages/ui/src/*"],
+      "@cu/tokens": ["packages/tokens/src/index.ts"],
+      "@cu/tokens/*": ["packages/tokens/src/*"],
+      "@cu/motion": ["packages/motion/src/index.ts"],
+      "@cu/motion/*": ["packages/motion/src/*"],
+      "@cu/icons": ["packages/icons/src/index.ts"],
+      "@cu/icons/*": ["packages/icons/src/*"],
+      "@cu/brand": ["packages/brand/src/index.ts"],
+      "@cu/brand/*": ["packages/brand/src/*"],
+      "@cu/data": ["packages/data/src/index.ts"],
+      "@cu/data/*": ["packages/data/src/*"],
+      "@cu/pricing": ["packages/pricing/src/index.ts"],
+      "@cu/pricing/*": ["packages/pricing/src/*"],
+      "@cu/charts": ["packages/charts/src/index.ts"],
+      "@cu/charts/*": ["packages/charts/src/*"]
+    }
+  }
+}

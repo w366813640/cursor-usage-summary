@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cursor Usage · in-browser analytics</title>
+    <meta
+      name="description"
+      content="Local-first analytics for Cursor usage CSV: official-pricing-based cost breakdowns, model heatmaps, and the most expensive requests."
+    />
+    <!--
+      Pre-React paint: read the saved theme synchronously so the first frame
+      already has the right surface color. No FOUC between the initial HTML
+      paint and the React shell mounting.
+    -->
+    <script>
+      (function () {
+        try {
+          // Storage key MUST match `STORAGE_KEY` in @cu/ui theme.tsx.
+          var stored = localStorage.getItem('cu-ui-theme');
+          var prefers =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          // Default = dark (Bloomberg/power-tool aesthetic).
+          var resolved =
+            stored === 'light' || (stored === 'system' && !prefers)
+              ? 'light'
+              : 'dark';
+          document.documentElement.setAttribute('data-theme', resolved);
+          document.documentElement.style.background = resolved === 'dark' ? '#1d1b17' : '#f7f3ea';
+        } catch (_) {
+          /* localStorage may be unavailable in private mode; the renderer recovers. */
+        }
+      })();
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #1d1b17;
+      }
+      [data-theme='light'] html,
+      html[data-theme='light'],
+      html[data-theme='light'] body {
+        background: #f7f3ea;
+      }
+      #root {
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

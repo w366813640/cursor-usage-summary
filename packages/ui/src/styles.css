@@ -1,0 +1,618 @@
+/*
+ * @cu/ui — global stylesheet.
+ *
+ * Imports the design tokens (CSS variables) and registers them with Tailwind v4
+ * via the `@theme inline` directive so utility classes resolve to our tokens.
+ */
+
+@import "@cu/tokens/css";
+
+/*
+ * Re-bind Tailwind v4's `dark:` variant so it follows our explicit
+ * data-theme="dark" attribute (which the theme provider toggles on <html>)
+ * and the [data-theme="system"] + OS-prefers-dark combo.
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"] *),
+  &:where([data-theme="dark"]) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where([data-theme="system"] *),
+    &:where([data-theme="system"]) {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-sunken: var(--color-surface-sunken);
+
+  --color-foreground: var(--color-text);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
+
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-foreground: var(--color-accent-text);
+
+  --color-destructive: var(--color-destructive);
+  --color-destructive-soft: var(--color-destructive-soft);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-info: var(--color-info);
+
+  --color-user: var(--color-user);
+  --color-user-bg: var(--color-user-bg);
+
+  --color-ring: var(--color-ring);
+  --color-overlay: var(--color-overlay);
+
+  --color-suggestion-correctness: var(--suggestion-correctness);
+  --color-suggestion-clarity: var(--suggestion-clarity);
+  --color-suggestion-engagement: var(--suggestion-engagement);
+  --color-suggestion-delivery: var(--suggestion-delivery);
+  --color-suggestion-tone: var(--suggestion-tone);
+  --color-suggestion-citation: var(--suggestion-citation);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-composer: var(--shadow-composer);
+  --shadow-composer-focus: var(--shadow-composer-focus);
+  --shadow-popover: var(--shadow-popover);
+  --shadow-modal: var(--shadow-modal);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --text-2xs: var(--text-2xs);
+  --text-2xs--line-height: var(--text-2xs--line-height);
+  --text-xs: var(--text-xs);
+  --text-xs--line-height: var(--text-xs--line-height);
+  --text-sm: var(--text-sm);
+  --text-sm--line-height: var(--text-sm--line-height);
+  --text-base: var(--text-base);
+  --text-base--line-height: var(--text-base--line-height);
+  --text-md: var(--text-md);
+  --text-md--line-height: var(--text-md--line-height);
+  --text-lg: var(--text-lg);
+  --text-lg--line-height: var(--text-lg--line-height);
+  --text-xl: var(--text-xl);
+  --text-xl--line-height: var(--text-xl--line-height);
+  --text-2xl: var(--text-2xl);
+  --text-2xl--line-height: var(--text-2xl--line-height);
+  --text-3xl: var(--text-3xl);
+  --text-3xl--line-height: var(--text-3xl--line-height);
+  --text-4xl: var(--text-4xl);
+  --text-4xl--line-height: var(--text-4xl--line-height);
+
+  --animate-fade-in: fade-in var(--duration-base) var(--ease-standard);
+  --animate-pop-in: pop-in var(--duration-medium) var(--ease-spring);
+  --animate-slide-in-right: slide-in-right var(--duration-medium) var(--ease-emphasized);
+  --animate-shimmer: shimmer 2s linear infinite;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  /* Three-stage scrollbar — invisible until you hover the scrollable region. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-border) 8%, transparent);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background-color 160ms var(--ease-standard, ease-out);
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-border) 45%, transparent);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-border-strong) 90%, transparent);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--color-text-subtle);
+    background-clip: content-box;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-border) 12%, transparent) transparent;
+  }
+  *:hover {
+    scrollbar-color: color-mix(in srgb, var(--color-border) 55%, transparent) transparent;
+  }
+
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--color-ring), 0 0 0 4px
+      color-mix(in srgb, var(--color-ring) 22%, transparent);
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    box-shadow: none;
+    outline: 2px solid var(--color-ring);
+    outline-offset: 1px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* Allow Electron to drag the window from designated regions */
+  .app-drag {
+    -webkit-app-region: drag;
+  }
+  .app-no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.01) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes tooltip-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tooltip-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateX(20px) translateY(8px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px) scale(0.96);
+  }
+}
+
+@keyframes toast-swipe-out {
+  0% {
+    transform: translateX(var(--radix-toast-swipe-end-x));
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100% + 1rem));
+    opacity: 0;
+  }
+}
+
+@keyframes menu-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(-2px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.005) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes menu-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateY(-2px);
+  }
+}
+
+/* History "Jump to" flash. Triggered by the host setting
+   data-history-flash="true" on the destination block. ~1.1s gentle
+   accent ring so the user re-finds the spot without it feeling like
+   an alert. */
+@keyframes history-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent);
+    background-color: color-mix(in srgb, var(--color-accent) 0%, transparent);
+  }
+  20% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 0%, transparent);
+    background-color: color-mix(in srgb, var(--color-accent) 0%, transparent);
+  }
+}
+
+[data-history-flash="true"] {
+  animation: history-flash 1100ms var(--ease-standard, ease-out);
+  border-radius: 6px;
+}
+
+/* Panel run-progress hairline. A 2px linear-gradient bar that slides
+   left-to-right while an agent is running. Kept subtle so it reads as
+   ambient progress, not a loading screen. */
+@keyframes panel-progress-slide {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.scribe-panel-progress-rail {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+.scribe-panel-progress-rail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-accent) 80%, transparent) 35%,
+    color-mix(in srgb, var(--color-accent) 80%, transparent) 65%,
+    transparent 100%
+  );
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: panel-progress-slide 1400ms linear infinite;
+}
+
+/* ---------------------------------------------------------------- */
+/* Suggestion decoration styling — used by @cu/editor's plugin   */
+/* ---------------------------------------------------------------- */
+
+.scribe-suggestion {
+  position: relative;
+  cursor: pointer;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: var(--anchor-underline-thickness, 2px);
+  text-underline-offset: var(--anchor-underline-offset, 2px);
+  /* Animate every property the focused state changes so the inline
+     surface visibly responds to gutter / panel hover, not just snap-changes. */
+  transition: background-color var(--duration-fast) var(--ease-standard), text-decoration-thickness
+    var(--duration-fast) var(--ease-standard), text-decoration-style var(--duration-fast)
+    var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+}
+.scribe-suggestion[data-category="correctness"] {
+  text-decoration-color: var(--suggestion-correctness);
+}
+.scribe-suggestion[data-category="clarity"] {
+  text-decoration-color: var(--suggestion-clarity);
+}
+.scribe-suggestion[data-category="engagement"] {
+  text-decoration-color: var(--suggestion-engagement);
+}
+.scribe-suggestion[data-category="delivery"] {
+  text-decoration-color: var(--suggestion-delivery);
+}
+.scribe-suggestion[data-category="tone"] {
+  text-decoration-color: var(--suggestion-tone);
+}
+.scribe-suggestion[data-category="citation"] {
+  text-decoration-color: var(--suggestion-citation);
+}
+/* Focused inline state.
+
+   Three changes happen together so the inline surface visibly snaps to
+   attention when hover originates elsewhere (gutter / panel):
+
+   1. Underline thickens AND switches wavy -> solid. The wavy line says
+      "rough hint, look later"; the solid line says "this is what's
+      being talked about right now."
+   2. Background fills with the category-soft hue (instead of the
+      generic accent-soft) and gets a same-hue 2px padding ring via
+      box-shadow, mimicking a highlighter pen swipe.
+   3. The same hue feeds the gutter halo and the card halo, so all
+      three surfaces bloom in a single coordinated tint. */
+/* Active state uses a transparent overlay (alpha blending) instead of
+   mixing into the surface color. The transparent variant looks identical
+   in light mode (where surface is near-white) but, crucially, stays
+   visible in dark mode where mixing into surface (#25231f) produced a
+   color so close to the bg that the highlight effectively disappeared. */
+.scribe-suggestion[data-active="true"] {
+  background-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-radius: 2px;
+  text-decoration-style: solid;
+  text-decoration-thickness: calc(var(--anchor-underline-thickness, 2px) + 1px);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+.scribe-suggestion[data-category="correctness"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-correctness) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-correctness) 22%, transparent);
+}
+.scribe-suggestion[data-category="clarity"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-clarity) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-clarity) 22%, transparent);
+}
+.scribe-suggestion[data-category="engagement"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-engagement) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-engagement) 22%, transparent);
+}
+.scribe-suggestion[data-category="delivery"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-delivery) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-delivery) 22%, transparent);
+}
+.scribe-suggestion[data-category="tone"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-tone) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-tone) 22%, transparent);
+}
+.scribe-suggestion[data-category="citation"][data-active="true"] {
+  background-color: color-mix(in srgb, var(--suggestion-citation) 22%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--suggestion-citation) 22%, transparent);
+}
+.scribe-suggestion[data-stale="true"] {
+  text-decoration-color: var(--suggestion-stale);
+  opacity: 0.5;
+}
+
+/* AI detector flags whole paragraphs. A wavy underline across the
+   entire block would be overwhelming, so suppress the underline and
+   render a subtle paragraph-level tint instead. Severity controls the
+   tint intensity. */
+.scribe-suggestion[data-agent="ai-detector"] {
+  text-decoration-line: none;
+  background-color: color-mix(in srgb, var(--suggestion-delivery-soft) 35%, transparent);
+  border-radius: 4px;
+  padding: 1px 0;
+  box-shadow: inset 3px 0 0 var(--suggestion-delivery);
+}
+.scribe-suggestion[data-agent="ai-detector"][data-severity="medium"] {
+  background-color: color-mix(in srgb, var(--suggestion-delivery-soft) 60%, transparent);
+}
+.scribe-suggestion[data-agent="ai-detector"][data-severity="high"] {
+  background-color: color-mix(in srgb, var(--suggestion-delivery-soft) 90%, transparent);
+}
+.scribe-suggestion[data-agent="ai-detector"][data-active="true"] {
+  background-color: var(--suggestion-delivery-soft);
+  box-shadow: inset 3px 0 0 var(--suggestion-delivery), 0 0 0 2px var(--suggestion-delivery-soft);
+}
+
+/* ---------------------------------------------------------------- */
+/* ProseMirror editor surface                                        */
+/* ---------------------------------------------------------------- */
+
+.scribe-editor {
+  background-image: radial-gradient(
+    ellipse 120% 60% at 50% 0%,
+    color-mix(in srgb, var(--color-accent-soft) 18%, transparent) 0%,
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+.scribe-editor .ProseMirror {
+  outline: none;
+  font-family: var(--font-serif);
+  font-size: var(--editor-font-size, 16px);
+  line-height: var(--editor-line-height, 1.65);
+  color: var(--color-text);
+}
+.scribe-editor .ProseMirror:focus,
+.scribe-editor .ProseMirror:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.scribe-document-title:focus,
+.scribe-document-title:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.scribe-editor[data-family="sans"] .ProseMirror {
+  font-family: var(--font-sans);
+}
+.scribe-editor .ProseMirror p {
+  margin: 0 0 var(--editor-paragraph-spacing, 0.75em);
+}
+.scribe-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-subtle);
+  pointer-events: none;
+  height: 0;
+}
+.scribe-editor .ProseMirror h1,
+.scribe-editor .ProseMirror h2,
+.scribe-editor .ProseMirror h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 1.25em;
+  margin-bottom: 0.4em;
+}
+/* The very first heading butts up against the document title above
+   instead of pushing itself a full 1.25em away — that gap looks
+   awkward when the title and the H1 are conceptually one block. */
+.scribe-editor .ProseMirror > h1:first-child,
+.scribe-editor .ProseMirror > h2:first-child,
+.scribe-editor .ProseMirror > h3:first-child {
+  margin-top: 0;
+}
+.scribe-editor .ProseMirror h1 {
+  font-size: 1.75em;
+  line-height: 1.15;
+  /* Slight optical-tracking pinch for serif display sizes. The default
+     loose tracking that browsers apply at 28px makes the heading feel
+     soft; -0.01em sharpens the silhouette without going magazine-tight. */
+  letter-spacing: -0.01em;
+}
+.scribe-editor .ProseMirror h2 {
+  font-size: 1.4em;
+  line-height: 1.25;
+}
+.scribe-editor .ProseMirror h3 {
+  font-size: 1.2em;
+  line-height: 1.3;
+}
+.scribe-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--color-border-strong);
+  padding-left: 1em;
+  color: var(--color-text-muted);
+  margin: 1em 0;
+}
+.scribe-editor .ProseMirror code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background-color: var(--color-surface-muted);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-xs);
+}
+.scribe-editor .ProseMirror pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background-color: var(--color-surface-muted);
+  padding: 0.85em 1em;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.scribe-editor .ProseMirror ul,
+.scribe-editor .ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.scribe-editor .ProseMirror li > p {
+  margin: 0.15em 0;
+}
+.scribe-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5em 0;
+}
+.scribe-editor .ProseMirror a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

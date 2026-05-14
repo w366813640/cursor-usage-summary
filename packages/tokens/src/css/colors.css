@@ -1,0 +1,105 @@
+/*
+ * Color tokens — light & dark themes for the Scribe writing workbench.
+ *
+ * Light is applied via :root; dark is applied either via [data-theme="dark"]
+ * or via @media (prefers-color-scheme: dark) when [data-theme="system"].
+ */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #f7f3ea;
+  --color-surface: #fffaf2;
+  --color-surface-muted: #efe8dc;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #ebe3d5;
+
+  --color-text: #2b2926;
+  --color-text-muted: #7b746b;
+  --color-text-subtle: #a8a096;
+
+  --color-border: #e2d9cb;
+  --color-border-strong: #cfc4b2;
+
+  --color-accent: #c96f4a;
+  --color-accent-hover: #b85f3d;
+  --color-accent-soft: #f7e7d9;
+  --color-accent-text: #ffffff;
+
+  --color-destructive: #d14343;
+  --color-destructive-soft: #fbe7e7;
+  --color-success: #3f9871;
+  --color-warning: #c8862a;
+  --color-info: #5577b8;
+
+  --color-user: #33312d;
+  --color-user-bg: #eee7dc;
+
+  --color-ring: rgba(201, 111, 74, 0.45);
+  --color-overlay: rgba(28, 24, 20, 0.42);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #1d1b17;
+  --color-surface: #25231f;
+  --color-surface-muted: #2e2b25;
+  --color-surface-raised: #36332c;
+  --color-surface-sunken: #161412;
+
+  --color-text: #f1ece2;
+  --color-text-muted: #b8af9f;
+  --color-text-subtle: #877e70;
+
+  --color-border: #3c3832;
+  --color-border-strong: #554f45;
+
+  --color-accent: #db8460;
+  --color-accent-hover: #e9946f;
+  --color-accent-soft: #3f2c22;
+  --color-accent-text: #ffffff;
+
+  --color-destructive: #e16868;
+  --color-destructive-soft: #3b1f1f;
+  --color-success: #5bae85;
+  --color-warning: #d49a45;
+  --color-info: #7c9ad9;
+
+  --color-user: #f1ece2;
+  --color-user-bg: #2e2b25;
+
+  --color-ring: rgba(219, 132, 96, 0.55);
+  --color-overlay: rgba(15, 13, 11, 0.64);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    color-scheme: dark;
+
+    --color-bg: #1d1b17;
+    --color-surface: #25231f;
+    --color-surface-muted: #2e2b25;
+    --color-surface-raised: #36332c;
+    --color-surface-sunken: #161412;
+    --color-text: #f1ece2;
+    --color-text-muted: #b8af9f;
+    --color-text-subtle: #877e70;
+    --color-border: #3c3832;
+    --color-border-strong: #554f45;
+    --color-accent: #db8460;
+    --color-accent-hover: #e9946f;
+    --color-accent-soft: #3f2c22;
+    --color-accent-text: #ffffff;
+    --color-destructive: #e16868;
+    --color-destructive-soft: #3b1f1f;
+    --color-success: #5bae85;
+    --color-warning: #d49a45;
+    --color-info: #7c9ad9;
+    --color-user: #f1ece2;
+    --color-user-bg: #2e2b25;
+    --color-ring: rgba(219, 132, 96, 0.55);
+    --color-overlay: rgba(15, 13, 11, 0.64);
+  }
+}
