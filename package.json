@@ -15,6 +15,9 @@
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "playground": "pnpm --filter @cu/playground dev",
+    "desktop:dev": "pnpm --filter @cu/desktop dev",
+    "desktop:build": "pnpm --filter @cu/desktop build",
+    "desktop:package": "pnpm --filter @cu/desktop package",
     "test": "turbo run test"
   },
   "devDependencies": {

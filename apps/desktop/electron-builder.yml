@@ -1,0 +1,58 @@
+appId: com.cursorusage.desktop
+productName: Cursor Usage
+copyright: Copyright © ${author}
+directories:
+  output: release
+  buildResources: build-resources
+
+files:
+  - dist/main/**/*
+  - "package.json"
+  - "!**/*.map"
+  - "!**/{.DS_Store,.gitignore,.editorconfig}"
+
+extraResources:
+  - from: ../playground/dist
+    to: app/renderer
+    filter: ["**/*"]
+
+asar: true
+
+# PR16 will install better-sqlite3 — its native .node module must be
+# unpacked from the asar archive so dlopen() can find it at runtime.
+# asarUnpack:
+#   - "**/*.node"
+#   - "**/better-sqlite3/**"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  # Add when a signed .ico is available — electron-builder picks a
+  # default until then.
+  # icon: build-resources/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Cursor Usage
+
+# Disable auto-update publishing by default. Set CU_AUTO_UPDATE=1 +
+# configure a publish provider (github / s3 / generic) to enable signed
+# releases.
+publish: null
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+
+linux:
+  target:
+    - AppImage
+  category: Utility

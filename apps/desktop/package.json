@@ -1,0 +1,34 @@
+{
+  "name": "@cu/desktop",
+  "productName": "Cursor Usage",
+  "description": "Cursor Usage — desktop dashboard for your Cursor IDE usage history, packaged as an Electron shell over the playground renderer.",
+  "author": {
+    "name": "cursor-usage-viz authors",
+    "email": "noreply@example.com"
+  },
+  "license": "MIT",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "./dist/main/main.js",
+  "scripts": {
+    "dev": "tsx scripts/dev.mts",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "pnpm --filter @cu/playground build",
+    "build": "pnpm build:main && pnpm build:renderer",
+    "package": "pnpm build && electron-builder",
+    "package:dir": "pnpm build && electron-builder --dir",
+    "typecheck": "tsc --noEmit -p tsconfig.main.json"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@cu/playground": "workspace:*",
+    "@types/node": "^22.10.2",
+    "electron": "^40.0.0",
+    "electron-builder": "^25.1.8",
+    "tsx": "^4.19.2",
+    "typescript": "5.6.3"
+  }
+}

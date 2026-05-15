@@ -132,8 +132,35 @@ cursor_usage/
     ├── e2e-pr10.mjs                 Playwright · 自动恢复 / 日期筛选器 / responsive heatmap
     ├── e2e-pr12.mjs                 Playwright · KpiCard hover / Details polish / Monthly v2
     ├── e2e-pr13.mjs                 Playwright · Models 表格 / Hours 日历 + bars + selection 明细
-    └── e2e-pr14.mjs                 Playwright · Compare ranges / Export PNG / 错误 UX / Clear filters
+    ├── e2e-pr14.mjs                 Playwright · Compare ranges / Export PNG / 错误 UX / Clear filters
+    └── desktop-smoke.mjs            Playwright._electron · 启动桌面 app + 截 splash + 截主窗口
 ```
+
+## v1.0 Desktop（Electron 40，开发中）
+
+从 v0.9 web app 升级成 Claude-Desktop-同代的 Windows / macOS / Linux 桌面应用。
+脚手架已经就位（PR15），SQLite 持久化 + IPC CSV 导入将在 PR16/17 着陆。
+
+```bash
+pnpm desktop:dev        # 起 vite + 编译 main + 启动 Electron（带 splash）
+pnpm desktop:build      # 编译 main + 构建 renderer dist
+pnpm desktop:package    # 出 .exe / .dmg / .AppImage（取决于当前 OS）
+node scripts/desktop-smoke.mjs   # Playwright._electron 启动 + 截图烟测
+```
+
+- Electron 40.10.0 + electron-builder 25 + electron-updater 6.3
+- Branded splash 窗（五条 bar mark · 软脉冲动画 · dark/light 自适应）
+- 隐藏标题栏 + `titleBarOverlay`（与 Claude Desktop 同款 Windows 体验）
+- `AppUserModelID` 设在第一个窗口之前，Windows 任务栏识别 `com.cursorusage.desktop`
+  而不是 `electron.exe`
+- preload bridge：`window.bridge.{window, theme, app, platform}`，
+  `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false`
+- 默认入口 = 渲染 `apps/playground` 当前的 React 应用（v0.9 全部 4 个路由、动画、
+  Compare ranges、Export PNG 不破坏）
+- 关于数据：PR16 上线 `better-sqlite3` 主进程后，数据库会落在
+  `app.getPath('userData')/cursor-usage.db`，关闭 app 数据持久；卸载默认保留
+- 详细的设计决策与 PR 路线图见
+  [.trellis/tasks/05-15-brainstorm-desktop-app/prd.md](./.trellis/tasks/05-15-brainstorm-desktop-app/prd.md)
 
 ## 数据流
 
@@ -193,6 +220,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR12** | MonthlyBudgetPanel v2（historical avg 点线 + alert strip 智能提示 + cost-per-request 趋势 sparkline）+ KpiCard 强化（hover 时 accent rail 横扫 / inset shadow / 平滑过渡） + Details 表格美化（sticky thead + cost hero font + tabular-nums + 行 hover accent rail）+ FileToolbar 重设计（icon + 分组 + danger 样式 clear） | ✅ |
 | **PR13** | Models 页深度美化（chevron drilldown + share-of-cost mini-bar + sort chip group + 展开 inset rail）+ Hours 页深度美化（DateRangeFilter rounded-[14px] panel + today ring + range edge 大圆点 + 当月数据 badge / 小时和星期 bar 加 peak 高亮 + weekend tone / Top 5 hot slots #1 hero 化 + magnitude rail / SelectionDetailPanel 加 4 张 summary stat + sticky thead + accent rail） | ✅ |
 | **PR14** | UX 三件套：H. CSV 解析错误升级（warn-tone alert card + tips + retry）+ Details/Hours 空状态加 'Clear filters / selection' 按钮；G. **CompareRangesPanel**（last 7d/14d/30d/mtd vs 之前一个等长窗口，4 张 KPI delta + 并排日 bar）；I. **ExportButton**（html-to-image，Hour×Weekday 和 Top 5 burns 一键 PNG 下载，自动用 theme 背景） | ✅ |
+| **PR15** | **v1.0 Desktop · Electron 脚手架**：`apps/desktop` 整套（main.ts / preload.ts / splash.ts / updater.ts / dev orchestrator / electron-builder.yml）· Electron 40.10 + electron-builder 25 · 隐藏标题栏 + Windows titleBarOverlay · AppUserModelID `com.cursorusage.desktop` · branded 五条 bar splash window · preload bridge（window / theme / app）· `pnpm desktop:dev` 端到端能跑 · `scripts/desktop-smoke.mjs` Playwright._electron 烟测 | ✅ |
 
 ## 技术栈
 
