@@ -201,7 +201,12 @@ async function main() {
   // `electron` itself resolves to a real .exe / binary on disk, no
   // shell wrapper required even on Windows.
   electronStarted = true;
-  const electron = spawn(electronBin, ['.'], {
+  // `--enable-logging` routes Chromium / main-process logs into stderr
+  // so we see the actual reason when something fails to start (e.g. a
+  // bad tray buffer, missing native binding, blocked port). Without it
+  // Electron on Windows silently exits when an unhandled `app.ready`
+  // exception throws.
+  const electron = spawn(electronBin, ['.', '--enable-logging'], {
     cwd: desktopRoot,
     env: { ...process.env, RENDERER_DEV_URL: rendererUrl, NODE_ENV: 'development' },
     shell: false,
