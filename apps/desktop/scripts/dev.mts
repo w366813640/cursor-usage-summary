@@ -112,7 +112,43 @@ async function waitForUrl(url: string, timeoutMs = 30_000, rendererAlive?: () =>
 
 let electronStarted = false;
 
+/**
+ * Idempotent pre-flight: makes sure better-sqlite3 has been compiled
+ * against the Electron 40 ABI before we boot the main process. If the
+ * binary is already correct (marker file matches), this exits in
+ * ~200ms; if it's stale (e.g. just ran vitest, which writes the Node
+ * ABI), this swaps the binary via prebuild-install.
+ *
+ * Without this guard the user gets a cryptic
+ * "Module compiled against different Node.js version" stack on the
+ * very first IPC call — confusing and avoidable.
+ */
+function ensureElectronNatives(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      npxCmd,
+      ['tsx', 'scripts/install-natives.mts', '--runtime=electron', '--ensure'],
+      {
+        cwd: desktopRoot,
+        env: { ...process.env, FORCE_COLOR: '1' },
+        shell: isWindows,
+      },
+    );
+    streamProcess('natives', '34', child);
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(new Error(`install-natives --ensure exited ${code ?? 'null'}`));
+      }
+    });
+  });
+}
+
 async function main() {
+  log('orchestrator', '36', 'Pre-flight · ensuring better-sqlite3 native matches Electron ABI...');
+  await ensureElectronNatives();
+
   const port = await findFreePort(5173);
   const rendererUrl = `http://localhost:${port}`;
   if (port !== 5173) {

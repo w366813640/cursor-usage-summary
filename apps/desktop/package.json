@@ -18,6 +18,8 @@
     "build": "pnpm build:main && pnpm build:renderer",
     "install-natives": "tsx scripts/install-natives.mts --runtime=electron",
     "install-natives:node": "tsx scripts/install-natives.mts --runtime=node",
+    "install-natives:ensure": "tsx scripts/install-natives.mts --runtime=electron --ensure",
+    "install-natives:ensure-node": "tsx scripts/install-natives.mts --runtime=node --ensure",
     "rebuild-natives": "electron-rebuild -w better-sqlite3 -f",
     "package": "tsx scripts/package.mts",
     "package:dir": "tsx scripts/package.mts --dir",

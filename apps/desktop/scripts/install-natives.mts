@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,18 +16,23 @@ import { fileURLToPath } from 'node:url';
  *   - The Electron main process needs `--runtime=electron` binaries.
  *
  * Loading the wrong flavor throws `NODE_MODULE_VERSION` mismatch at require
- * time, so this script flips the prebuild as needed. Run it any time you
- * switch contexts (e.g. before vitest after running desktop:dev, or before
- * desktop:dev after a fresh `pnpm install`).
+ * time, so this script flips the prebuild as needed. PR21 made this
+ * idempotent via a marker file at `build/Release/.cu-runtime.json`, so
+ * `--ensure` invocations are ~no-ops when the binary is already correct.
  *
  * Usage:
  *
- *   tsx scripts/install-natives.mts                # default: electron (for desktop dev)
+ *   tsx scripts/install-natives.mts                      # default: electron (for desktop dev)
  *   tsx scripts/install-natives.mts --runtime=electron
- *   tsx scripts/install-natives.mts --runtime=node # restore Node binary for vitest
+ *   tsx scripts/install-natives.mts --runtime=node       # restore Node binary for vitest
+ *   tsx scripts/install-natives.mts --runtime=electron --ensure
+ *                                                         # idempotent: only swap if marker
+ *                                                         # disagrees with the requested runtime
  *
- * PR19 will collapse this into the production packaging flow (electron-builder
- * `install-app-deps`) so end users never see this knob.
+ * PR19 collapsed the production packaging flow into electron-builder's
+ * `install-app-deps`, so end users never see this knob. PR21 wired
+ * `--ensure` into `desktop:dev` (pre-flight) and `@cu/storage` pretest,
+ * so contributors don't have to remember to flip the binary manually.
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,6 +42,14 @@ const NATIVE_DEPS = [{ name: 'better-sqlite3', tagPrefix: 'v' }] as const;
 
 type Runtime = 'electron' | 'node';
 
+interface RuntimeMarker {
+  runtime: Runtime;
+  target: string;
+  ts: string;
+}
+
+const MARKER_FILENAME = '.cu-runtime.json';
+
 function parseRuntime(argv: string[]): Runtime {
   const flag = argv.find((a) => a.startsWith('--runtime='));
   const value = flag?.split('=')[1] ?? 'electron';
@@ -44,6 +57,10 @@ function parseRuntime(argv: string[]): Runtime {
     throw new Error(`unsupported --runtime=${value} (expected "electron" or "node")`);
   }
   return value;
+}
+
+function isEnsureMode(argv: string[]): boolean {
+  return argv.includes('--ensure');
 }
 
 function readJson(p: string): unknown {
@@ -94,10 +111,6 @@ function getElectronVersion(): string {
   throw new Error('electron not installed yet — run `pnpm install` first');
 }
 
-const runtime = parseRuntime(process.argv.slice(2));
-const target = runtime === 'electron' ? getElectronVersion() : process.versions.node;
-console.log(`[install-natives] runtime=${runtime} target=${target}`);
-
 /**
  * Returns the resolved version of `packageName` as declared in our own
  * workspace's package.json files (apps/* and packages/*). We use this
@@ -131,6 +144,51 @@ function getCanonicalVersions(packageName: string): Set<string> {
   return out;
 }
 
+function readMarker(buildReleaseDir: string): RuntimeMarker | null {
+  const markerPath = path.join(buildReleaseDir, MARKER_FILENAME);
+  if (!existsSync(markerPath)) return null;
+  try {
+    const raw = readJson(markerPath) as Partial<RuntimeMarker>;
+    if (
+      (raw.runtime === 'electron' || raw.runtime === 'node') &&
+      typeof raw.target === 'string' &&
+      typeof raw.ts === 'string'
+    ) {
+      return { runtime: raw.runtime, target: raw.target, ts: raw.ts };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeMarker(buildReleaseDir: string, marker: RuntimeMarker): void {
+  const markerPath = path.join(buildReleaseDir, MARKER_FILENAME);
+  writeFileSync(markerPath, `${JSON.stringify(marker, null, 2)}\n`, 'utf-8');
+}
+
+function isBinaryPresent(buildReleaseDir: string, depName: string): boolean {
+  // better-sqlite3's prebuilt artifact lives at build/Release/<name>.node.
+  // We check for *.node existence as a coarse proof-of-life — the marker
+  // file carries the runtime metadata.
+  const candidate = path.join(buildReleaseDir, 'better_sqlite3.node');
+  if (depName === 'better-sqlite3') return existsSync(candidate);
+  return existsSync(buildReleaseDir);
+}
+
+const argv = process.argv.slice(2);
+const runtime = parseRuntime(argv);
+const ensure = isEnsureMode(argv);
+const target = runtime === 'electron' ? getElectronVersion() : process.versions.node;
+
+if (ensure) {
+  console.log(`[install-natives] runtime=${runtime} target=${target} (ensure mode)`);
+} else {
+  console.log(`[install-natives] runtime=${runtime} target=${target}`);
+}
+
+let didAnyWork = false;
+
 for (const dep of NATIVE_DEPS) {
   const dirs = findPnpmStores(dep.name);
   if (dirs.length === 0) {
@@ -144,6 +202,20 @@ for (const dep of NATIVE_DEPS) {
     const version = segment.startsWith(`${dep.name}@`) ? segment.slice(dep.name.length + 1) : '';
     const isCanonical = canonical.has(version);
     const label = isCanonical ? '' : ' [orphan]';
+    const buildReleaseDir = path.join(dir, 'build', 'Release');
+
+    if (ensure && isBinaryPresent(buildReleaseDir, dep.name)) {
+      const marker = readMarker(buildReleaseDir);
+      if (marker && marker.runtime === runtime && marker.target === target) {
+        if (isCanonical) {
+          console.log(
+            `[install-natives] ${dep.name}@${version} already on ${runtime}@${target} — skip`,
+          );
+        }
+        continue;
+      }
+    }
+
     console.log(`[install-natives] ${dep.name}@${version}${label} @ ${dir}`);
     try {
       execSync(
@@ -154,8 +226,9 @@ for (const dep of NATIVE_DEPS) {
           shell: process.platform === 'win32' ? 'powershell' : '/bin/sh',
         },
       );
-      const outDir = path.join(dir, 'build', 'Release');
-      console.log(`[install-natives] ${dep.name}@${version} → ${outDir}`);
+      writeMarker(buildReleaseDir, { runtime, target, ts: new Date().toISOString() });
+      didAnyWork = true;
+      console.log(`[install-natives] ${dep.name}@${version} → ${buildReleaseDir}`);
     } catch (err) {
       const msg = (err as Error).message;
       if (isCanonical) {
@@ -166,4 +239,8 @@ for (const dep of NATIVE_DEPS) {
       }
     }
   }
+}
+
+if (ensure && !didAnyWork && process.exitCode !== 1) {
+  console.log('[install-natives] all canonical native deps already on requested runtime');
 }
