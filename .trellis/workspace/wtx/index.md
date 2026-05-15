@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 0
-- **Last Active**: -
+- **Total Sessions**: 1
+- **Last Active**: 2026-05-15
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~0 | Active |
+| `journal-1.md` | ~46 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 1 | 2026-05-15 | Desktop app PR21->PR25: native binary auto-switch + Settings + Year heatmap + Compare batches + Forecast + cross-platform packaging + tray + budget toast | `2d2e887`, `33db98b`, `c8b6dfc`, `b79543d`, `941b299`, `0c82acb` | `master` |
 <!-- @@@/auto:session-history -->
 
 ---
