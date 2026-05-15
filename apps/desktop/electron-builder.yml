@@ -8,8 +8,13 @@ directories:
 files:
   - dist/main/**/*
   - "package.json"
+  # Bring in the production dependency tree (only @cu/storage +
+  # better-sqlite3 + electron-updater + their transitives — esbuild
+  # ships the rest inlined into dist/main/main.js).
+  - "node_modules/**/*"
   - "!**/*.map"
   - "!**/{.DS_Store,.gitignore,.editorconfig}"
+  - "!node_modules/**/{*.md,*.markdown,CHANGELOG*,LICENSE*,*.txt}"
 
 extraResources:
   - from: ../playground/dist
@@ -18,11 +23,16 @@ extraResources:
 
 asar: true
 
-# PR16 will install better-sqlite3 — its native .node module must be
-# unpacked from the asar archive so dlopen() can find it at runtime.
-# asarUnpack:
-#   - "**/*.node"
-#   - "**/better-sqlite3/**"
+# better-sqlite3 ships a `.node` binary (libdylib) per platform/arch.
+# dlopen() can't load it from inside an asar archive, so we have to
+# unpack the whole better-sqlite3 module tree at install time. The
+# matching .node file ends up under
+# `app.asar.unpacked/node_modules/better-sqlite3/build/Release/`.
+asarUnpack:
+  - "**/*.node"
+  - "**/node_modules/better-sqlite3/**"
+  - "**/node_modules/bindings/**"
+  - "**/node_modules/file-uri-to-path/**"
 
 win:
   target:

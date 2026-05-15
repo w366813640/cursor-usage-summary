@@ -61,14 +61,16 @@ async function main() {
 
   await waitForUrl('http://localhost:5173');
 
-  log('orchestrator', '36', 'Compiling main process (tsc)...');
+  log('orchestrator', '36', 'Bundling main + preload (esbuild)...');
   await new Promise<void>((resolve, reject) => {
-    const tsc = spawn(npxCmd, ['tsc', '-p', 'tsconfig.main.json'], {
+    const builder = spawn(npxCmd, ['tsx', 'scripts/build-main.mts'], {
       cwd: desktopRoot,
       shell: isWindows,
     });
-    streamProcess('main-tsc', '33', tsc);
-    tsc.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`tsc exit ${code}`))));
+    streamProcess('main-build', '33', builder);
+    builder.on('exit', (code) =>
+      code === 0 ? resolve() : reject(new Error(`build-main exit ${code}`)),
+    );
   });
 
   const mainEntry = path.join(desktopRoot, 'dist/main/main.js');

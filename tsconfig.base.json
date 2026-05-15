@@ -34,7 +34,9 @@
       "@cu/pricing": ["packages/pricing/src/index.ts"],
       "@cu/pricing/*": ["packages/pricing/src/*"],
       "@cu/charts": ["packages/charts/src/index.ts"],
-      "@cu/charts/*": ["packages/charts/src/*"]
+      "@cu/charts/*": ["packages/charts/src/*"],
+      "@cu/storage": ["packages/storage/src/index.ts"],
+      "@cu/storage/*": ["packages/storage/src/*"]
     }
   }
 }

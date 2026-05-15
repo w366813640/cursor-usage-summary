@@ -1,3 +1,11 @@
+import type {
+  BatchSummary,
+  DbCounts,
+  ImportBatchInfo,
+  ImportResult,
+  PersistableRow,
+  QueryName,
+} from '@cu/storage';
 import { contextBridge, ipcRenderer } from 'electron';
 
 type ThemeMode = 'light' | 'dark' | 'system';
@@ -32,6 +40,23 @@ const bridge = {
   },
   app: {
     getInfo: () => ipcRenderer.invoke('app:get-info') as Promise<AppInfo>,
+  },
+  /**
+   * Local SQLite persistence. Main process owns the only connection;
+   * renderer always goes through these handles. `importRows` accepts the
+   * already-parsed + costed rows (cheaper than shipping CSV bytes both
+   * ways), and the response always describes the dedup outcome so the
+   * renderer can render the "+N new / Y skipped" preview banner.
+   */
+  db: {
+    counts: () => ipcRenderer.invoke('db:counts') as Promise<DbCounts>,
+    importRows: (rows: PersistableRow[], info: ImportBatchInfo) =>
+      ipcRenderer.invoke('db:importRows', rows, info) as Promise<ImportResult>,
+    listBatches: () => ipcRenderer.invoke('db:listBatches') as Promise<BatchSummary[]>,
+    undoBatch: (id: number) =>
+      ipcRenderer.invoke('db:undoBatch', id) as Promise<{ removedRows: number }>,
+    query: <T = unknown>(name: QueryName, params?: Record<string, unknown>) =>
+      ipcRenderer.invoke('db:query', name, params) as Promise<T>,
   },
   platform: process.platform,
 } as const;

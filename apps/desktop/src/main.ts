@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { BrowserWindow, app, ipcMain, nativeTheme, shell } from 'electron';
+import { closeDb, registerDbIpc } from './db';
 import { type SplashHandle, showSplash } from './splash';
 import { maybeRegisterAutoUpdater } from './updater';
 
@@ -120,6 +121,7 @@ if (process.platform === 'win32') {
 
 app.whenReady().then(() => {
   registerIpc();
+  registerDbIpc();
   // Show the splash first so the user gets immediate visual feedback
   // while the renderer's bundle parses; createWindow opens the main
   // window hidden and surfaces it once it's painted.
@@ -155,4 +157,11 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// `before-quit` fires after `window-all-closed` (when applicable) and
+// before any window destruction. Closing the DB here flushes WAL pages
+// cleanly so the user's usage history is never half-written on shutdown.
+app.on('before-quit', () => {
+  closeDb();
 });

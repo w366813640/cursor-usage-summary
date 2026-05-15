@@ -139,13 +139,16 @@ cursor_usage/
 ## v1.0 Desktop（Electron 40，开发中）
 
 从 v0.9 web app 升级成 Claude-Desktop-同代的 Windows / macOS / Linux 桌面应用。
-脚手架已经就位（PR15），SQLite 持久化 + IPC CSV 导入将在 PR16/17 着陆。
+脚手架（PR15）+ SQLite 持久化（PR16）已经着陆，
+拖入式 CSV 导入 UI 会在 PR17 跟上。
 
 ```bash
-pnpm desktop:dev        # 起 vite + 编译 main + 启动 Electron（带 splash）
-pnpm desktop:build      # 编译 main + 构建 renderer dist
-pnpm desktop:package    # 出 .exe / .dmg / .AppImage（取决于当前 OS）
-node scripts/desktop-smoke.mjs   # Playwright._electron 启动 + 截图烟测
+pnpm desktop:install-natives   # 一次：把 better-sqlite3 prebuild 切到 Electron flavor
+pnpm desktop:dev               # 起 vite + 编译 main + 启动 Electron（带 splash + DB）
+pnpm desktop:build             # 编译 main + 构建 renderer dist
+pnpm desktop:package           # 出 .exe / .dmg / .AppImage（取决于当前 OS）
+node scripts/desktop-smoke.mjs       # Playwright._electron 启动 + 截图烟测
+node scripts/desktop-db-smoke.mjs    # PR16 · 数据库 IPC e2e（import / dedupe / undo / 重启）
 ```
 
 - Electron 40.10.0 + electron-builder 25 + electron-updater 6.3
@@ -153,12 +156,14 @@ node scripts/desktop-smoke.mjs   # Playwright._electron 启动 + 截图烟测
 - 隐藏标题栏 + `titleBarOverlay`（与 Claude Desktop 同款 Windows 体验）
 - `AppUserModelID` 设在第一个窗口之前，Windows 任务栏识别 `com.cursorusage.desktop`
   而不是 `electron.exe`
-- preload bridge：`window.bridge.{window, theme, app, platform}`，
+- preload bridge：`window.bridge.{window, theme, app, platform, db}`，
   `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false`
 - 默认入口 = 渲染 `apps/playground` 当前的 React 应用（v0.9 全部 4 个路由、动画、
   Compare ranges、Export PNG 不破坏）
-- 关于数据：PR16 上线 `better-sqlite3` 主进程后，数据库会落在
+- 数据库：`better-sqlite3 12.10` 跑在主进程，DB 文件落在
   `app.getPath('userData')/cursor-usage.db`，关闭 app 数据持久；卸载默认保留
+- 两级去重：导入批次按文件 SHA-256 唯一约束，行级用 12 列复合主键 + `INSERT OR IGNORE`
+- Undo：每次导入是一个 `import_batches` 记录，`ON DELETE CASCADE` 一键回滚
 - 详细的设计决策与 PR 路线图见
   [.trellis/tasks/05-15-brainstorm-desktop-app/prd.md](./.trellis/tasks/05-15-brainstorm-desktop-app/prd.md)
 
@@ -221,6 +226,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR13** | Models 页深度美化（chevron drilldown + share-of-cost mini-bar + sort chip group + 展开 inset rail）+ Hours 页深度美化（DateRangeFilter rounded-[14px] panel + today ring + range edge 大圆点 + 当月数据 badge / 小时和星期 bar 加 peak 高亮 + weekend tone / Top 5 hot slots #1 hero 化 + magnitude rail / SelectionDetailPanel 加 4 张 summary stat + sticky thead + accent rail） | ✅ |
 | **PR14** | UX 三件套：H. CSV 解析错误升级（warn-tone alert card + tips + retry）+ Details/Hours 空状态加 'Clear filters / selection' 按钮；G. **CompareRangesPanel**（last 7d/14d/30d/mtd vs 之前一个等长窗口，4 张 KPI delta + 并排日 bar）；I. **ExportButton**（html-to-image，Hour×Weekday 和 Top 5 burns 一键 PNG 下载，自动用 theme 背景） | ✅ |
 | **PR15** | **v1.0 Desktop · Electron 脚手架**：`apps/desktop` 整套（main.ts / preload.ts / splash.ts / updater.ts / dev orchestrator / electron-builder.yml）· Electron 40.10 + electron-builder 25 · 隐藏标题栏 + Windows titleBarOverlay · AppUserModelID `com.cursorusage.desktop` · branded 五条 bar splash window · preload bridge（window / theme / app）· `pnpm desktop:dev` 端到端能跑 · `scripts/desktop-smoke.mjs` Playwright._electron 烟测 | ✅ |
+| **PR16** | **v1.0 Desktop · SQLite 持久化**：新包 `@cu/storage`（schema + `UsageDb` + 11 个 vitest 单测，全部 `:memory:` SQLite）· `better-sqlite3 12.10` 主进程驻留 · 双层去重（`import_batches.file_sha256` UNIQUE + `rows` 12 列复合主键 + `INSERT OR IGNORE`）· `ON DELETE CASCADE` 撤销单次导入 · 6 个 prepared query（counts / byDay / byMonth / byModel / byHourWeekday / topBurns）· IPC `bridge.db.{counts, importRows, listBatches, undoBatch, query}`（contextBridge + 白名单）· `install-natives` 脚本一键切 Electron / Node prebuild · `scripts/desktop-db-smoke.mjs` Playwright._electron e2e（import → dedupe → 重启 → 数据还在 → undo → 都没了，18 条断言全绿） | ✅ |
 
 ## 技术栈
 
@@ -230,7 +236,9 @@ React state → KpiCard / Heatmap / Treemap / ...
 - **动画**：Framer Motion 11
 - **图表**：D3 modules（scale / array / time / format / hierarchy / shape）+ 自封装 React wrapper（约 12 个 chart 组件）
 - **CSV 解析**：PapaParse
-- **测试**：Vitest（单元）+ Playwright（截图回归）
+- **桌面**：Electron 40 + electron-builder 25 + electron-updater 6.3（PR15+）
+- **本地数据库**：better-sqlite3 12.10（WAL / WITHOUT ROWID / 复合 PK）+ `@cu/storage` 封装（PR16+）
+- **测试**：Vitest（单元）+ Playwright（截图回归 + `_electron` e2e）
 - **Lint / Format**：Biome 1.9
 
 ## 致谢

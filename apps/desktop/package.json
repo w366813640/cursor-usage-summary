@@ -13,21 +13,29 @@
   "main": "./dist/main/main.js",
   "scripts": {
     "dev": "tsx scripts/dev.mts",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsx scripts/build-main.mts",
     "build:renderer": "pnpm --filter @cu/playground build",
     "build": "pnpm build:main && pnpm build:renderer",
+    "install-natives": "tsx scripts/install-natives.mts --runtime=electron",
+    "install-natives:node": "tsx scripts/install-natives.mts --runtime=node",
+    "rebuild-natives": "electron-rebuild -w better-sqlite3 -f",
     "package": "pnpm build && electron-builder",
     "package:dir": "pnpm build && electron-builder --dir",
     "typecheck": "tsc --noEmit -p tsconfig.main.json"
   },
   "dependencies": {
+    "@cu/storage": "workspace:*",
+    "better-sqlite3": "^12.10.0",
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "@cu/playground": "workspace:*",
+    "@electron/rebuild": "^3.7.1",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
     "electron": "^40.0.0",
     "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.2",
     "typescript": "5.6.3"
   }

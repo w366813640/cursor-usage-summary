@@ -18,6 +18,8 @@
     "desktop:dev": "pnpm --filter @cu/desktop dev",
     "desktop:build": "pnpm --filter @cu/desktop build",
     "desktop:package": "pnpm --filter @cu/desktop package",
+    "desktop:install-natives": "pnpm --filter @cu/desktop install-natives",
+    "storage:restore-node-natives": "pnpm --filter @cu/desktop install-natives:node",
     "test": "turbo run test"
   },
   "devDependencies": {

@@ -18,11 +18,14 @@ onto the main-process database.
 - [x] Hidden title bar + Windows titleBarOverlay (Claude Desktop style)
 - [x] AppUserModelID set before the first window so the Windows taskbar
       identifies the app as `com.cursorusage.desktop`
-- [x] preload bridge with `window` / `theme` / `app` namespaces
+- [x] preload bridge with `window` / `theme` / `app` / `db` namespaces
       (`contextIsolation: true`, `sandbox: true`)
 - [x] dev orchestrator (`pnpm dev`) that boots playground at :5173,
-      compiles main, launches Electron pointed at the dev URL
-- [ ] SQLite (PR16)
+      bundles main + preload via esbuild, launches Electron pointed at
+      the dev URL
+- [x] SQLite persistence via `@cu/storage` (PR16) — better-sqlite3 12.10
+      in the main process, IPC handles for `db:counts` / `db:importRows`
+      / `db:listBatches` / `db:undoBatch` / `db:query`
 - [ ] CSV import via IPC + drag-and-drop merge preview (PR17)
 - [ ] Year-in-review + cross-month trends (PR18)
 - [ ] `.exe` / `.dmg` / `.AppImage` packaging + smoke E2E (PR19)
@@ -30,10 +33,11 @@ onto the main-process database.
 ## Scripts
 
 ```bash
-pnpm --filter @cu/desktop dev          # start the desktop shell in dev
-pnpm --filter @cu/desktop build        # compile main + build renderer
-pnpm --filter @cu/desktop package      # produce an installer (current OS)
-pnpm --filter @cu/desktop typecheck    # tsc --noEmit
+pnpm --filter @cu/desktop dev               # start the desktop shell in dev
+pnpm --filter @cu/desktop build             # bundle main + build renderer
+pnpm --filter @cu/desktop install-natives   # fetch Electron-compatible prebuilts
+pnpm --filter @cu/desktop package           # produce an installer (current OS)
+pnpm --filter @cu/desktop typecheck         # tsc --noEmit
 ```
 
 Or, from the repo root:
@@ -41,7 +45,35 @@ Or, from the repo root:
 ```bash
 pnpm desktop:dev       # equivalent shortcut
 pnpm desktop:build
+pnpm desktop:package
 ```
+
+## Native modules
+
+`better-sqlite3` ships *two* sets of prebuilt binaries — one indexed by
+Node.js ABI version (the default `prebuild-install` target) and one
+indexed by Electron version. A fresh `pnpm install` only resolves the
+Node-flavored binary, so importing it from the Electron main process
+throws `NODE_MODULE_VERSION 127 vs 143`.
+
+This monorepo flips the binary in-place depending on which runtime you
+need next:
+
+```bash
+# After `pnpm install`, before `pnpm desktop:dev` or the smoke test:
+pnpm desktop:install-natives          # → Electron-flavored *.node
+
+# Before running `pnpm --filter @cu/storage test` again (vitest needs Node):
+pnpm storage:restore-node-natives     # → Node-flavored *.node
+```
+
+Both shortcuts call `scripts/install-natives.mts`, which detects the pinned
+Electron version (or `process.versions.node`) and runs `prebuild-install`
+inside the pnpm virtual store for every entry in `NATIVE_DEPS`. Re-run any
+time you upgrade Electron or add a new native dependency.
+
+PR19 will collapse this dance into `electron-builder install-app-deps`
+during packaging so end users never see it.
 
 ## Layout
 
