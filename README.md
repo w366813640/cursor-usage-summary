@@ -140,17 +140,26 @@ cursor_usage/
 
 从 v0.9 web app 升级成 Claude-Desktop-同代的 Windows / macOS / Linux 桌面应用。
 脚手架（PR15）+ SQLite 持久化（PR16）+ 拖入式导入 UI（PR17）
-+ Year-in-review / 跨月趋势（PR18）已经着陆，打包成 installer 会在 PR19 跟上。
++ Year-in-review / 跨月趋势（PR18）+ Windows NSIS installer（PR19）全部着陆。
 
 ```bash
-pnpm desktop:install-natives   # 一次：把 better-sqlite3 prebuild 切到 Electron flavor
+# 开发
+pnpm desktop:install-natives   # 把 better-sqlite3 切到 Electron flavor（跑 desktop:dev 前）
 pnpm desktop:dev               # 起 vite + 编译 main + 启动 Electron（带 splash + DB）
 pnpm desktop:build             # 编译 main + 构建 renderer dist
-pnpm desktop:package           # 出 .exe / .dmg / .AppImage（取决于当前 OS）
-node scripts/desktop-smoke.mjs       # Playwright._electron 启动 + 截图烟测
-node scripts/desktop-db-smoke.mjs    # PR16 · 数据库 IPC e2e（import / dedupe / undo / 重启）
-node scripts/desktop-ui-smoke.mjs    # PR17 · 桌面 UI 流程（dashboard / 历史抽屉 / 预览抽屉）
-node scripts/desktop-year-smoke.mjs  # PR18 · Year route（当年 / 切年 / 跨月趋势 / 全页）
+pnpm storage:restore-node-natives  # 切回 Node flavor（跑 vitest 前）
+
+# 出包
+pnpm --filter @cu/desktop package:dir   # 出 win-unpacked/ 文件夹（快速 smoke，不打 installer）
+pnpm --filter @cu/desktop package       # 出 NSIS .exe / .dmg / .AppImage（取决于当前 OS）
+pnpm --filter @cu/desktop package:win   # 强制 Windows target
+
+# 烟测
+node scripts/desktop-smoke.mjs            # Playwright._electron 启动 + 截图烟测
+node scripts/desktop-db-smoke.mjs         # PR16 · 数据库 IPC e2e（import / dedupe / undo / 重启）
+node scripts/desktop-ui-smoke.mjs         # PR17 · 桌面 UI 流程（dashboard / 历史抽屉 / 预览抽屉）
+node scripts/desktop-year-smoke.mjs       # PR18 · Year route（当年 / 切年 / 跨月趋势 / 全页）
+node scripts/desktop-installer-smoke.mjs  # PR19 · 跑打包出来的 .exe + 验证 IPC + DB 落地
 ```
 
 - Electron 40.10.0 + electron-builder 25 + electron-updater 6.3
@@ -231,6 +240,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR16** | **v1.0 Desktop · SQLite 持久化**：新包 `@cu/storage`（schema + `UsageDb` + 11 个 vitest 单测，全部 `:memory:` SQLite）· `better-sqlite3 12.10` 主进程驻留 · 双层去重（`import_batches.file_sha256` UNIQUE + `rows` 12 列复合主键 + `INSERT OR IGNORE`）· `ON DELETE CASCADE` 撤销单次导入 · 6 个 prepared query（counts / byDay / byMonth / byModel / byHourWeekday / topBurns）· IPC `bridge.db.{counts, importRows, listBatches, undoBatch, query}`（contextBridge + 白名单）· `install-natives` 脚本一键切 Electron / Node prebuild · `scripts/desktop-db-smoke.mjs` Playwright._electron e2e（import → dedupe → 重启 → 数据还在 → undo → 都没了，18 条断言全绿） | ✅ |
 | **PR17** | **v1.0 Desktop · 拖入式导入 + 合并预览 + 历史 / undo UI**：渲染器侧 `electron/{bridge,types,desktopStorage}` 三件套（typed bridge accessor + Web Crypto SHA-256 + Date 自动 rehydrate）· 新 hook `useDesktopIngest`（idle → parsing → preview → committing → success 状态机 · 全程不写 IDB）· 桌面模式自动检测（`isDesktop()`）下分别走 `useDesktopIngest`（DB）与原 `useCsvIngest`（IDB）· `ImportPreviewDrawer` 右滑抽屉（三态：duplicate file / no new rows / would-add KPI + new date range，commit 前可 cancel）· `ImportHistoryDrawer` 列出全部 batch + per-batch 两步 undo 确认 + cascade 删除文案 · `FileToolbar` 注入 `desktopActions` 后切换为 IMPORT / HISTORY / REDACTED 三按钮 · 全局窗口 drop 监听（拖到 dashboard 任意位置都能开预览）· 渲染器永不直接 import @cu/storage（避开 better-sqlite3 在 browser bundler 里炸）· `UsageDb.previewImport`（SAVEPOINT + ROLLBACK 干跑）+ `UsageDb.allRowsCosted`（重建 RowWithCost 给 renderer 用）· 14/14 vitest 单测全绿（+3）· `scripts/desktop-db-smoke.mjs` 扩到 25 条断言全绿（+7）· `scripts/desktop-ui-smoke.mjs` 5 张截图全过（dashboard / 历史 / undo 确认 / 预览抽屉 / 导入后 dashboard） | ✅ |
 | **PR18** | **v1.0 Desktop · Year-in-review + 跨月趋势**：新增第五个路由 `#year`（`useRoute`/`NavTabs` 都加进去）· `YearReviewPage` 组合两个面板：① **YearReviewPanel**——年选择 chip（自动列出所有有数据的年份）+ 6 张年级 KPI（YEAR SPEND / REQUESTS / TOP MODEL + share-of-year / CACHE SAVINGS + 全局 hit ratio / MOST EXPENSIVE DAY / LONGEST STREAK + 日期范围）+ 12-month 成本 bar chart（current month 高亮 accent · framer-motion height 进场）+ Quarter-over-quarter 4 卡（QoQ delta 三态着色）· ② **CrossMonthTrendsPanel**——last-90d 的 rolling-30d cost Sparkline（peak / latest 标注）+ last-month overview 卡（MoM delta pill）+ top-5 model MoM table（按 |Δ$| 排序 · this/prev cost · Δ$ tabular-nums · Δ% pill · 12-month per-model sparkline）+ empty-state 文案（不足两月时）· `computeYearReview` / `computeCrossMonth` 纯函数（O(n) 单次遍历 + Map 聚合，10k 行 <5ms）· `install-natives` 增加 canonical-version 检测（pnpm 留下的 orphan 版本只 warn 不 fail）· `scripts/desktop-year-smoke.mjs`（14 月跨年 seed → Year tab → 4 截图：当年 / 切年 / 跨月趋势 / fullPage）4 张截图全过 · biome + 125/125 tests + 全 typecheck 全绿 | ✅ |
+| **PR19** | **v1.0 Desktop · Windows NSIS installer**：新 `apps/desktop/scripts/package.mts` 5 步打包流（clean → build → `pnpm deploy --prod` → 把 dist + renderer 拷进 deploy dir + 注入 electronVersion → 跑 electron-builder + 把 artifact 拷回 `apps/desktop/release/`）· 解决 pnpm isolated linker × electron-builder 的根本症结——之前 `node_modules/@cu/storage` 的 junction 指向 `packages/storage`，asar packer 走到 turbo / 源码后崩溃；现在 deploy 在 `_temp/desktop-pack/` 做一份自包含 prod 树，所有 junction 都指回 deploy 内部 · electron-builder 自动调 `@electron/rebuild` 跑 install-app-deps（不再需要手动 `install-natives` for 打包），better-sqlite3 自动按 Electron 40 ABI 重建并 unpack 到 `app.asar.unpacked/` · `electron-builder.yml` 增加 noise exclusions（`.turbo` / `src` / 测试 / 配置）· 新 scripts `package:dir` / `package:win` · `scripts/desktop-installer-smoke.mjs` 跑打出来的 `Cursor Usage.exe` 验证 IPC + SQLite + 渲染 + 重启后 hydrate（2 张截图：onboarding / 重启后 dashboard）· biome 忽略 `release/` + `_temp/` · 产物：`Cursor Usage-Setup-1.0.0-x64.exe`（96 MB · NSIS · 可选安装路径 · 桌面 / 开始菜单快捷方式） | ✅ |
 
 ## 技术栈
 

@@ -19,8 +19,9 @@
     "install-natives": "tsx scripts/install-natives.mts --runtime=electron",
     "install-natives:node": "tsx scripts/install-natives.mts --runtime=node",
     "rebuild-natives": "electron-rebuild -w better-sqlite3 -f",
-    "package": "pnpm build && electron-builder",
-    "package:dir": "pnpm build && electron-builder --dir",
+    "package": "tsx scripts/package.mts",
+    "package:dir": "tsx scripts/package.mts --dir",
+    "package:win": "tsx scripts/package.mts --win",
     "typecheck": "tsc --noEmit -p tsconfig.main.json"
   },
   "dependencies": {

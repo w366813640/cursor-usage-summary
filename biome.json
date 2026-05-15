@@ -9,6 +9,8 @@
       "**/node_modules/**",
       "**/.vite/**",
       "**/coverage/**",
+      "**/release/**",
+      "_temp/**",
       ".agents/**",
       ".claude/**",
       ".codex/**",

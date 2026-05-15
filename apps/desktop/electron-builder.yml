@@ -15,6 +15,13 @@ files:
   - "!**/*.map"
   - "!**/{.DS_Store,.gitignore,.editorconfig}"
   - "!node_modules/**/{*.md,*.markdown,CHANGELOG*,LICENSE*,*.txt}"
+  # pnpm's isolated linker symlinks packages to the workspace root,
+  # so electron-builder can otherwise reach turbo caches and source
+  # dirs of unrelated workspace packages. Block those explicitly.
+  - "!**/.turbo/**"
+  - "!**/{src,__tests__,scripts,tests}/**"
+  - "!**/{tsconfig*.json,vitest.config.*,vite.config.*,biome.json,tailwind.config.*,postcss.config.*}"
+  - "!**/{*.test.*,*.spec.*}"
 
 extraResources:
   - from: ../playground/dist
