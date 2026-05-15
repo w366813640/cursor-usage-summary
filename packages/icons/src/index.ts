@@ -86,6 +86,7 @@ export {
   Settings2,
   Share,
   ShieldCheck,
+  SkipForward,
   Sliders,
   SlidersHorizontal,
   Sparkles,

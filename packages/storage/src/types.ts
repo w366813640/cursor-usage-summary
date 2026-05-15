@@ -1,4 +1,4 @@
-import type { RowWithCost } from '@cu/data';
+import type { EventKind, RequestsValue, RowWithCost, TokenCounts } from '@cu/data';
 
 /**
  * Information the caller must supply about the source CSV file. We hash
@@ -62,12 +62,61 @@ export interface DbCounts {
 }
 
 /**
+ * Outcome of a "would this import add anything" preview. Mirrors
+ * `ImportResult` semantically but never touches disk — we open a
+ * SAVEPOINT, run the same `INSERT OR IGNORE`s, then deliberately
+ * roll back so nothing persists.
+ *
+ * The renderer uses this to populate the merge-preview drawer that
+ * pops up after the user drops a CSV but before they confirm the import.
+ */
+export interface PreviewResult {
+  wouldAdd: number;
+  wouldSkip: number;
+  dateMin: string | null;
+  dateMax: string | null;
+  /**
+   * The file hash matches a previous import batch. The drawer should
+   * surface "this exact CSV was imported on {date}" instead of the
+   * usual add/skip KPIs.
+   */
+  isDuplicateFile: boolean;
+  existingBatchId?: number;
+}
+
+/**
+ * Row shape returned by `allRowsCosted()` over IPC. We omit `date`
+ * because contextBridge can't survive a `Date` round-trip (it gets
+ * stringified); callers should rebuild it from `dateISO`.
+ */
+export interface SerializedRowWithCost {
+  id: string;
+  dateISO: string;
+  cloudAgentId: string;
+  automationId: string;
+  kind: EventKind;
+  model: string;
+  maxMode: boolean;
+  tokens: TokenCounts;
+  requests: RequestsValue;
+  cost: number;
+  costEstimated: boolean;
+}
+
+/**
  * Named query catalog. Keeping this as a union — instead of free-form SQL
  * — lets the renderer pass *only* a name + params over IPC, never raw SQL.
  * That keeps the attack surface narrow and the query set auditable from
  * the UI side.
  */
-export type QueryName = 'counts' | 'byDay' | 'byMonth' | 'byModel' | 'byHourWeekday' | 'topBurns';
+export type QueryName =
+  | 'counts'
+  | 'byDay'
+  | 'byMonth'
+  | 'byModel'
+  | 'byHourWeekday'
+  | 'topBurns'
+  | 'allRowsCosted';
 
 /** Row from `byDay` — one entry per calendar day with usage. */
 export interface DayRow {

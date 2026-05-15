@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { IngestDiff } from '../hooks/useCsvIngest';
 import { useRoute } from '../router/useRoute';
 import { DetailsPage } from './DetailsPage';
-import { FileToolbar } from './FileToolbar';
+import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { HoursPage } from './HoursPage';
 import { IngestDiffBanner } from './IngestDiffBanner';
 import { ModelsPage } from './ModelsPage';
@@ -23,6 +23,8 @@ interface DashboardShellProps {
   onReupload: () => void;
   onMergeAnother: () => void;
   onClearStorage: () => void | Promise<void>;
+  /** When set, the toolbar swaps to the desktop-mode button group. */
+  desktopActions?: DesktopActions;
 }
 
 /**
@@ -51,6 +53,7 @@ export function DashboardShell({
   onReupload,
   onMergeAnother,
   onClearStorage,
+  desktopActions,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
 
@@ -68,6 +71,7 @@ export function DashboardShell({
         onReupload={onReupload}
         onMergeAnother={onMergeAnother}
         onClearStorage={onClearStorage}
+        desktopActions={desktopActions}
       />
 
       <IngestDiffBanner diff={diff} />

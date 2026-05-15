@@ -4,7 +4,9 @@ import type {
   ImportBatchInfo,
   ImportResult,
   PersistableRow,
+  PreviewResult,
   QueryName,
+  SerializedRowWithCost,
 } from '@cu/storage';
 import { contextBridge, ipcRenderer } from 'electron';
 
@@ -52,6 +54,19 @@ const bridge = {
     counts: () => ipcRenderer.invoke('db:counts') as Promise<DbCounts>,
     importRows: (rows: PersistableRow[], info: ImportBatchInfo) =>
       ipcRenderer.invoke('db:importRows', rows, info) as Promise<ImportResult>,
+    /**
+     * Dry-run version of `importRows`. Same dedup pass, but wrapped in
+     * a transaction that's deliberately rolled back so the renderer can
+     * pop a merge-preview drawer before committing.
+     */
+    previewImport: (rows: PersistableRow[], info: ImportBatchInfo) =>
+      ipcRenderer.invoke('db:previewImport', rows, info) as Promise<PreviewResult>,
+    /**
+     * Return the entire `rows` table reshaped for the renderer's existing
+     * `aggregate()` pipeline. Note: `Date` is stripped (contextBridge
+     * can't carry it); rehydrate via `new Date(dateISO)` on the renderer.
+     */
+    allRowsCosted: () => ipcRenderer.invoke('db:allRowsCosted') as Promise<SerializedRowWithCost[]>,
     listBatches: () => ipcRenderer.invoke('db:listBatches') as Promise<BatchSummary[]>,
     undoBatch: (id: number) =>
       ipcRenderer.invoke('db:undoBatch', id) as Promise<{ removedRows: number }>,

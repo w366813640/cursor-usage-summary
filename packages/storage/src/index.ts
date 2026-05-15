@@ -10,6 +10,8 @@ export type {
   ModelRow,
   MonthRow,
   PersistableRow,
+  PreviewResult,
   QueryName,
+  SerializedRowWithCost,
   TopBurnRow,
 } from './types';

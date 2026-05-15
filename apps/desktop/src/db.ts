@@ -58,6 +58,17 @@ export function registerDbIpc(): void {
     ) => getDb().importRows(rows, info),
   );
 
+  ipcMain.handle(
+    'db:previewImport',
+    (
+      _event,
+      rows: import('@cu/storage').PersistableRow[],
+      info: import('@cu/storage').ImportBatchInfo,
+    ) => getDb().previewImport(rows, info),
+  );
+
+  ipcMain.handle('db:allRowsCosted', () => getDb().allRowsCosted());
+
   ipcMain.handle('db:listBatches', () => getDb().listBatches());
 
   ipcMain.handle('db:undoBatch', (_event, id: number) => getDb().undoBatch(id));

@@ -251,4 +251,79 @@ describe('UsageDb', () => {
     expect(db.counts().batchCount).toBe(0);
     db.close();
   });
+
+  it('previewImport reports adds vs skips without persisting', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+
+    db.importRows([makeRow(1), makeRow(2)], { filename: 'a.csv', fileSha256: 'A' });
+    const before = db.counts();
+
+    const preview = db.previewImport([makeRow(2), makeRow(3), makeRow(4)], {
+      filename: 'b.csv',
+      fileSha256: 'B',
+    });
+
+    expect(preview.isDuplicateFile).toBe(false);
+    expect(preview.wouldAdd).toBe(2);
+    expect(preview.wouldSkip).toBe(1);
+    expect(preview.dateMin).toBe('2026-05-04');
+    expect(preview.dateMax).toBe('2026-05-05');
+
+    const after = db.counts();
+    expect(after.rowCount).toBe(before.rowCount);
+    expect(after.batchCount).toBe(before.batchCount);
+
+    // And the real importRows agrees with the preview.
+    const real = db.importRows([makeRow(2), makeRow(3), makeRow(4)], {
+      filename: 'b.csv',
+      fileSha256: 'B',
+    });
+    expect(real.added).toBe(preview.wouldAdd);
+    expect(real.skipped).toBe(preview.wouldSkip);
+
+    db.close();
+  });
+
+  it('previewImport flags duplicate file SHA without scanning rows', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+
+    const first = db.importRows([makeRow(1)], { filename: 'a.csv', fileSha256: 'SAME' });
+    const preview = db.previewImport([makeRow(1), makeRow(2)], {
+      filename: 'a.csv',
+      fileSha256: 'SAME',
+    });
+
+    expect(preview.isDuplicateFile).toBe(true);
+    expect(preview.existingBatchId).toBe(first.batchId);
+    expect(preview.wouldAdd).toBe(0);
+    expect(preview.wouldSkip).toBe(2);
+
+    db.close();
+  });
+
+  it('allRowsCosted returns sorted rows in serialized shape', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+
+    db.importRows(
+      [
+        makeRow(2, { dateISO: '2026-05-10T00:00:00.000Z', cost: 5 }),
+        makeRow(1, { dateISO: '2026-05-01T00:00:00.000Z', cost: 1 }),
+      ],
+      { filename: 'a.csv', fileSha256: 'X' },
+    );
+
+    const rows = db.query('allRowsCosted');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.dateISO).toBe('2026-05-01T00:00:00.000Z');
+    expect(rows[1]?.dateISO).toBe('2026-05-10T00:00:00.000Z');
+    expect(rows[0]?.tokens).toMatchObject({ total: expect.any(Number) });
+    expect(rows[0]?.requests).toEqual({ kind: 'units', value: expect.any(Number) });
+    // Serialized form intentionally has no `date` field — renderer rehydrates.
+    expect(Object.prototype.hasOwnProperty.call(rows[0], 'date')).toBe(false);
+
+    db.close();
+  });
 });

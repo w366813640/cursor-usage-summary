@@ -1,8 +1,31 @@
 import { type UsageRow, type UsageSummary, redactRowsToCsv, redactedFileName } from '@cu/data';
-import { Clock, Download, FileSpreadsheet, HardDrive, Plus, RefreshCw, Trash2 } from '@cu/icons';
+import {
+  Clock,
+  Download,
+  FileSpreadsheet,
+  HardDrive,
+  History,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from '@cu/icons';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { describeLastUpdate } from '../storage/persistence';
+
+/**
+ * When present, the toolbar swaps its web-only buttons (merge / re-upload /
+ * clear) for the desktop equivalents (import / history). The desktop DB
+ * handles dedup + cascading undo, so we don't need separate "merge" and
+ * "re-upload" affordances any more — a single Import button + a History
+ * drawer that owns per-batch undo cover both cases.
+ */
+export interface DesktopActions {
+  onOpenImport: () => void;
+  onOpenHistory: () => void;
+  storageHint: string;
+}
 
 interface FileToolbarProps {
   fileName: string;
@@ -16,6 +39,7 @@ interface FileToolbarProps {
   onReupload: () => void;
   onMergeAnother: () => void;
   onClearStorage: () => void | Promise<void>;
+  desktopActions?: DesktopActions;
 }
 
 function triggerDownload(content: string, fileName: string) {
@@ -49,6 +73,7 @@ export function FileToolbar({
   onReupload,
   onMergeAnother,
   onClearStorage,
+  desktopActions,
 }: FileToolbarProps) {
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -61,6 +86,7 @@ export function FileToolbar({
 
   const mergedLabel = sourceFiles.length > 1 ? `${sourceFiles.length} files merged` : null;
   const lastSaved = describeLastUpdate(lastIngestedAt);
+  const storageLabel = desktopActions?.storageHint ?? 'saved locally in IndexedDB';
 
   return (
     <motion.div
@@ -99,7 +125,7 @@ export function FileToolbar({
             <Sep />
             <span
               className="flex items-center gap-1 text-[var(--color-text-subtle)]"
-              title="Saved locally in IndexedDB"
+              title={storageLabel}
             >
               <HardDrive size={11} aria-hidden="true" />
               saved {lastSaved}
@@ -109,31 +135,56 @@ export function FileToolbar({
       </div>
 
       <div className="flex items-center gap-1.5">
-        <ToolbarButton
-          icon={<Plus size={12} aria-hidden="true" />}
-          label="merge"
-          onClick={onMergeAnother}
-          title="Merge another CSV (dedupes by dateISO+model+tokens)"
-        />
-        <ToolbarButton
-          icon={<Download size={12} aria-hidden="true" />}
-          label="redacted"
-          onClick={onExportRedacted}
-          title="Export redacted CSV (Cloud Agent ID / Automation ID replaced with hash aliases)"
-        />
-        <ToolbarButton
-          icon={<RefreshCw size={12} aria-hidden="true" />}
-          label="re-upload"
-          onClick={onReupload}
-          title="Replace stored data with a new CSV"
-        />
-        <ToolbarButton
-          icon={<Trash2 size={12} aria-hidden="true" />}
-          label="clear"
-          onClick={() => setConfirmClear(true)}
-          title="Wipe all data stored in IndexedDB"
-          danger
-        />
+        {desktopActions ? (
+          <>
+            <ToolbarButton
+              icon={<Upload size={12} aria-hidden="true" />}
+              label="import"
+              onClick={desktopActions.onOpenImport}
+              title="Import another CSV — duplicate rows are skipped automatically"
+            />
+            <ToolbarButton
+              icon={<History size={12} aria-hidden="true" />}
+              label="history"
+              onClick={desktopActions.onOpenHistory}
+              title="See every CSV you've ever imported, and undo any batch"
+            />
+            <ToolbarButton
+              icon={<Download size={12} aria-hidden="true" />}
+              label="redacted"
+              onClick={onExportRedacted}
+              title="Export redacted CSV (Cloud Agent ID / Automation ID replaced with hash aliases)"
+            />
+          </>
+        ) : (
+          <>
+            <ToolbarButton
+              icon={<Plus size={12} aria-hidden="true" />}
+              label="merge"
+              onClick={onMergeAnother}
+              title="Merge another CSV (dedupes by dateISO+model+tokens)"
+            />
+            <ToolbarButton
+              icon={<Download size={12} aria-hidden="true" />}
+              label="redacted"
+              onClick={onExportRedacted}
+              title="Export redacted CSV (Cloud Agent ID / Automation ID replaced with hash aliases)"
+            />
+            <ToolbarButton
+              icon={<RefreshCw size={12} aria-hidden="true" />}
+              label="re-upload"
+              onClick={onReupload}
+              title="Replace stored data with a new CSV"
+            />
+            <ToolbarButton
+              icon={<Trash2 size={12} aria-hidden="true" />}
+              label="clear"
+              onClick={() => setConfirmClear(true)}
+              title="Wipe all data stored in IndexedDB"
+              danger
+            />
+          </>
+        )}
       </div>
 
       {confirmClear ? (

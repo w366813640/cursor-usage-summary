@@ -200,6 +200,38 @@ try {
       'topBurns sorted by cost desc',
     );
 
+    // -------- PR17 · previewImport + allRowsCosted IPC ----------------
+    const rowsC = rowFactory(3, 4);
+    const previewC = await win.evaluate(
+      ({ rows, sha }) =>
+        window.bridge.db.previewImport(rows, { filename: 'c.csv', fileSha256: sha }),
+      { rows: rowsC, sha: 'sha-C' },
+    );
+    assert(previewC.wouldAdd === 4, `preview C wouldAdd 4 (got ${previewC.wouldAdd})`);
+    assert(previewC.wouldSkip === 0, 'preview C wouldSkip 0');
+    assert(previewC.isDuplicateFile === false, 'preview C not a duplicate');
+    // Preview must NOT change the on-disk state.
+    const countsAfterPreview = await win.evaluate(() => window.bridge.db.counts());
+    assert(
+      countsAfterPreview.rowCount === 8,
+      `preview did not persist (rowCount still 8, got ${countsAfterPreview.rowCount})`,
+    );
+
+    // Preview against an existing file SHA should short-circuit.
+    const previewDup = await win.evaluate(
+      ({ rows, sha }) =>
+        window.bridge.db.previewImport(rows, { filename: 'b.csv', fileSha256: sha }),
+      { rows: rowsBOverlap, sha: 'sha-B' },
+    );
+    assert(previewDup.isDuplicateFile === true, 'preview dup-file detected');
+
+    const allRows = await win.evaluate(() => window.bridge.db.allRowsCosted());
+    assert(
+      Array.isArray(allRows) && allRows.length === 8,
+      `allRowsCosted returns 8 rows (got ${allRows?.length})`,
+    );
+    assert('dateISO' in allRows[0] && 'tokens' in allRows[0], 'allRowsCosted shape carries tokens');
+
     log('smoke', '36', 'Closing app (run 1)...');
     await app.close();
   }

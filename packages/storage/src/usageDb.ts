@@ -10,9 +10,18 @@ import type {
   ModelRow,
   MonthRow,
   PersistableRow,
+  PreviewResult,
   QueryName,
+  SerializedRowWithCost,
   TopBurnRow,
 } from './types';
+
+/**
+ * Sentinel thrown to force a `better-sqlite3` transaction to roll back.
+ * Used by `previewImport` so we can attempt the inserts, count the
+ * outcome, and then abandon the transaction without committing.
+ */
+const ROLLBACK_PREVIEW = Symbol('ROLLBACK_PREVIEW');
 
 /**
  * Local persistence layer for cursor-usage. Designed to run in Electron's
@@ -199,6 +208,193 @@ export class UsageDb {
     };
   }
 
+  /**
+   * Dry-run version of `importRows`. Opens a transaction, runs the same
+   * `INSERT OR IGNORE` against `rows`, counts what would be added vs
+   * skipped, then throws a sentinel to roll back — nothing persists.
+   *
+   * Used by the renderer's merge-preview drawer: parse CSV → preview →
+   * show "would add X, skip Y dupes (date range A→B)" → user confirms →
+   * call `importRows` to do the real write. The result of `previewImport`
+   * and the subsequent `importRows` will agree as long as no other
+   * concurrent writer raced in between.
+   */
+  previewImport(rows: ReadonlyArray<PersistableRow>, info: ImportBatchInfo): PreviewResult {
+    const existing = this.db
+      .prepare('SELECT id FROM import_batches WHERE file_sha256 = ?')
+      .get(info.fileSha256) as { id: number } | undefined;
+    if (existing) {
+      const summary = this.batchSummary(existing.id);
+      return {
+        wouldAdd: 0,
+        wouldSkip: rows.length,
+        dateMin: summary?.dateMin ?? null,
+        dateMax: summary?.dateMax ?? null,
+        isDuplicateFile: true,
+        existingBatchId: existing.id,
+      };
+    }
+
+    const insertRow = this.db.prepare(
+      `INSERT OR IGNORE INTO rows (
+        date_iso, date_day, date_month, hour, weekday,
+        cloud_agent_id, automation_id, kind, model, max_mode,
+        input_with_cache_write, input_without_cache_write, cache_read, output, total,
+        requests_kind, requests_value,
+        cost, cost_estimated, batch_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertTempBatch = this.db.prepare(
+      `INSERT INTO import_batches
+         (source_filename, imported_at, row_count_added, row_count_skipped, date_min, date_max, file_sha256)
+       VALUES ('__preview__', 0, 0, 0, NULL, NULL, '__preview_' || lower(hex(randomblob(8))))`,
+    );
+
+    let wouldAdd = 0;
+    let wouldSkip = 0;
+    let dateMin: string | null = null;
+    let dateMax: string | null = null;
+
+    try {
+      const run = this.db.transaction((batchRows: ReadonlyArray<PersistableRow>) => {
+        // We need a real batch_id to satisfy the FK; the surrounding
+        // transaction guarantees this temp batch row never reaches disk.
+        const tempBatchId = Number(insertTempBatch.run().lastInsertRowid);
+
+        for (const r of batchRows) {
+          const dateIso = r.dateISO;
+          const day = dateIso.slice(0, 10);
+          const month = dateIso.slice(0, 7);
+          const d = new Date(dateIso);
+          const requestsKind = r.requests.kind;
+          const requestsValue = r.requests.kind === 'units' ? r.requests.value : 0;
+
+          const result = insertRow.run(
+            dateIso,
+            day,
+            month,
+            d.getUTCHours(),
+            d.getUTCDay(),
+            r.cloudAgentId,
+            r.automationId,
+            r.kind,
+            r.model,
+            r.maxMode ? 1 : 0,
+            r.tokens.inputWithCacheWrite,
+            r.tokens.inputWithoutCacheWrite,
+            r.tokens.cacheRead,
+            r.tokens.output,
+            r.tokens.total,
+            requestsKind,
+            requestsValue,
+            r.cost,
+            r.costEstimated ? 1 : 0,
+            tempBatchId,
+          );
+
+          if (result.changes === 1) {
+            wouldAdd += 1;
+            if (dateMin === null || day < dateMin) dateMin = day;
+            if (dateMax === null || day > dateMax) dateMax = day;
+          } else {
+            wouldSkip += 1;
+          }
+        }
+
+        // Force the transaction to roll back. better-sqlite3's
+        // transaction wrapper catches any throw and rolls back, then
+        // re-throws — we filter for our own sentinel below.
+        throw ROLLBACK_PREVIEW;
+      });
+      run(rows);
+    } catch (err) {
+      if (err !== ROLLBACK_PREVIEW) throw err;
+    }
+
+    return {
+      wouldAdd,
+      wouldSkip,
+      dateMin,
+      dateMax,
+      isDuplicateFile: false,
+    };
+  }
+
+  /**
+   * Return the entire `rows` table reshaped as the renderer's
+   * `RowWithCost` JSON form (minus `Date`, which the renderer
+   * reconstructs from `dateISO`). Sorted by `dateISO` ascending so the
+   * existing client-side `aggregate()` pipeline can consume it
+   * unchanged.
+   *
+   * 2300 rows ≈ 1.5 MB JSON; comfortably under IPC payload limits.
+   * If the catalog grows past ~100k rows we'll move aggregation server-side.
+   */
+  allRowsCosted(): SerializedRowWithCost[] {
+    const stmt = this.db.prepare(
+      `SELECT date_iso                  AS dateISO,
+              cloud_agent_id            AS cloudAgentId,
+              automation_id             AS automationId,
+              kind,
+              model,
+              max_mode                  AS maxMode,
+              input_with_cache_write    AS inputWithCacheWrite,
+              input_without_cache_write AS inputWithoutCacheWrite,
+              cache_read                AS cacheRead,
+              output,
+              total,
+              requests_kind             AS requestsKind,
+              requests_value            AS requestsValue,
+              cost,
+              cost_estimated            AS costEstimated
+       FROM rows
+       ORDER BY date_iso ASC`,
+    );
+
+    const raw = stmt.all() as Array<{
+      dateISO: string;
+      cloudAgentId: string;
+      automationId: string;
+      kind: string;
+      model: string;
+      maxMode: 0 | 1;
+      inputWithCacheWrite: number;
+      inputWithoutCacheWrite: number;
+      cacheRead: number;
+      output: number;
+      total: number;
+      requestsKind: string;
+      requestsValue: number;
+      cost: number;
+      costEstimated: 0 | 1;
+    }>;
+
+    return raw.map((r, i) => ({
+      id: `${r.dateISO}::${r.model}::${i}`,
+      dateISO: r.dateISO,
+      cloudAgentId: r.cloudAgentId,
+      automationId: r.automationId,
+      kind: r.kind as SerializedRowWithCost['kind'],
+      model: r.model,
+      maxMode: r.maxMode === 1,
+      tokens: {
+        inputWithCacheWrite: r.inputWithCacheWrite,
+        inputWithoutCacheWrite: r.inputWithoutCacheWrite,
+        cacheRead: r.cacheRead,
+        output: r.output,
+        total: r.total,
+      },
+      requests:
+        r.requestsKind === 'units'
+          ? { kind: 'units', value: r.requestsValue }
+          : r.requestsKind === 'free'
+            ? { kind: 'free' }
+            : { kind: 'errored' },
+      cost: r.cost,
+      costEstimated: r.costEstimated === 1,
+    }));
+  }
+
   /** All batches ordered newest first. Renderer's History page wants this verbatim. */
   listBatches(): BatchSummary[] {
     const stmt = this.db.prepare(
@@ -248,11 +444,14 @@ export class UsageDb {
   query(name: 'byModel'): ModelRow[];
   query(name: 'byHourWeekday'): HourWeekdayRow[];
   query(name: 'topBurns', params?: { limit?: number }): TopBurnRow[];
+  query(name: 'allRowsCosted'): SerializedRowWithCost[];
   query(name: QueryName, params?: Record<string, unknown>): unknown;
   query(name: QueryName, params?: Record<string, unknown>): unknown {
     switch (name) {
       case 'counts':
         return this.counts();
+      case 'allRowsCosted':
+        return this.allRowsCosted();
       case 'byDay':
         return this.db
           .prepare(
