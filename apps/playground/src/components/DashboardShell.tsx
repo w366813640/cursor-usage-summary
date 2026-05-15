@@ -1,11 +1,9 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { IngestDiff } from '../hooks/useCsvIngest';
 import { useRoute } from '../router/useRoute';
 import { DetailsPage } from './DetailsPage';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { HoursPage } from './HoursPage';
-import { IngestDiffBanner } from './IngestDiffBanner';
 import { ModelsPage } from './ModelsPage';
 import { NavTabs } from './NavTabs';
 import { OverviewPage } from './OverviewPage';
@@ -20,12 +18,8 @@ interface DashboardShellProps {
   failures: number;
   elapsedMs: number;
   lastIngestedAt: number;
-  diff: IngestDiff | null;
-  onReupload: () => void;
-  onMergeAnother: () => void;
-  onClearStorage: () => void | Promise<void>;
-  /** When set, the toolbar swaps to the desktop-mode button group. */
-  desktopActions?: DesktopActions;
+  /** Wires the toolbar buttons (Import / History) to the desktop shell. */
+  desktopActions: DesktopActions;
 }
 
 /**
@@ -33,7 +27,7 @@ interface DashboardShellProps {
  *
  *   ┌──────────────────────────────────────────────┐
  *   │   FileToolbar — what data you're looking at  │
- *   │   NavTabs — Overview · Models · Details · Hours
+ *   │   NavTabs — Overview · Year · Models · …     │
  *   │                                              │
  *   │   <active route>                             │
  *   └──────────────────────────────────────────────┘
@@ -50,10 +44,6 @@ export function DashboardShell({
   failures,
   elapsedMs,
   lastIngestedAt,
-  diff,
-  onReupload,
-  onMergeAnother,
-  onClearStorage,
   desktopActions,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
@@ -69,13 +59,8 @@ export function DashboardShell({
         lastIngestedAt={lastIngestedAt}
         summary={summary}
         rows={rows}
-        onReupload={onReupload}
-        onMergeAnother={onMergeAnother}
-        onClearStorage={onClearStorage}
         desktopActions={desktopActions}
       />
-
-      <IngestDiffBanner diff={diff} />
 
       <NavTabs current={route} onNavigate={navigate} />
 
@@ -88,7 +73,7 @@ export function DashboardShell({
           transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
         >
           {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
-          {route === 'year' ? <YearReviewPage summary={summary} rows={rows} /> : null}
+          {route === 'year' ? <YearReviewPage rows={rows} /> : null}
           {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
           {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
           {route === 'hours' ? <HoursPage summary={summary} rows={rows} /> : null}

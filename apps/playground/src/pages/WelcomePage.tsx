@@ -16,154 +16,43 @@ import { DashboardShell } from '../components/DashboardShell';
 import { ImportHistoryDrawer } from '../components/ImportHistoryDrawer';
 import { ImportPreviewDrawer } from '../components/ImportPreviewDrawer';
 import { isDesktop as detectDesktop } from '../electron/bridge';
-import { useCsvIngest } from '../hooks/useCsvIngest';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
-import { loadSession } from '../storage/persistence';
 
 /**
  * App shell + entry surface.
  *
- *  Boot              → check IndexedDB (web) or DB (desktop). If
- *                      something is there, auto-hydrate.
- *  Idle / parsing    → hero + drop zone + sample KPI preview.
- *  Success           → handoff to `<DashboardShell>` for the full dashboard.
+ *   Boot         → hydrate from cursor-usage.db. If anything's there,
+ *                  go straight to the dashboard.
+ *   Idle         → onboarding hero + dropzone. Drag a CSV (or click
+ *                  "Choose CSV") to enter the import flow.
+ *   Preview      → right-side drawer over a faded dashboard, showing
+ *                  "+N rows would land · M skipped · file SHA already
+ *                  imported?" + a confirm button.
+ *   Success      → handoff to `<DashboardShell>` with the loaded data.
  *
  * Single-user product → if there's data on disk, we go straight to the
  * dashboard. No "restore card" intermediate step. Wiping data still
- * happens from the FileToolbar's affordances.
+ * happens from the FileToolbar's affordances (via the history drawer).
+ *
+ * Web mode (IndexedDB) was retired in PR20 — the desktop SQLite stack
+ * is the only supported runtime now. Loading this bundle outside of
+ * Electron shows a small "open in the desktop app" notice instead of
+ * crashing.
  */
 export function WelcomePage() {
   // We don't expect `isDesktop()` to change at runtime — the preload
   // bridge is mounted synchronously before any React code runs. Computing
   // it once at mount keeps the render shape stable.
   const isDesktop = useMemo(() => detectDesktop(), []);
-  return isDesktop ? <DesktopWelcomePage /> : <WebWelcomePage />;
+  if (!isDesktop) return <NonDesktopNotice />;
+  return <DesktopWelcomePage />;
 }
 
 /**
- * The original v0.9 entry — IndexedDB-backed, used in plain web mode.
- * Identical to what shipped before PR17 (the desktop split moved the
- * desktop branch into its own component below).
- */
-function WebWelcomePage() {
-  const { state, ingestFile, appendFile, reset, hydrateFromStorage, clearStorage } = useCsvIngest();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const uploadModeRef = useRef<'replace' | 'append'>('replace');
-  const [bootChecked, setBootChecked] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const stored = await loadSession();
-      if (!active) return;
-      if (stored && stored.rows.length > 0) {
-        await hydrateFromStorage();
-      }
-      setBootChecked(true);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [hydrateFromStorage]);
-
-  const onPick = useCallback(() => {
-    uploadModeRef.current = 'replace';
-    inputRef.current?.click();
-  }, []);
-
-  const onPickAppend = useCallback(() => {
-    uploadModeRef.current = 'append';
-    inputRef.current?.click();
-  }, []);
-
-  const onFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0];
-      if (f) {
-        if (uploadModeRef.current === 'append') {
-          void appendFile(f);
-        } else {
-          void ingestFile(f);
-        }
-      }
-      e.target.value = '';
-    },
-    [ingestFile, appendFile],
-  );
-
-  const onDrop = useCallback(
-    (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setDragActive(false);
-      const f = e.dataTransfer.files?.[0];
-      if (f) void ingestFile(f);
-    },
-    [ingestFile],
-  );
-
-  const parsing = state.status === 'parsing';
-  const errMsg = state.status === 'error' ? state.message : null;
-  const success = state.status === 'success' ? state : null;
-  const booting = !bootChecked;
-
-  return (
-    <PageChrome variant="web">
-      <main className="max-w-[1280px] mx-auto px-6 py-8">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={onFileChange}
-        />
-
-        {success ? (
-          <DashboardShell
-            summary={success.summary}
-            rows={success.rows}
-            fileName={success.fileName}
-            sourceFiles={success.sourceFiles}
-            rowsSeen={success.rowsSeen}
-            failures={success.failures}
-            elapsedMs={success.elapsedMs}
-            lastIngestedAt={success.lastIngestedAt}
-            diff={success.diff}
-            onReupload={() => {
-              reset();
-              onPick();
-            }}
-            onMergeAnother={onPickAppend}
-            onClearStorage={async () => {
-              await clearStorage();
-            }}
-          />
-        ) : booting ? (
-          <BootGate />
-        ) : (
-          <WelcomeHero
-            parsing={parsing}
-            dragActive={dragActive}
-            setDragActive={setDragActive}
-            onPick={onPick}
-            onDrop={onDrop}
-            errMsg={errMsg}
-            onReset={reset}
-            storageBadge="browser · IndexedDB"
-          />
-        )}
-      </main>
-    </PageChrome>
-  );
-}
-
-/**
- * Electron-mode counterpart. Every state transition routes through
- * `useDesktopIngest`, which talks to better-sqlite3 in the main
- * process via the preload bridge. CSV imports go through a
- * preview-then-commit drawer (so the user can see what will be added
- * / skipped before anything lands on disk), and a History drawer
- * exposes per-batch undo.
+ * Renderer entry that talks to better-sqlite3 in the main process via
+ * the preload bridge. CSV imports go through a preview-then-commit
+ * drawer (so the user can see what will be added / skipped before
+ * anything lands on disk), and a History drawer exposes per-batch undo.
  */
 function DesktopWelcomePage() {
   const desktop = useDesktopIngest();
@@ -258,7 +147,7 @@ function DesktopWelcomePage() {
       : null;
 
   return (
-    <PageChrome variant="desktop">
+    <PageChrome>
       <main className="max-w-[1280px] mx-auto px-6 py-8">
         <input
           ref={inputRef}
@@ -278,15 +167,6 @@ function DesktopWelcomePage() {
             failures={success.failures}
             elapsedMs={success.elapsedMs}
             lastIngestedAt={success.lastIngestedAt}
-            // Desktop persistence handles dedup natively, so the IngestDiff
-            // banner is suppressed — the import drawer already showed the
-            // delta. `IngestDiffBanner` no-ops on `null`.
-            diff={null}
-            onReupload={onPick}
-            onMergeAnother={onPick}
-            onClearStorage={async () => {
-              setHistoryOpen(true);
-            }}
             desktopActions={{
               onOpenImport: onPick,
               onOpenHistory: () => setHistoryOpen(true),
@@ -304,7 +184,6 @@ function DesktopWelcomePage() {
             onDrop={onDrop}
             errMsg={errMsg}
             onReset={desktop.reset}
-            storageBadge="desktop · cursor-usage.db"
           />
         )}
       </main>
@@ -345,17 +224,38 @@ function DesktopWelcomePage() {
 }
 
 /**
- * Shared header / footer / background gradient. Variant only differs
- * in the version label on the brand strip so the user can tell at a
- * glance whether they're in web or desktop.
+ * Shown if the renderer bundle was loaded outside of Electron (e.g. by
+ * running `pnpm --filter @cu/playground dev` directly in a browser). We
+ * could ship a web-flavour fallback, but PR20 cut the IndexedDB path
+ * to reduce maintenance — this notice points the user to the desktop
+ * binary instead of letting the empty bridge crash on first import.
  */
-function PageChrome({
-  variant,
-  children,
-}: {
-  variant: 'web' | 'desktop';
-  children: React.ReactNode;
-}) {
+function NonDesktopNotice() {
+  return (
+    <PageChrome>
+      <main className="mx-auto flex max-w-[640px] flex-col items-center gap-4 px-6 py-24 text-center">
+        <AlertTriangle size={32} className="text-[var(--color-warning)]" aria-hidden="true" />
+        <h1 className="font-serif text-[32px] tracking-tight">Open in the desktop app</h1>
+        <p className="text-[14px] text-[var(--color-text-muted)] max-w-[480px]">
+          Cursor Usage v1.0 is desktop-only — the local SQLite database lives in the Electron main
+          process, so the browser-only build no longer runs the dashboard. Launch{' '}
+          <code className="font-mono text-[var(--color-accent)]">Cursor Usage.exe</code> (or build
+          it with <code className="font-mono">pnpm desktop:dev</code>) to import your CSVs.
+        </p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          installer · apps/desktop/release/Cursor Usage-Setup-*.exe
+        </p>
+      </main>
+    </PageChrome>
+  );
+}
+
+/**
+ * Shared header / footer / background gradient. Desktop is now the
+ * only supported runtime, so the variant prop is gone — the brand
+ * strip always shows the desktop / sqlite badge.
+ */
+function PageChrome({ children }: { children: React.ReactNode }) {
   const { mode, resolved, toggle } = useTheme();
   const brand = useBrand();
   const { brands, setBrandById } = useBrandSwitcher();
@@ -380,7 +280,7 @@ function PageChrome({
           <div className="flex items-baseline gap-2">
             <span className="font-serif text-[17px] tracking-tight">{brand.name}</span>
             <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-              {variant === 'desktop' ? 'v1.0 · desktop · sqlite' : 'v0.9 · monthly budget'}
+              v1.0 · desktop · sqlite
             </span>
           </div>
         </div>
@@ -432,9 +332,7 @@ function PageChrome({
       <footer className="mx-auto max-w-[1280px] px-6 pt-4 pb-10">
         <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4 text-[11px] text-[var(--color-text-subtle)]">
           <span className="font-mono uppercase tracking-[0.08em]">
-            {variant === 'desktop'
-              ? 'cursor-usage-viz · desktop · sqlite persistence'
-              : 'cursor-usage-viz · monthly budget / persistence / hours filter'}
+            cursor-usage-viz · desktop · sqlite persistence
           </span>
           <span>Pricing source: cursor.com/docs/models-and-pricing</span>
         </div>
@@ -444,10 +342,9 @@ function PageChrome({
 }
 
 /**
- * Empty-state hero — used by both web and desktop when there's no
- * data on disk yet. Same dropzone, same KPI preview, only the storage
- * badge text differs ("IndexedDB" vs "cursor-usage.db") so the user
- * knows what platform they're on.
+ * Empty-state hero — shown when there's no data in the DB yet. Same
+ * dropzone as in the desktop app, with a desktop-specific storage
+ * badge so the user knows the import lands in `cursor-usage.db`.
  */
 function WelcomeHero({
   parsing,
@@ -457,7 +354,6 @@ function WelcomeHero({
   onDrop,
   errMsg,
   onReset,
-  storageBadge,
 }: {
   parsing: boolean;
   dragActive: boolean;
@@ -466,7 +362,6 @@ function WelcomeHero({
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
   errMsg: string | null;
   onReset: () => void;
-  storageBadge: string;
 }) {
   return (
     <>
@@ -536,7 +431,7 @@ function WelcomeHero({
             {parsing ? 'Parsing…' : 'Choose CSV'}
           </Button>
           <div className="mt-4 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Storage · {storageBadge}
+            Storage · desktop · cursor-usage.db
           </div>
           {errMsg && (
             <motion.div
@@ -559,7 +454,7 @@ function WelcomeHero({
                 />
                 <div className="flex flex-col gap-1">
                   <span className="font-serif text-[14px] leading-tight text-[var(--color-destructive)]">
-                    Couldn’t parse that CSV
+                    Couldn't parse that CSV
                   </span>
                   <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
                     {errMsg}

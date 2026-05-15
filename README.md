@@ -102,11 +102,14 @@ cursor_usage/
 │           │   ├── SectionHeader    通用 section 头
 │           │   └── Panel            通用 card + MetricToggle
 │           ├── pages/
-│           │   └── WelcomePage      Boot 时检查 IndexedDB，有则直接 hydrate；没有 → hero + dropzone
+│           │   └── WelcomePage      Boot 时 hydrate cursor-usage.db（有数据 → 看板；没有 → hero + dropzone）
 │           ├── hooks/
-│           │   └── useCsvIngest     idle/parsing/success/error 状态机 + appendFile dedup + hydrate / clear
-│           ├── storage/
-│           │   └── persistence      idb-keyval session store + describeLastUpdate
+│           │   └── useDesktopIngest preview/confirm/undo 状态机（IPC → better-sqlite3）
+│           ├── electron/
+│           │   ├── bridge           contextBridge（window.bridge.db / paths）
+│           │   └── desktopStorage   渲染端 thin wrapper（importRows / preview / undo / counts）
+│           ├── utils/
+│           │   └── relativeTime     describeLastUpdate（just now / 1 hour ago / yesterday …）
 │           └── router/
 │               └── useRoute         30 行 hash-based router（0 依赖）
 │           └── components/
@@ -126,14 +129,12 @@ cursor_usage/
 │               └── CompareRangesPanel  Overview 的「last Nd vs prior Nd」对比卡片
 ├── input/                           把你的 usage-events-*.csv 放这里（不入 git）
 └── scripts/
-    ├── e2e-pr3.mjs                  Playwright 截图脚本 · charts 库
-    ├── e2e-pr4.mjs                  Playwright · 概览页
-    ├── e2e-pr5.mjs                  Playwright · 4 路由
-    ├── e2e-pr10.mjs                 Playwright · 自动恢复 / 日期筛选器 / responsive heatmap
-    ├── e2e-pr12.mjs                 Playwright · KpiCard hover / Details polish / Monthly v2
-    ├── e2e-pr13.mjs                 Playwright · Models 表格 / Hours 日历 + bars + selection 明细
-    ├── e2e-pr14.mjs                 Playwright · Compare ranges / Export PNG / 错误 UX / Clear filters
-    └── desktop-smoke.mjs            Playwright._electron · 启动桌面 app + 截 splash + 截主窗口
+    ├── _archive/                    PR2–PR14 web-mode e2e（PR20 退役 IDB 后失效，仅作历史参考）
+    ├── desktop-smoke.mjs            Playwright._electron · 启动桌面 app + 截 splash + 截主窗口
+    ├── desktop-ui-smoke.mjs         Playwright._electron · boot + IPC bridge call
+    ├── desktop-db-smoke.mjs         Playwright._electron · better-sqlite3 round-trip
+    ├── desktop-year-smoke.mjs       Playwright._electron · Year-in-review + 跨月趋势
+    └── desktop-installer-smoke.mjs  Playwright._electron · 打包后 .exe 启动 + IPC 持久化验证
 ```
 
 ## v1.0 Desktop（Electron 40，开发中）
@@ -241,6 +242,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR17** | **v1.0 Desktop · 拖入式导入 + 合并预览 + 历史 / undo UI**：渲染器侧 `electron/{bridge,types,desktopStorage}` 三件套（typed bridge accessor + Web Crypto SHA-256 + Date 自动 rehydrate）· 新 hook `useDesktopIngest`（idle → parsing → preview → committing → success 状态机 · 全程不写 IDB）· 桌面模式自动检测（`isDesktop()`）下分别走 `useDesktopIngest`（DB）与原 `useCsvIngest`（IDB）· `ImportPreviewDrawer` 右滑抽屉（三态：duplicate file / no new rows / would-add KPI + new date range，commit 前可 cancel）· `ImportHistoryDrawer` 列出全部 batch + per-batch 两步 undo 确认 + cascade 删除文案 · `FileToolbar` 注入 `desktopActions` 后切换为 IMPORT / HISTORY / REDACTED 三按钮 · 全局窗口 drop 监听（拖到 dashboard 任意位置都能开预览）· 渲染器永不直接 import @cu/storage（避开 better-sqlite3 在 browser bundler 里炸）· `UsageDb.previewImport`（SAVEPOINT + ROLLBACK 干跑）+ `UsageDb.allRowsCosted`（重建 RowWithCost 给 renderer 用）· 14/14 vitest 单测全绿（+3）· `scripts/desktop-db-smoke.mjs` 扩到 25 条断言全绿（+7）· `scripts/desktop-ui-smoke.mjs` 5 张截图全过（dashboard / 历史 / undo 确认 / 预览抽屉 / 导入后 dashboard） | ✅ |
 | **PR18** | **v1.0 Desktop · Year-in-review + 跨月趋势**：新增第五个路由 `#year`（`useRoute`/`NavTabs` 都加进去）· `YearReviewPage` 组合两个面板：① **YearReviewPanel**——年选择 chip（自动列出所有有数据的年份）+ 6 张年级 KPI（YEAR SPEND / REQUESTS / TOP MODEL + share-of-year / CACHE SAVINGS + 全局 hit ratio / MOST EXPENSIVE DAY / LONGEST STREAK + 日期范围）+ 12-month 成本 bar chart（current month 高亮 accent · framer-motion height 进场）+ Quarter-over-quarter 4 卡（QoQ delta 三态着色）· ② **CrossMonthTrendsPanel**——last-90d 的 rolling-30d cost Sparkline（peak / latest 标注）+ last-month overview 卡（MoM delta pill）+ top-5 model MoM table（按 |Δ$| 排序 · this/prev cost · Δ$ tabular-nums · Δ% pill · 12-month per-model sparkline）+ empty-state 文案（不足两月时）· `computeYearReview` / `computeCrossMonth` 纯函数（O(n) 单次遍历 + Map 聚合，10k 行 <5ms）· `install-natives` 增加 canonical-version 检测（pnpm 留下的 orphan 版本只 warn 不 fail）· `scripts/desktop-year-smoke.mjs`（14 月跨年 seed → Year tab → 4 截图：当年 / 切年 / 跨月趋势 / fullPage）4 张截图全过 · biome + 125/125 tests + 全 typecheck 全绿 | ✅ |
 | **PR19** | **v1.0 Desktop · Windows NSIS installer**：新 `apps/desktop/scripts/package.mts` 5 步打包流（clean → build → `pnpm deploy --prod` → 把 dist + renderer 拷进 deploy dir + 注入 electronVersion → 跑 electron-builder + 把 artifact 拷回 `apps/desktop/release/`）· 解决 pnpm isolated linker × electron-builder 的根本症结——之前 `node_modules/@cu/storage` 的 junction 指向 `packages/storage`，asar packer 走到 turbo / 源码后崩溃；现在 deploy 在 `_temp/desktop-pack/` 做一份自包含 prod 树，所有 junction 都指回 deploy 内部 · electron-builder 自动调 `@electron/rebuild` 跑 install-app-deps（不再需要手动 `install-natives` for 打包），better-sqlite3 自动按 Electron 40 ABI 重建并 unpack 到 `app.asar.unpacked/` · `electron-builder.yml` 增加 noise exclusions（`.turbo` / `src` / 测试 / 配置）· 新 scripts `package:dir` / `package:win` · `scripts/desktop-installer-smoke.mjs` 跑打出来的 `Cursor Usage.exe` 验证 IPC + SQLite + 渲染 + 重启后 hydrate（2 张截图：onboarding / 重启后 dashboard）· biome 忽略 `release/` + `_temp/` · 产物：`Cursor Usage-Setup-1.0.0-x64.exe`（96 MB · NSIS · 可选安装路径 · 桌面 / 开始菜单快捷方式） | ✅ |
+| **PR20** | **v1.0 Desktop · 全功能审计 + 精简（P9 / P10 / P11 + dev fix）**：① **P11 · YearReview 缓存节省正确性**——`computeYearReview` 现在 filter rows by year 后调 `calcCacheSavings(yearRows)`（之前是 `cacheReadTokens / 750 * $1.5` 粗算 + 借用全局 `cacheHitStats.hitRatio`，跨年统计会偏高），新增 `cacheHitRatio` 字段、KPI 文案换成年限定的 hit ratio · ② **P9 · OverviewPage 拆三**——单文件 ~700 行的 `OverviewPage` 拆成 `overview/OverviewKpiHero`（4 张顶部 KPI + 30d projection 计算）+ `overview/OverviewActivity`（heatmap / week×hour / token mix / treemap / small multiples）+ `overview/OverviewBurns`（Top 5 burn + sonnet equivalence + burnCaption 辅助函数），`OverviewPage` 收敛成纯 layout shell（~50 行）· ③ **P10 · 退役 web mode**——删除 `hooks/useCsvIngest.ts`（341 行 IDB 状态机）/ `storage/persistence.ts`（idb-keyval session store）/ `components/IngestDiffBanner.tsx`（IDB 差异 banner），抽出 `utils/relativeTime.ts` 保留 `describeLastUpdate` · `WelcomePage` 简化为 `Desktop / NonDesktopNotice` 二分（非 Electron 环境弹"请在桌面 app 中打开"提示）· `FileToolbar` 删掉 web 分支（合并 / re-upload / clear button + 确认弹窗），`desktopActions` 变必填 · `DashboardShell` 砍掉 `diff` / `IngestDiffBanner` / `onReupload` / `onMergeAnother` / `onClearStorage` props · 删除 `idb-keyval` 依赖 · `scripts/_archive/` 归档 PR2–PR14 web e2e（7 个文件） · ④ **dev fix · 端口冲突**——`apps/desktop/scripts/dev.mts` 用 `node:net.createServer` 双探 IPv4 + IPv6（Windows 上 vite 监听 `::1`，旧版只探 `127.0.0.1` 会漏检），busy 时自动选随机空闲端口并通过 `PORT` env + `RENDERER_DEV_URL` 传给 vite / Electron · 全 typecheck + 125/125 tests + biome 全绿 | ✅ |
 
 ## 技术栈
 

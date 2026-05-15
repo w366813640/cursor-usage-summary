@@ -13,15 +13,10 @@ import {
 import type { BatchSummary, PreviewResult } from '../electron/types';
 
 /**
- * Desktop-only counterpart to `useCsvIngest`.
+ * Desktop ingest state machine — the sole renderer-side data path
+ * after PR20 retired the web (IndexedDB) variant.
  *
- * Web path (idb-keyval) and desktop path (better-sqlite3 via IPC) are
- * deliberately *separate* hooks so each one stays simple — branching
- * inside a shared hook proved brittle when we tried it. Both expose
- * a compatible `success` state so the consuming page can render the
- * same `<DashboardShell />` either way.
- *
- * State machine (desktop):
+ * State machine:
  *
  *   idle
  *     ↳ parsing(file)

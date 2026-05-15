@@ -2,7 +2,7 @@ import { Clock, FileSpreadsheet, History, Loader2, Trash2, X } from '@cu/icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import type { BatchSummary } from '../electron/types';
-import { describeLastUpdate } from '../storage/persistence';
+import { describeLastUpdate } from '../utils/relativeTime';
 
 interface ImportHistoryDrawerProps {
   open: boolean;

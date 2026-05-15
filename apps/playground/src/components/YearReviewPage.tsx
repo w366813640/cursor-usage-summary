@@ -1,5 +1,5 @@
 import { Sparkline, fmtUSD, fmtUSDCompact } from '@cu/charts';
-import type { RowWithCost, UsageSummary } from '@cu/data';
+import type { RowWithCost } from '@cu/data';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -10,12 +10,12 @@ import {
   TrendingUp,
   Zap,
 } from '@cu/icons';
+import { calcCacheSavings } from '@cu/pricing';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Panel } from './Panel';
 
 interface YearReviewPageProps {
-  summary: UsageSummary;
   rows: ReadonlyArray<RowWithCost>;
 }
 
@@ -33,7 +33,7 @@ interface YearReviewPageProps {
  *      days. Helps the user see whether they're accelerating or
  *      decelerating per model, with one row per model.
  */
-export function YearReviewPage({ summary, rows }: YearReviewPageProps) {
+export function YearReviewPage({ rows }: YearReviewPageProps) {
   const availableYears = useMemo(() => {
     const set = new Set<number>();
     for (const r of rows) set.add(new Date(r.dateISO).getUTCFullYear());
@@ -49,7 +49,6 @@ export function YearReviewPage({ summary, rows }: YearReviewPageProps) {
         availableYears={availableYears}
         onSelectYear={setSelectedYear}
         rows={rows}
-        summary={summary}
       />
       <CrossMonthTrendsPanel rows={rows} />
     </div>
@@ -65,23 +64,16 @@ interface YearReviewPanelProps {
   availableYears: ReadonlyArray<number>;
   onSelectYear: (y: number) => void;
   rows: ReadonlyArray<RowWithCost>;
-  summary: UsageSummary;
 }
 
 /**
  * Year-bounded roll-up. Filters `rows` to the chosen calendar year
  * client-side (cheap; even 100k rows scans in ms), then derives the
- * KPIs from there. Uses the global `summary` only as a reference
- * point for the "cache savings rate" calc which already aggregates
- * across the whole dataset.
+ * KPIs from there — including the cache-savings replay, which now
+ * runs `calcCacheSavings` on the year-bounded slice so the number is
+ * consistent with the global Overview cache card.
  */
-function YearReviewPanel({
-  year,
-  availableYears,
-  onSelectYear,
-  rows,
-  summary,
-}: YearReviewPanelProps) {
+function YearReviewPanel({ year, availableYears, onSelectYear, rows }: YearReviewPanelProps) {
   const review = useMemo(() => computeYearReview(rows, year), [rows, year]);
 
   return (
@@ -121,7 +113,7 @@ function YearReviewPanel({
           icon={<TrendingDown size={12} aria-hidden="true" />}
           label="Cache savings"
           value={fmtUSDCompact(review.cacheSavings)}
-          sub={`${(summary.cacheHitStats.hitRatio * 100).toFixed(0)}% hit ratio (global)`}
+          sub={`${(review.cacheHitRatio * 100).toFixed(0)}% hit ratio · ${year}`}
         />
         <YearKpi
           icon={<Calendar size={12} aria-hidden="true" />}
@@ -158,6 +150,7 @@ interface YearReview {
   totalRequests: number;
   totalTokens: number;
   cacheSavings: number;
+  cacheHitRatio: number;
   activeDays: number;
   longestStreak: number;
   longestStreakRange: string | null;
@@ -168,26 +161,23 @@ interface YearReview {
 }
 
 function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): YearReview {
+  // Year-bound the rowset once, then run the real cache-savings replay
+  // on the year-bounded slice — calcCacheSavings re-runs the per-model
+  // pricing engine so we get a number consistent with the global panel
+  // instead of a hand-rolled "0.9 × $3/Mtok" guess.
+  const yearRows = rows.filter((r) => new Date(r.dateISO).getUTCFullYear() === year);
+
   let totalCost = 0;
   let totalRequests = 0;
   let totalTokens = 0;
-  let cacheReadTokens = 0;
-  // Same pricing rule the global cacheSavings calc uses: assume cache
-  // reads cost ~1/10 of a fresh input token, so savings = 0.9 × reads.
-  // We approximate without re-running the pricing engine because the
-  // big number is meant to be illustrative ("you'd have paid more").
   const peakByDay = new Map<string, number>();
   const costByModel = new Map<string, number>();
   const costByMonth = new Map<string, number>();
 
-  for (const r of rows) {
-    const d = new Date(r.dateISO);
-    if (d.getUTCFullYear() !== year) continue;
-
+  for (const r of yearRows) {
     totalCost += r.cost;
     totalRequests += r.requests.kind === 'units' ? r.requests.value : 0;
     totalTokens += r.tokens.total;
-    cacheReadTokens += r.tokens.cacheRead;
 
     const day = r.dateISO.slice(0, 10);
     peakByDay.set(day, (peakByDay.get(day) ?? 0) + r.cost);
@@ -256,12 +246,17 @@ function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): Year
     quarters.push({ label: `Q${q + 1}`, cost: qCost });
   }
 
+  // Real year-bound cache savings — same engine the global Overview cache
+  // card uses, just fed a year-bounded slice instead of every row.
+  const cacheStats = calcCacheSavings(yearRows);
+
   return {
     year,
     totalCost,
     totalRequests,
     totalTokens,
-    cacheSavings: cacheReadTokens * 0.9e-6 * 3, // very rough $/Mtok estimate
+    cacheSavings: cacheStats.savings,
+    cacheHitRatio: cacheStats.hitRatio,
     activeDays: peakByDay.size,
     longestStreak: longest,
     longestStreakRange:
