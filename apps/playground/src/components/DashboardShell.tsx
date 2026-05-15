@@ -9,6 +9,7 @@ import { IngestDiffBanner } from './IngestDiffBanner';
 import { ModelsPage } from './ModelsPage';
 import { NavTabs } from './NavTabs';
 import { OverviewPage } from './OverviewPage';
+import { YearReviewPage } from './YearReviewPage';
 
 interface DashboardShellProps {
   summary: UsageSummary;
@@ -87,6 +88,7 @@ export function DashboardShell({
           transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
         >
           {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
+          {route === 'year' ? <YearReviewPage summary={summary} rows={rows} /> : null}
           {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
           {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
           {route === 'hours' ? <HoursPage summary={summary} rows={rows} /> : null}

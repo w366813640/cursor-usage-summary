@@ -98,14 +98,53 @@ const runtime = parseRuntime(process.argv.slice(2));
 const target = runtime === 'electron' ? getElectronVersion() : process.versions.node;
 console.log(`[install-natives] runtime=${runtime} target=${target}`);
 
+/**
+ * Returns the resolved version of `packageName` as declared in our own
+ * workspace's package.json files (apps/* and packages/*). We use this
+ * to decide which pnpm-store copy is the "canonical" one — anything else
+ * is an orphan (e.g. a transitive dep from an earlier install that pnpm
+ * left around). Orphans don't always have prebuilds for the runtime we
+ * care about, so treat their failures as soft warnings instead of hard
+ * errors.
+ */
+function getCanonicalVersions(packageName: string): Set<string> {
+  const out = new Set<string>();
+  const tryRead = (pkgPath: string) => {
+    if (!existsSync(pkgPath)) return;
+    const pkg = readJson(pkgPath) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const v = pkg.dependencies?.[packageName] ?? pkg.devDependencies?.[packageName];
+    if (v) {
+      // Strip range specifiers (^/~/>=) — pnpm names dirs by exact version.
+      out.add(v.replace(/^[^\d]*/, ''));
+    }
+  };
+  for (const sub of ['apps', 'packages']) {
+    const base = path.join(repoRoot, sub);
+    if (!existsSync(base)) continue;
+    for (const entry of readdirSync(base)) {
+      tryRead(path.join(base, entry, 'package.json'));
+    }
+  }
+  return out;
+}
+
 for (const dep of NATIVE_DEPS) {
   const dirs = findPnpmStores(dep.name);
   if (dirs.length === 0) {
     console.warn(`[install-natives] ${dep.name} not in node_modules/.pnpm — skipping`);
     continue;
   }
+  const canonical = getCanonicalVersions(dep.name);
   for (const dir of dirs) {
-    console.log(`[install-natives] ${dep.name} @ ${dir}`);
+    // dir = .../.pnpm/<name>@<version>/node_modules/<name>; extract the version.
+    const segment = path.basename(path.resolve(dir, '../..'));
+    const version = segment.startsWith(`${dep.name}@`) ? segment.slice(dep.name.length + 1) : '';
+    const isCanonical = canonical.has(version);
+    const label = isCanonical ? '' : ' [orphan]';
+    console.log(`[install-natives] ${dep.name}@${version}${label} @ ${dir}`);
     try {
       execSync(
         `npx prebuild-install --runtime=${runtime} --target=${target} --tag-prefix=${dep.tagPrefix}`,
@@ -115,11 +154,16 @@ for (const dep of NATIVE_DEPS) {
           shell: process.platform === 'win32' ? 'powershell' : '/bin/sh',
         },
       );
-      const out = path.join(dir, 'build', 'Release');
-      console.log(`[install-natives] ${dep.name} → ${out}`);
+      const outDir = path.join(dir, 'build', 'Release');
+      console.log(`[install-natives] ${dep.name}@${version} → ${outDir}`);
     } catch (err) {
-      console.error(`[install-natives] ${dep.name} (${dir}) failed:`, (err as Error).message);
-      process.exitCode = 1;
+      const msg = (err as Error).message;
+      if (isCanonical) {
+        console.error(`[install-natives] ${dep.name}@${version} failed:`, msg);
+        process.exitCode = 1;
+      } else {
+        console.warn(`[install-natives] ${dep.name}@${version} (orphan) skipped:`, msg);
+      }
     }
   }
 }

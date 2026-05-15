@@ -11,9 +11,15 @@ import { useCallback, useEffect, useState } from 'react';
  *
  * Anything else (including no hash at all) resolves to `defaultRoute`.
  */
-export type AppRoute = 'overview' | 'models' | 'details' | 'hours';
+export type AppRoute = 'overview' | 'models' | 'details' | 'hours' | 'year';
 
-export const ALL_ROUTES: ReadonlyArray<AppRoute> = ['overview', 'models', 'details', 'hours'];
+export const ALL_ROUTES: ReadonlyArray<AppRoute> = [
+  'overview',
+  'year',
+  'models',
+  'details',
+  'hours',
+];
 
 function parseHash(hash: string, fallback: AppRoute): AppRoute {
   const trimmed = hash.replace(/^#\/?/, '');

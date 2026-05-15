@@ -3,6 +3,7 @@ import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
 
 const LABELS: Record<AppRoute, string> = {
   overview: 'Overview',
+  year: 'Year',
   models: 'Models',
   details: 'Details',
   hours: 'Hours',
@@ -10,6 +11,7 @@ const LABELS: Record<AppRoute, string> = {
 
 const TAB_HINTS: Record<AppRoute, string> = {
   overview: 'Hero KPIs · activity rhythm · top burns',
+  year: 'Year-in-review · 12-month roll-up · cross-month trends',
   models: 'Per-model drill-down · cost / share / cache hit',
   details: 'Full request log · filterable, sortable, paginated',
   hours: 'When did the money burn · 24h × 7d patterns + filters',

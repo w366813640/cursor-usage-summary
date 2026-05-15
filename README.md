@@ -139,8 +139,8 @@ cursor_usage/
 ## v1.0 Desktop（Electron 40，开发中）
 
 从 v0.9 web app 升级成 Claude-Desktop-同代的 Windows / macOS / Linux 桌面应用。
-脚手架（PR15）+ SQLite 持久化（PR16）+ 拖入式导入 UI（PR17）已经着陆，
-打包成 installer 会在 PR19 跟上。
+脚手架（PR15）+ SQLite 持久化（PR16）+ 拖入式导入 UI（PR17）
++ Year-in-review / 跨月趋势（PR18）已经着陆，打包成 installer 会在 PR19 跟上。
 
 ```bash
 pnpm desktop:install-natives   # 一次：把 better-sqlite3 prebuild 切到 Electron flavor
@@ -150,6 +150,7 @@ pnpm desktop:package           # 出 .exe / .dmg / .AppImage（取决于当前 O
 node scripts/desktop-smoke.mjs       # Playwright._electron 启动 + 截图烟测
 node scripts/desktop-db-smoke.mjs    # PR16 · 数据库 IPC e2e（import / dedupe / undo / 重启）
 node scripts/desktop-ui-smoke.mjs    # PR17 · 桌面 UI 流程（dashboard / 历史抽屉 / 预览抽屉）
+node scripts/desktop-year-smoke.mjs  # PR18 · Year route（当年 / 切年 / 跨月趋势 / 全页）
 ```
 
 - Electron 40.10.0 + electron-builder 25 + electron-updater 6.3
@@ -229,6 +230,7 @@ React state → KpiCard / Heatmap / Treemap / ...
 | **PR15** | **v1.0 Desktop · Electron 脚手架**：`apps/desktop` 整套（main.ts / preload.ts / splash.ts / updater.ts / dev orchestrator / electron-builder.yml）· Electron 40.10 + electron-builder 25 · 隐藏标题栏 + Windows titleBarOverlay · AppUserModelID `com.cursorusage.desktop` · branded 五条 bar splash window · preload bridge（window / theme / app）· `pnpm desktop:dev` 端到端能跑 · `scripts/desktop-smoke.mjs` Playwright._electron 烟测 | ✅ |
 | **PR16** | **v1.0 Desktop · SQLite 持久化**：新包 `@cu/storage`（schema + `UsageDb` + 11 个 vitest 单测，全部 `:memory:` SQLite）· `better-sqlite3 12.10` 主进程驻留 · 双层去重（`import_batches.file_sha256` UNIQUE + `rows` 12 列复合主键 + `INSERT OR IGNORE`）· `ON DELETE CASCADE` 撤销单次导入 · 6 个 prepared query（counts / byDay / byMonth / byModel / byHourWeekday / topBurns）· IPC `bridge.db.{counts, importRows, listBatches, undoBatch, query}`（contextBridge + 白名单）· `install-natives` 脚本一键切 Electron / Node prebuild · `scripts/desktop-db-smoke.mjs` Playwright._electron e2e（import → dedupe → 重启 → 数据还在 → undo → 都没了，18 条断言全绿） | ✅ |
 | **PR17** | **v1.0 Desktop · 拖入式导入 + 合并预览 + 历史 / undo UI**：渲染器侧 `electron/{bridge,types,desktopStorage}` 三件套（typed bridge accessor + Web Crypto SHA-256 + Date 自动 rehydrate）· 新 hook `useDesktopIngest`（idle → parsing → preview → committing → success 状态机 · 全程不写 IDB）· 桌面模式自动检测（`isDesktop()`）下分别走 `useDesktopIngest`（DB）与原 `useCsvIngest`（IDB）· `ImportPreviewDrawer` 右滑抽屉（三态：duplicate file / no new rows / would-add KPI + new date range，commit 前可 cancel）· `ImportHistoryDrawer` 列出全部 batch + per-batch 两步 undo 确认 + cascade 删除文案 · `FileToolbar` 注入 `desktopActions` 后切换为 IMPORT / HISTORY / REDACTED 三按钮 · 全局窗口 drop 监听（拖到 dashboard 任意位置都能开预览）· 渲染器永不直接 import @cu/storage（避开 better-sqlite3 在 browser bundler 里炸）· `UsageDb.previewImport`（SAVEPOINT + ROLLBACK 干跑）+ `UsageDb.allRowsCosted`（重建 RowWithCost 给 renderer 用）· 14/14 vitest 单测全绿（+3）· `scripts/desktop-db-smoke.mjs` 扩到 25 条断言全绿（+7）· `scripts/desktop-ui-smoke.mjs` 5 张截图全过（dashboard / 历史 / undo 确认 / 预览抽屉 / 导入后 dashboard） | ✅ |
+| **PR18** | **v1.0 Desktop · Year-in-review + 跨月趋势**：新增第五个路由 `#year`（`useRoute`/`NavTabs` 都加进去）· `YearReviewPage` 组合两个面板：① **YearReviewPanel**——年选择 chip（自动列出所有有数据的年份）+ 6 张年级 KPI（YEAR SPEND / REQUESTS / TOP MODEL + share-of-year / CACHE SAVINGS + 全局 hit ratio / MOST EXPENSIVE DAY / LONGEST STREAK + 日期范围）+ 12-month 成本 bar chart（current month 高亮 accent · framer-motion height 进场）+ Quarter-over-quarter 4 卡（QoQ delta 三态着色）· ② **CrossMonthTrendsPanel**——last-90d 的 rolling-30d cost Sparkline（peak / latest 标注）+ last-month overview 卡（MoM delta pill）+ top-5 model MoM table（按 |Δ$| 排序 · this/prev cost · Δ$ tabular-nums · Δ% pill · 12-month per-model sparkline）+ empty-state 文案（不足两月时）· `computeYearReview` / `computeCrossMonth` 纯函数（O(n) 单次遍历 + Map 聚合，10k 行 <5ms）· `install-natives` 增加 canonical-version 检测（pnpm 留下的 orphan 版本只 warn 不 fail）· `scripts/desktop-year-smoke.mjs`（14 月跨年 seed → Year tab → 4 截图：当年 / 切年 / 跨月趋势 / fullPage）4 张截图全过 · biome + 125/125 tests + 全 typecheck 全绿 | ✅ |
 
 ## 技术栈
 
