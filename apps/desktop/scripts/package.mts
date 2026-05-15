@@ -36,8 +36,19 @@ import { fileURLToPath } from 'node:url';
  *   6. Move artifacts back to `apps/desktop/release/`
  *
  * Flags:
- *   --dir   Build an unpacked folder (fast smoke); skips installer
- *   --win   Force Windows target (default: current OS)
+ *   --dir     Build an unpacked folder (fast smoke); skips installer
+ *   --win     Force Windows target (NSIS installer; default: current OS)
+ *   --mac     Force macOS target (.dmg, x64 + arm64)
+ *   --linux   Force Linux target (.AppImage x64)
+ *
+ * Cross-OS notes:
+ *   - macOS builds require running on macOS for code signing + notarisation.
+ *     This script will *attempt* unsigned builds when invoked from
+ *     Windows/Linux (electron-builder downloads a stub), useful for
+ *     smoke-testing the YAML config but not shippable.
+ *   - Linux builds run from any host that has fuse + AppImageTool deps.
+ *   - For real release artifacts use the matching CI runner OS per
+ *     target (typically macos-latest / ubuntu-latest / windows-latest).
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,6 +61,8 @@ const releaseDst = path.join(desktopRoot, 'release');
 const argv = process.argv.slice(2);
 const dirOnly = argv.includes('--dir');
 const forceWin = argv.includes('--win');
+const forceMac = argv.includes('--mac');
+const forceLinux = argv.includes('--linux');
 
 function step(label: string) {
   process.stdout.write(`\n\u001b[36m▶ ${label}\u001b[0m\n`);
@@ -144,6 +157,8 @@ step('5/5 · electron-builder');
 const builderArgs: string[] = [];
 if (dirOnly) builderArgs.push('--dir');
 if (forceWin) builderArgs.push('--win');
+if (forceMac) builderArgs.push('--mac');
+if (forceLinux) builderArgs.push('--linux');
 const builderCmd = `electron-builder ${builderArgs.join(' ')}`.trim();
 
 // electron-builder needs to be invoked from a directory that has its

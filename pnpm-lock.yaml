@@ -45,6 +45,9 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.19
+      '@vitest/expect':
+        specifier: ^2.1.8
+        version: 2.1.9
       electron:
         specifier: ^40.0.0
         version: 40.10.0
@@ -60,6 +63,9 @@ importers:
       typescript:
         specifier: 5.6.3
         version: 5.6.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(lightningcss@1.32.0)
 
   apps/playground:
     dependencies:

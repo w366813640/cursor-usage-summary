@@ -59,17 +59,70 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Cursor Usage
 
-# Disable auto-update publishing by default. Set CU_AUTO_UPDATE=1 +
-# configure a publish provider (github / s3 / generic) to enable signed
-# releases.
-publish: null
-
 mac:
   target:
-    - dmg
+    - target: dmg
+      arch:
+        - x64
+        - arm64
   category: public.app-category.developer-tools
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # macOS gatekeeper rejects unsigned binaries on first launch; ship
+  # `hardenedRuntime: true` + a Developer ID when you have one.
+  # hardenedRuntime: true
+  # gatekeeperAssess: false
+  # entitlements: build-resources/entitlements.mac.plist
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.dmg
+  # Two-column layout: app icon on the left, /Applications shortcut on
+  # the right — the conventional "drag to install" pattern.
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
 
 linux:
   target:
-    - AppImage
+    - target: AppImage
+      arch:
+        - x64
   category: Utility
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # Linux .desktop entry. AppImage extracts and registers this on first
+  # run via the integration prompt.
+  desktop:
+    Name: Cursor Usage
+    Comment: Desktop dashboard for your Cursor IDE usage history
+    Categories: Utility;Development
+
+# ─── Auto-update publish channel ──────────────────────────────────────
+# Disabled by default — auto-update only runs when:
+#
+#   1. The app is `app.isPackaged` (so dev sessions never auto-check), AND
+#   2. `CU_AUTO_UPDATE=1` is set in the user's environment, AND
+#   3. `publish` below is configured with a real provider.
+#
+# To turn it on, replace `publish: null` with one of:
+#
+#   publish:
+#     provider: github
+#     owner: <your-gh-user-or-org>
+#     repo: cursor-usage-viz
+#     # GH_TOKEN must be exported when running `pnpm desktop:package`.
+#
+#   publish:
+#     provider: generic
+#     url: https://updates.example.com/cursor-usage/${channel}
+#     channel: latest
+#     # The build emits latest.yml / latest-mac.yml / latest-linux.yml
+#     # alongside the installer; host them at `url` and the autoUpdater
+#     # in `src/updater.ts` will pull them on launch.
+#
+# At runtime, `CU_UPDATE_FEED_URL` overrides whatever's baked in here,
+# so a CI build can produce an installer that points at a per-environment
+# update server without rebuilding.
+publish: null

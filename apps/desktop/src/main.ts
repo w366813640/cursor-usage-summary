@@ -1,9 +1,11 @@
 import path from 'node:path';
 import { BrowserWindow, app, ipcMain, nativeTheme, shell } from 'electron';
 import { closeDb, registerDbIpc } from './db';
+import { registerBudgetIpc, resetBudgetGuard } from './notifications';
 import { getSettingsPath, readSettings, writeSettings } from './settingsStore';
 import { type SplashHandle, showSplash } from './splash';
-import { maybeRegisterAutoUpdater } from './updater';
+import { destroyTray, ensureTray } from './tray';
+import { maybeRegisterAutoUpdater, registerUpdateIpc } from './updater';
 
 const isDev = !app.isPackaged;
 const RENDERER_DEV_URL = process.env.RENDERER_DEV_URL ?? 'http://localhost:5173';
@@ -133,12 +135,26 @@ if (process.platform === 'win32') {
 app.whenReady().then(() => {
   registerIpc();
   registerDbIpc();
+  registerUpdateIpc();
+  registerBudgetIpc(() => mainWindow);
+  resetBudgetGuard();
   // Show the splash first so the user gets immediate visual feedback
   // while the renderer's bundle parses; createWindow opens the main
   // window hidden and surfaces it once it's painted.
   splash = showSplash();
   createWindow();
-  void maybeRegisterAutoUpdater();
+  void maybeRegisterAutoUpdater(() => mainWindow);
+  // Tray sits in the system menu/notification area so the user can
+  // peek "where am I on my budget?" without restoring the window.
+  // Disabled with `CU_NO_TRAY=1` for headless smoke tests where a
+  // floating tray icon adds nothing but noise.
+  if (process.env.CU_NO_TRAY !== '1') {
+    try {
+      ensureTray(() => mainWindow);
+    } catch (err) {
+      console.warn('[tray] failed to create tray icon:', err);
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -175,4 +191,5 @@ app.on('window-all-closed', () => {
 // cleanly so the user's usage history is never half-written on shutdown.
 app.on('before-quit', () => {
   closeDb();
+  destroyTray();
 });

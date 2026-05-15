@@ -1,5 +1,6 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useRoute } from '../router/useRoute';
 import { AgentsPage } from './AgentsPage';
 import { DetailsPage } from './DetailsPage';
@@ -48,6 +49,11 @@ export function DashboardShell({
   desktopActions,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
+
+  // Keeps the tray label fresh and fires budget-cross toasts. No-op in
+  // web mode (bridge absent) and idempotent — the hook diffs the
+  // payload internally before crossing the IPC boundary.
+  useBudgetReporter({ summary });
 
   return (
     <div className="flex flex-col gap-5">

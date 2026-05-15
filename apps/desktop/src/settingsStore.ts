@@ -120,3 +120,51 @@ export function getSettingsPath(): string {
 export function invalidateCache(): void {
   cached = null;
 }
+
+/**
+ * Budget-notification guard state (PR25). Kept in its own JSON file so
+ * the *user-tunable* settings (`UserSettings` above) stay clean and we
+ * can wipe the notification history independently — e.g. via the
+ * `budget:resetGuard` IPC — without touching budget / currency.
+ */
+
+export interface BudgetState {
+  /** Map from `YYYY-MM` to thresholds already notified (0.8 / 1.0). */
+  thresholdsHit: Record<string, number[]>;
+}
+
+const BUDGET_STATE_FILENAME = 'cursor-usage-budget-state.json';
+
+function budgetStatePath(): string {
+  return path.join(app.getPath('userData'), BUDGET_STATE_FILENAME);
+}
+
+export function readBudgetState(): BudgetState | null {
+  const p = budgetStatePath();
+  if (!existsSync(p)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(p, 'utf-8')) as unknown;
+    const obj = (parsed ?? {}) as Partial<BudgetState>;
+    const hits: Record<string, number[]> = {};
+    if (obj.thresholdsHit && typeof obj.thresholdsHit === 'object') {
+      for (const [key, vals] of Object.entries(obj.thresholdsHit)) {
+        if (!/^\d{4}-\d{2}$/.test(key)) continue;
+        if (!Array.isArray(vals)) continue;
+        hits[key] = vals
+          .filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+          .filter((v) => v === 0.8 || v === 1.0)
+          .sort((a, b) => a - b);
+      }
+    }
+    return { thresholdsHit: hits };
+  } catch {
+    return null;
+  }
+}
+
+export function writeBudgetState(state: BudgetState): void {
+  const p = budgetStatePath();
+  const dir = path.dirname(p);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(p, `${JSON.stringify(state, null, 2)}\n`, 'utf-8');
+}

@@ -296,7 +296,10 @@ try {
   await win.getByText('history', { exact: true }).first().click();
   await win.waitForSelector('text=Import history', { timeout: 5_000 });
   await new Promise((r) => setTimeout(r, 400));
-  await win.getByRole('button', { name: /compare/i }).first().click();
+  await win
+    .getByRole('button', { name: /compare/i })
+    .first()
+    .click();
   await win.waitForSelector('text=Compare batches', { timeout: 5_000 });
   // Wait for the batch stats to finish loading.
   await new Promise((r) => setTimeout(r, 900));
@@ -306,12 +309,68 @@ try {
   });
   log('ui-smoke', '32', 'captured 08-compare-batches.png');
 
+  // PR25 — exercise the new IPC surfaces (budget reporter + update channel).
+  // These don't produce screenshots — they validate that the wiring lands
+  // in the main process at all. Without them an IPC typo would silently
+  // no-op in the renderer's catch handler.
+  log('ui-smoke', '36', 'Exercising budget + update IPC (PR25)...');
+  const ipcProbe = await win.evaluate(async () => {
+    const overReport = await window.bridge.budget.report({
+      monthKey: '2026-05',
+      monthLabel: 'May 2026',
+      spendUSD: 42.18,
+      requestUnits: 600,
+      budgetRequests: 500,
+      projectedRequests: 720,
+    });
+    const noopReport = await window.bridge.budget.report({
+      monthKey: '2026-05',
+      monthLabel: 'May 2026',
+      spendUSD: 42.18,
+      requestUnits: 600,
+      budgetRequests: 500,
+      projectedRequests: 720,
+    });
+    await window.bridge.budget.resetGuard();
+    const guardState = await window.bridge.budget.getGuardState();
+    const updateStatus = await window.bridge.update.status();
+    const updateCheck = await window.bridge.update.check();
+    return { overReport, noopReport, guardState, updateStatus, updateCheck };
+  });
+
+  if (!ipcProbe.overReport?.ok) {
+    throw new Error(`budget:report failed: ${JSON.stringify(ipcProbe.overReport)}`);
+  }
+  if (ipcProbe.noopReport?.fired !== false) {
+    throw new Error(
+      `budget:report should dedupe within a month, got: ${JSON.stringify(ipcProbe.noopReport)}`,
+    );
+  }
+  if (typeof ipcProbe.guardState?.thresholdsHit !== 'object' || !ipcProbe.guardState?.appVersion) {
+    throw new Error(`budget:getGuardState payload missing: ${JSON.stringify(ipcProbe.guardState)}`);
+  }
+  if (ipcProbe.updateStatus?.kind !== 'disabled' || !ipcProbe.updateStatus?.reason) {
+    throw new Error(
+      `update:status should be disabled in dev, got: ${JSON.stringify(ipcProbe.updateStatus)}`,
+    );
+  }
+  if (ipcProbe.updateCheck?.ok !== false) {
+    throw new Error(
+      `update:check should refuse in dev, got: ${JSON.stringify(ipcProbe.updateCheck)}`,
+    );
+  }
+  log(
+    'ui-smoke',
+    '32',
+    `OK · budget IPC fired (${ipcProbe.overReport.threshold}×) + deduped on repeat + update disabled in dev (${ipcProbe.updateStatus.reason})`,
+  );
+
   log('ui-smoke', '36', 'Closing app...');
   await app.close();
   log(
     'ui-smoke',
     '32',
-    'ALL PASS · dashboard + history + settings + forecast + compare-batches captured (8 PNGs)',
+    'ALL PASS · dashboard + history + settings + forecast + compare-batches + PR25 IPC verified (8 PNGs)',
   );
 } catch (err) {
   console.error(err);

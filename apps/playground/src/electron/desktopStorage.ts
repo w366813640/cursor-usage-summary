@@ -3,6 +3,8 @@ import { getBridge } from './bridge';
 import type {
   BatchStats,
   BatchSummary,
+  BudgetReportPayload,
+  BudgetReportResult,
   DbCounts,
   ExportToFileResult,
   ImportBatchInfo,
@@ -10,6 +12,7 @@ import type {
   ImportResult,
   PreviewResult,
   SerializedRowWithCost,
+  UpdateStatus,
   UserSettings,
 } from './types';
 
@@ -115,4 +118,34 @@ export async function getDbPath(): Promise<string> {
 
 export async function revealDbInFolder(): Promise<void> {
   return bridge().db.revealDbInFolder();
+}
+
+/**
+ * Push the current month's budget snapshot to the main process so the
+ * tray label refreshes and a toast can fire if the user just crossed
+ * the 80 % or 100 % threshold. `bridge.budget` is always present in
+ * Electron mode — main no-ops when `budgetRequests <= 0`.
+ */
+export async function reportBudget(payload: BudgetReportPayload): Promise<BudgetReportResult> {
+  return bridge().budget.report(payload);
+}
+
+export async function resetBudgetGuardState(): Promise<{ ok: boolean }> {
+  return bridge().budget.resetGuard();
+}
+
+export async function getUpdateStatus(): Promise<UpdateStatus> {
+  return bridge().update.status();
+}
+
+export async function checkForUpdates(): Promise<{ ok: boolean; reason?: string }> {
+  return bridge().update.check();
+}
+
+export async function installUpdateAndRestart(): Promise<{ ok: boolean; reason?: string }> {
+  return bridge().update.install();
+}
+
+export function onUpdateStatus(cb: (status: UpdateStatus) => void): () => void {
+  return bridge().update.onStatus(cb);
 }

@@ -123,6 +123,49 @@ export interface ImportFromFileResult {
 }
 
 /**
+ * Snapshot of the current month the renderer pushes to the main
+ * process. Main uses it to update the tray label and to decide whether
+ * to fire a budget-cross toast.
+ */
+export interface BudgetReportPayload {
+  /** YYYY-MM. */
+  monthKey: string;
+  /** Human-friendly month label, e.g. "May 2026". */
+  monthLabel: string;
+  /** Cumulative $ spent in the current month. */
+  spendUSD: number;
+  /** Cumulative request units consumed this month. */
+  requestUnits: number;
+  /** Budget cap in request units. 0 disables notifications. */
+  budgetRequests: number;
+  /** Linear end-of-month projection in request units, or null. */
+  projectedRequests: number | null;
+}
+
+export interface BudgetReportResult {
+  ok: boolean;
+  /** True when the report actually triggered a fresh toast. */
+  fired?: boolean;
+  /** 0.8 / 1.0 when fired — the threshold that was crossed. */
+  threshold?: number;
+  reason?: string;
+}
+
+/**
+ * Mirror of `UpdateStatus` in `apps/desktop/src/updater.ts`.
+ * Renderer's `useUpdater` hook renders a small badge based on this.
+ */
+export type UpdateStatus =
+  | { kind: 'idle' }
+  | { kind: 'disabled'; reason: string }
+  | { kind: 'checking' }
+  | { kind: 'available'; version: string; releaseDate?: string }
+  | { kind: 'not-available'; version: string }
+  | { kind: 'downloading'; percent: number; transferred: number; total: number }
+  | { kind: 'downloaded'; version: string; releaseNotes?: string }
+  | { kind: 'error'; message: string };
+
+/**
  * Shape of `window.bridge` exposed by `apps/desktop/src/preload.ts`.
  * The renderer treats this as advisory: a missing or partial bridge
  * just means we're running in pure web mode.
@@ -165,6 +208,21 @@ export interface DesktopBridge {
     importFromFile: () => Promise<ImportFromFileResult>;
     getDbPath: () => Promise<string>;
     revealDbInFolder: () => Promise<void>;
+  };
+  budget: {
+    report: (payload: BudgetReportPayload) => Promise<BudgetReportResult>;
+    resetGuard: () => Promise<{ ok: boolean }>;
+    getGuardState: () => Promise<{
+      thresholdsHit: Record<string, number[]>;
+      settings: UserSettings;
+      appVersion: string;
+    }>;
+  };
+  update: {
+    status: () => Promise<UpdateStatus>;
+    check: () => Promise<{ ok: boolean; reason?: string }>;
+    install: () => Promise<{ ok: boolean; reason?: string }>;
+    onStatus: (cb: (status: UpdateStatus) => void) => () => void;
   };
   platform: string;
 }

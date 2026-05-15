@@ -40,6 +40,32 @@ interface ImportFromFileResult {
   error?: string;
 }
 
+interface BudgetReportPayload {
+  monthKey: string;
+  monthLabel: string;
+  spendUSD: number;
+  requestUnits: number;
+  budgetRequests: number;
+  projectedRequests: number | null;
+}
+
+interface BudgetReportResult {
+  ok: boolean;
+  fired?: boolean;
+  threshold?: number;
+  reason?: string;
+}
+
+type UpdateStatus =
+  | { kind: 'idle' }
+  | { kind: 'disabled'; reason: string }
+  | { kind: 'checking' }
+  | { kind: 'available'; version: string; releaseDate?: string }
+  | { kind: 'not-available'; version: string }
+  | { kind: 'downloading'; percent: number; transferred: number; total: number }
+  | { kind: 'downloaded'; version: string; releaseNotes?: string }
+  | { kind: 'error'; message: string };
+
 // The renderer talks to the main process exclusively through this
 // bridge — never via direct ipcRenderer access (sandbox is on). PR16
 // will extend this with `bridge.db.*`; keep the shape additive so the
@@ -122,6 +148,41 @@ const bridge = {
     importFromFile: () => ipcRenderer.invoke('db:importFromFile') as Promise<ImportFromFileResult>,
     getDbPath: () => ipcRenderer.invoke('db:getDbPath') as Promise<string>,
     revealDbInFolder: () => ipcRenderer.invoke('db:revealDbInFolder') as Promise<void>,
+  },
+  /**
+   * Budget reporter (PR25). The renderer aggregates the current
+   * month from rows + settings.monthlyRequestBudget and pushes it to
+   * the main process. Main updates the tray menu and decides whether
+   * to fire an OS-level toast (deduped per-month at the 80%/100%
+   * thresholds; state persisted to `cursor-usage-budget-state.json`).
+   */
+  budget: {
+    report: (payload: BudgetReportPayload) =>
+      ipcRenderer.invoke('budget:report', payload) as Promise<BudgetReportResult>,
+    resetGuard: () => ipcRenderer.invoke('budget:resetGuard') as Promise<{ ok: boolean }>,
+    getGuardState: () =>
+      ipcRenderer.invoke('budget:getGuardState') as Promise<{
+        thresholdsHit: Record<string, number[]>;
+        settings: UserSettings;
+        appVersion: string;
+      }>,
+  },
+  /**
+   * Auto-update channel (PR25). Always present; methods short-circuit
+   * with `{ ok:false, reason }` when the runtime is in dev mode or
+   * `CU_AUTO_UPDATE` is not set. The renderer subscribes to
+   * `update:status` events via `onStatus` to surface a small badge.
+   */
+  update: {
+    status: () => ipcRenderer.invoke('update:status') as Promise<UpdateStatus>,
+    check: () => ipcRenderer.invoke('update:check') as Promise<{ ok: boolean; reason?: string }>,
+    install: () =>
+      ipcRenderer.invoke('update:install') as Promise<{ ok: boolean; reason?: string }>,
+    onStatus: (cb: (status: UpdateStatus) => void) => {
+      const handler = (_event: unknown, status: UpdateStatus) => cb(status);
+      ipcRenderer.on('update:status', handler);
+      return () => ipcRenderer.removeListener('update:status', handler);
+    },
   },
   platform: process.platform,
 } as const;
