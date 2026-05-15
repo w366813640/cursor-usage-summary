@@ -53,6 +53,22 @@ mkdirSync(userDataDir, { recursive: true });
 rmSync(screenshotDir, { recursive: true, force: true });
 mkdirSync(screenshotDir, { recursive: true });
 
+// Idempotent pre-flight — guarantees better-sqlite3 has the Electron
+// ABI binary before we boot the app. Cheap (~200ms) if the marker
+// file is already correct; downloads + swaps if a previous `pnpm test`
+// left a Node ABI binary behind.
+log('ui-smoke', '36', 'Ensuring better-sqlite3 ABI matches Electron...');
+await new Promise((resolveFn, rejectFn) => {
+  const child = spawn(pnpmCmd, ['--filter', '@cu/desktop', 'install-natives:ensure'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: isWindows,
+  });
+  child.on('exit', (code) =>
+    code === 0 ? resolveFn() : rejectFn(new Error(`install-natives:ensure exited ${code}`)),
+  );
+});
+
 const RENDERER_PORT = 5177;
 const rendererUrl = `http://localhost:${RENDERER_PORT}`;
 log('ui-smoke', '36', `Starting renderer at ${rendererUrl}...`);
@@ -223,9 +239,20 @@ try {
   });
   log('ui-smoke', '32', 'captured 05-dashboard-after-import.png');
 
+  // Open the Settings drawer (PR22) and capture it. The cog icon
+  // sits in the top header next to the theme toggle.
+  await win.getByRole('button', { name: 'Open settings' }).first().click();
+  await win.waitForSelector('text=Backup & restore', { timeout: 5_000 });
+  await new Promise((r) => setTimeout(r, 500));
+  await win.screenshot({
+    path: join(screenshotDir, '06-settings-drawer.png'),
+    fullPage: false,
+  });
+  log('ui-smoke', '32', 'captured 06-settings-drawer.png');
+
   log('ui-smoke', '36', 'Closing app...');
   await app.close();
-  log('ui-smoke', '32', 'ALL PASS · dashboard + history drawer captured');
+  log('ui-smoke', '32', 'ALL PASS · dashboard + history + settings drawer captured');
 } catch (err) {
   console.error(err);
   exitCode = 1;

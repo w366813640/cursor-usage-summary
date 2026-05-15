@@ -3,10 +3,13 @@ import { getBridge } from './bridge';
 import type {
   BatchSummary,
   DbCounts,
+  ExportToFileResult,
   ImportBatchInfo,
+  ImportFromFileResult,
   ImportResult,
   PreviewResult,
   SerializedRowWithCost,
+  UserSettings,
 } from './types';
 
 /**
@@ -79,4 +82,32 @@ export async function sha256File(file: File): Promise<string> {
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+export async function getSettings(): Promise<UserSettings> {
+  return bridge().settings.get();
+}
+
+export async function updateSettings(partial: Partial<UserSettings>): Promise<UserSettings> {
+  return bridge().settings.set(partial);
+}
+
+export async function getSettingsPath(): Promise<string> {
+  return bridge().settings.getPath();
+}
+
+export async function exportDbToFile(): Promise<ExportToFileResult> {
+  return bridge().db.exportToFile();
+}
+
+export async function importDbFromFile(): Promise<ImportFromFileResult> {
+  return bridge().db.importFromFile();
+}
+
+export async function getDbPath(): Promise<string> {
+  return bridge().db.getDbPath();
+}
+
+export async function revealDbInFolder(): Promise<void> {
+  return bridge().db.revealDbInFolder();
 }

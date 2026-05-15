@@ -19,6 +19,26 @@ interface AppInfo {
   appName: string;
 }
 
+interface UserSettings {
+  monthlyRequestBudget: number;
+  currency: { code: string; symbol: string; multiplier: number };
+  lastBackupAt: string | null;
+}
+
+interface ExportToFileResult {
+  canceled: boolean;
+  path?: string;
+  bytesWritten?: number;
+}
+
+interface ImportFromFileResult {
+  canceled: boolean;
+  path?: string;
+  batchesRestored?: number;
+  rowsRestored?: number;
+  error?: string;
+}
+
 // The renderer talks to the main process exclusively through this
 // bridge — never via direct ipcRenderer access (sandbox is on). PR16
 // will extend this with `bridge.db.*`; keep the shape additive so the
@@ -42,6 +62,18 @@ const bridge = {
   },
   app: {
     getInfo: () => ipcRenderer.invoke('app:get-info') as Promise<AppInfo>,
+  },
+  /**
+   * User settings — a flat JSON file at
+   * userData/cursor-usage-settings.json. Theme persistence lives in
+   * the renderer's localStorage (handier for first-paint), so it's
+   * intentionally absent from this surface.
+   */
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get') as Promise<UserSettings>,
+    set: (partial: Partial<UserSettings>) =>
+      ipcRenderer.invoke('settings:set', partial) as Promise<UserSettings>,
+    getPath: () => ipcRenderer.invoke('settings:getPath') as Promise<string>,
   },
   /**
    * Local SQLite persistence. Main process owns the only connection;
@@ -72,6 +104,15 @@ const bridge = {
       ipcRenderer.invoke('db:undoBatch', id) as Promise<{ removedRows: number }>,
     query: <T = unknown>(name: QueryName, params?: Record<string, unknown>) =>
       ipcRenderer.invoke('db:query', name, params) as Promise<T>,
+    /**
+     * Backup helpers — main process owns the file dialogs + reads the
+     * DbSnapshot, so the renderer never touches disk. Useful for
+     * cross-machine sync without going through cursor.com again.
+     */
+    exportToFile: () => ipcRenderer.invoke('db:exportToFile') as Promise<ExportToFileResult>,
+    importFromFile: () => ipcRenderer.invoke('db:importFromFile') as Promise<ImportFromFileResult>,
+    getDbPath: () => ipcRenderer.invoke('db:getDbPath') as Promise<string>,
+    revealDbInFolder: () => ipcRenderer.invoke('db:revealDbInFolder') as Promise<void>,
   },
   platform: process.platform,
 } as const;

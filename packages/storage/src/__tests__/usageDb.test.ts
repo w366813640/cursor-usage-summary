@@ -326,4 +326,87 @@ describe('UsageDb', () => {
 
     db.close();
   });
+
+  it('exportSnapshot + importSnapshot round-trips data losslessly', () => {
+    const src = new UsageDb(':memory:');
+    src.init();
+    src.importRows([makeRow(1), makeRow(2)], { filename: 'a.csv', fileSha256: 'AAA' });
+    src.importRows([makeRow(3), makeRow(4), makeRow(5)], {
+      filename: 'b.csv',
+      fileSha256: 'BBB',
+    });
+    const before = src.counts();
+    const snapshot = src.exportSnapshot();
+    src.close();
+
+    expect(snapshot.version).toBe(1);
+    expect(snapshot.batches).toHaveLength(2);
+    expect(snapshot.batches[0]?.batch.fileSha256).toBe('AAA');
+    expect(snapshot.batches[1]?.rows).toHaveLength(3);
+
+    const dst = new UsageDb(':memory:');
+    dst.init();
+    const restored = dst.importSnapshot(snapshot);
+    expect(restored.batchesRestored).toBe(2);
+    expect(restored.rowsRestored).toBe(5);
+
+    const after = dst.counts();
+    expect(after.rowCount).toBe(before.rowCount);
+    expect(after.batchCount).toBe(before.batchCount);
+    expect(after.totalCost).toBeCloseTo(before.totalCost, 8);
+
+    // Restored batch metadata should preserve imported_at + filenames.
+    const batches = dst.listBatches();
+    expect(batches.map((b) => b.sourceFilename).sort()).toEqual(['a.csv', 'b.csv']);
+    expect(batches.every((b) => b.fileSha256.length > 0)).toBe(true);
+
+    dst.close();
+  });
+
+  it('importSnapshot replaces existing data atomically', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+
+    db.importRows([makeRow(10), makeRow(11)], { filename: 'old.csv', fileSha256: 'OLD' });
+    expect(db.counts().rowCount).toBe(2);
+
+    const snapshot = {
+      version: 1 as const,
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      batches: [
+        {
+          batch: { sourceFilename: 'new.csv', importedAt: 1700000000000, fileSha256: 'NEW' },
+          rows: [makeRow(20), makeRow(21), makeRow(22)],
+        },
+      ],
+    };
+
+    const restored = db.importSnapshot(snapshot);
+    expect(restored.batchesRestored).toBe(1);
+    expect(restored.rowsRestored).toBe(3);
+
+    const after = db.counts();
+    expect(after.rowCount).toBe(3);
+    expect(after.batchCount).toBe(1);
+    const batches = db.listBatches();
+    expect(batches[0]?.sourceFilename).toBe('new.csv');
+    expect(batches[0]?.importedAt).toBe(1700000000000);
+
+    db.close();
+  });
+
+  it('importSnapshot rejects unknown snapshot versions', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+    expect(() =>
+      db.importSnapshot({
+        version: 99 as unknown as 1,
+        schemaVersion: 1,
+        exportedAt: '',
+        batches: [],
+      }),
+    ).toThrow(/unsupported snapshot version/);
+    db.close();
+  });
 });

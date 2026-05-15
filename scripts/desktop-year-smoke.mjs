@@ -52,6 +52,18 @@ mkdirSync(userDataDir, { recursive: true });
 rmSync(screenshotDir, { recursive: true, force: true });
 mkdirSync(screenshotDir, { recursive: true });
 
+log('year-smoke', '36', 'Ensuring better-sqlite3 ABI matches Electron...');
+await new Promise((resolveFn, rejectFn) => {
+  const child = spawn(pnpmCmd, ['--filter', '@cu/desktop', 'install-natives:ensure'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: isWindows,
+  });
+  child.on('exit', (code) =>
+    code === 0 ? resolveFn() : rejectFn(new Error(`install-natives:ensure exited ${code}`)),
+  );
+});
+
 const RENDERER_PORT = 5178;
 const rendererUrl = `http://localhost:${RENDERER_PORT}`;
 log('year-smoke', '36', `Starting renderer at ${rendererUrl}...`);

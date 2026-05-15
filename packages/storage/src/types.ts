@@ -180,3 +180,26 @@ export interface TopBurnRow {
  * inside the original parse pass; deduped rows would have ambiguous ids.
  */
 export type PersistableRow = RowWithCost;
+
+/**
+ * Backup snapshot format. PR22 introduced this as v1; bumping requires
+ * a migration path on import. Wraps every batch + its restorable rows
+ * so a backup can be replayed onto a clean DB without losing history.
+ */
+export interface BatchSnapshot {
+  batch: {
+    sourceFilename: string;
+    /** Original `import_batches.imported_at` (ms epoch). Preserved on restore. */
+    importedAt: number;
+    fileSha256: string;
+  };
+  rows: PersistableRow[];
+}
+
+export interface DbSnapshot {
+  version: 1;
+  /** UsageDb schema version at export time, copied from PRAGMA user_version. */
+  schemaVersion: number;
+  exportedAt: string;
+  batches: BatchSnapshot[];
+}

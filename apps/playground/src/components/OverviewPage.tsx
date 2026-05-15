@@ -1,6 +1,7 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { OverviewActivity } from './overview/OverviewActivity';
@@ -37,6 +38,11 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
     return Math.max(1, Math.round((last - first) / (24 * 60 * 60 * 1000)) + 1);
   }, [summary.dateRange.firstISO, summary.dateRange.lastISO, summary.byDay.length]);
 
+  // Pull the user's plan cap from settings (PR22). The MonthlyBudgetPanel
+  // still defaults to 500 internally, so a slow IPC load just yields the
+  // historical baseline for one frame before the real value lands.
+  const { settings } = useSettings();
+
   return (
     <div className="flex flex-col gap-8">
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
@@ -48,7 +54,7 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
       >
-        <MonthlyBudgetPanel summary={summary} />
+        <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
       </motion.section>
 
       <motion.section

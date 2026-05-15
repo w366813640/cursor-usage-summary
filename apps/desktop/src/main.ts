@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { BrowserWindow, app, ipcMain, nativeTheme, shell } from 'electron';
 import { closeDb, registerDbIpc } from './db';
+import { getSettingsPath, readSettings, writeSettings } from './settingsStore';
 import { type SplashHandle, showSplash } from './splash';
 import { maybeRegisterAutoUpdater } from './updater';
 
@@ -100,16 +101,26 @@ function registerIpc() {
     nativeTheme.themeSource = mode;
   });
 
-  // Tells the renderer whether the desktop bridge is wired up. PR16 will
-  // graft database calls (`db:*`) onto this same surface; renderer code
-  // can ask `bridge.app.isDesktop` to branch between IDB (web) and SQLite
-  // (desktop) without sniffing UA strings.
+  // Tells the renderer whether the desktop bridge is wired up. The
+  // `isDesktop` flag is the renderer's sole branch — after PR20 retired
+  // the IndexedDB web path, this is read once at boot to decide
+  // between the dashboard and the "open in desktop app" notice.
   ipcMain.handle('app:get-info', () => ({
     platform: process.platform,
     isDesktop: true,
     version: app.getVersion(),
     appName: app.getName(),
   }));
+
+  // Settings surface — small JSON store at
+  // userData/cursor-usage-settings.json. Theme persistence still goes
+  // through the renderer's localStorage (handier for first-paint
+  // styling); we keep budget / currency / lastBackupAt here.
+  ipcMain.handle('settings:get', () => readSettings());
+  ipcMain.handle('settings:set', (_event, partial: Partial<ReturnType<typeof readSettings>>) =>
+    writeSettings(partial),
+  );
+  ipcMain.handle('settings:getPath', () => getSettingsPath());
 }
 
 // Set the AppUserModelID *before* any window is created so Windows groups

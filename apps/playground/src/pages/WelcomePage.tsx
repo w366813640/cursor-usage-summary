@@ -6,6 +6,7 @@ import {
   Loader2,
   Moon,
   RefreshCw,
+  Settings as SettingsIcon,
   Sun,
   Upload,
 } from '@cu/icons';
@@ -15,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
 import { ImportHistoryDrawer } from '../components/ImportHistoryDrawer';
 import { ImportPreviewDrawer } from '../components/ImportPreviewDrawer';
+import { SettingsDrawer } from '../components/SettingsDrawer';
 import { isDesktop as detectDesktop } from '../electron/bridge';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
 
@@ -60,6 +62,7 @@ function DesktopWelcomePage() {
   const [dragActive, setDragActive] = useState(false);
   const [bootChecked, setBootChecked] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Keep the last `success` snapshot so the dashboard stays visible
   // underneath the preview / history drawers when state transitions
   // through `parsing` → `preview` → `committing`. Without this, the
@@ -147,7 +150,7 @@ function DesktopWelcomePage() {
       : null;
 
   return (
-    <PageChrome>
+    <PageChrome onOpenSettings={() => setSettingsOpen(true)}>
       <main className="max-w-[1280px] mx-auto px-6 py-8">
         <input
           ref={inputRef}
@@ -219,6 +222,14 @@ function DesktopWelcomePage() {
         onUndo={desktop.undoBatchById}
         onClose={() => setHistoryOpen(false)}
       />
+
+      <SettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onAfterRestore={async () => {
+          await desktop.hydrateFromDb();
+        }}
+      />
     </PageChrome>
   );
 }
@@ -253,9 +264,17 @@ function NonDesktopNotice() {
 /**
  * Shared header / footer / background gradient. Desktop is now the
  * only supported runtime, so the variant prop is gone — the brand
- * strip always shows the desktop / sqlite badge.
+ * strip always shows the desktop / sqlite badge. When `onOpenSettings`
+ * is provided the header renders a cog button next to the theme
+ * toggle; the welcome hero omits it (no DB to configure yet).
  */
-function PageChrome({ children }: { children: React.ReactNode }) {
+function PageChrome({
+  children,
+  onOpenSettings,
+}: {
+  children: React.ReactNode;
+  onOpenSettings?: () => void;
+}) {
   const { mode, resolved, toggle } = useTheme();
   const brand = useBrand();
   const { brands, setBrandById } = useBrandSwitcher();
@@ -317,6 +336,13 @@ function PageChrome({ children }: { children: React.ReactNode }) {
               {resolved === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </IconButton>
           </Tooltipped>
+          {onOpenSettings ? (
+            <Tooltipped label="Settings · budget · backup" side="bottom">
+              <IconButton label="Open settings" onClick={onOpenSettings} variant="ghost" size="sm">
+                <SettingsIcon size={16} />
+              </IconButton>
+            </Tooltipped>
+          ) : null}
           <Badge tone="neutral" className="font-mono text-[10px]">
             {mode === 'system'
               ? 'theme · system'

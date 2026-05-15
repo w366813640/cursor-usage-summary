@@ -1,9 +1,11 @@
 import Database, { type Database as DatabaseInstance } from 'better-sqlite3';
 import { PRAGMAS, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
 import type {
+  BatchSnapshot,
   BatchSummary,
   DayRow,
   DbCounts,
+  DbSnapshot,
   HourWeekdayRow,
   ImportBatchInfo,
   ImportResult,
@@ -536,6 +538,223 @@ export class UsageDb {
         throw new Error(`unknown query: ${String(_exhaustive)}`);
       }
     }
+  }
+
+  /**
+   * Dump the entire DB into a serialisable snapshot. Used by the
+   * Settings → Backup flow so the user can copy their history off the
+   * machine, or replay it on a new install.
+   *
+   * The shape is *not* a 1:1 mirror of the table layout — we preserve
+   * what's needed to rebuild the row deterministically (`PersistableRow`
+   * fields) plus the batch metadata, and skip implementation details
+   * like `batch_id` (rewritten on restore) or the synthetic stringified
+   * `id`. Format version stays at `1` until we introduce a breaking
+   * change; restore code rejects unknown versions.
+   */
+  exportSnapshot(): DbSnapshot {
+    const batches = this.db
+      .prepare(
+        `SELECT id, source_filename AS sourceFilename, imported_at AS importedAt,
+                file_sha256 AS fileSha256
+         FROM import_batches
+         ORDER BY id ASC`,
+      )
+      .all() as Array<{
+      id: number;
+      sourceFilename: string;
+      importedAt: number;
+      fileSha256: string;
+    }>;
+
+    const rowsStmt = this.db.prepare(
+      `SELECT date_iso                  AS dateISO,
+              cloud_agent_id            AS cloudAgentId,
+              automation_id             AS automationId,
+              kind, model,
+              max_mode                  AS maxMode,
+              input_with_cache_write    AS inputWithCacheWrite,
+              input_without_cache_write AS inputWithoutCacheWrite,
+              cache_read                AS cacheRead,
+              output, total,
+              requests_kind             AS requestsKind,
+              requests_value            AS requestsValue,
+              cost,
+              cost_estimated            AS costEstimated
+       FROM rows WHERE batch_id = ?
+       ORDER BY date_iso ASC`,
+    );
+
+    const batchSnapshots: BatchSnapshot[] = batches.map((b) => {
+      const rawRows = rowsStmt.all(b.id) as Array<{
+        dateISO: string;
+        cloudAgentId: string;
+        automationId: string;
+        kind: string;
+        model: string;
+        maxMode: 0 | 1;
+        inputWithCacheWrite: number;
+        inputWithoutCacheWrite: number;
+        cacheRead: number;
+        output: number;
+        total: number;
+        requestsKind: string;
+        requestsValue: number;
+        cost: number;
+        costEstimated: 0 | 1;
+      }>;
+
+      // PersistableRow is structurally `RowWithCost`, which carries the
+      // synthetic `id` + `Date` instance. Both are derivable from
+      // `dateISO`, so we synthesise them here purely to satisfy the
+      // type — the importer ignores `id` (the table doesn't store it)
+      // and rebuilds `date` from `dateISO` at restore time.
+      const persistable: PersistableRow[] = rawRows.map((r, i) => ({
+        id: `snap-${b.id}-${i}`,
+        dateISO: r.dateISO,
+        date: new Date(r.dateISO),
+        cloudAgentId: r.cloudAgentId,
+        automationId: r.automationId,
+        kind: r.kind as PersistableRow['kind'],
+        model: r.model,
+        maxMode: r.maxMode === 1,
+        tokens: {
+          inputWithCacheWrite: r.inputWithCacheWrite,
+          inputWithoutCacheWrite: r.inputWithoutCacheWrite,
+          cacheRead: r.cacheRead,
+          output: r.output,
+          total: r.total,
+        },
+        requests:
+          r.requestsKind === 'units'
+            ? { kind: 'units', value: r.requestsValue }
+            : r.requestsKind === 'free'
+              ? { kind: 'free' }
+              : { kind: 'errored' },
+        cost: r.cost,
+        costEstimated: r.costEstimated === 1,
+      }));
+
+      return {
+        batch: {
+          sourceFilename: b.sourceFilename,
+          importedAt: b.importedAt,
+          fileSha256: b.fileSha256,
+        },
+        rows: persistable,
+      };
+    });
+
+    return {
+      version: 1,
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      batches: batchSnapshots,
+    };
+  }
+
+  /**
+   * Replace the entire DB with the contents of a previously exported
+   * snapshot. The operation is atomic — if any batch fails to restore,
+   * the whole transaction rolls back and the existing data is
+   * preserved.
+   *
+   * Note: this wipes the existing `import_batches` (cascading to
+   * `rows`) before re-inserting, so callers should confirm with the
+   * user *before* invoking. The renderer's Settings drawer puts this
+   * behind a two-step confirmation.
+   */
+  importSnapshot(snapshot: DbSnapshot): { batchesRestored: number; rowsRestored: number } {
+    if (!snapshot || snapshot.version !== 1) {
+      throw new Error(`unsupported snapshot version: ${String(snapshot?.version)} (expected 1)`);
+    }
+
+    const insertBatch = this.db.prepare(
+      `INSERT INTO import_batches
+         (source_filename, imported_at, row_count_added, row_count_skipped, date_min, date_max, file_sha256)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertRow = this.db.prepare(
+      `INSERT OR IGNORE INTO rows (
+        date_iso, date_day, date_month, hour, weekday,
+        cloud_agent_id, automation_id, kind, model, max_mode,
+        input_with_cache_write, input_without_cache_write, cache_read, output, total,
+        requests_kind, requests_value,
+        cost, cost_estimated, batch_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+
+    const run = this.db.transaction((snap: DbSnapshot) => {
+      this.db.exec('DELETE FROM import_batches');
+
+      let rowsRestored = 0;
+      for (const batchSnap of snap.batches) {
+        let added = 0;
+        let dateMin: string | null = null;
+        let dateMax: string | null = null;
+
+        // Insert the batch first so we know its assigned id; row stats
+        // backfilled at the end so they reflect what actually landed.
+        const result = insertBatch.run(
+          batchSnap.batch.sourceFilename,
+          batchSnap.batch.importedAt,
+          0,
+          0,
+          null,
+          null,
+          batchSnap.batch.fileSha256,
+        );
+        const batchId = Number(result.lastInsertRowid);
+
+        for (const r of batchSnap.rows) {
+          const dateIso = r.dateISO;
+          const day = dateIso.slice(0, 10);
+          const month = dateIso.slice(0, 7);
+          const d = new Date(dateIso);
+          const requestsKind = r.requests.kind;
+          const requestsValue = r.requests.kind === 'units' ? r.requests.value : 0;
+
+          const info = insertRow.run(
+            dateIso,
+            day,
+            month,
+            d.getUTCHours(),
+            d.getUTCDay(),
+            r.cloudAgentId,
+            r.automationId,
+            r.kind,
+            r.model,
+            r.maxMode ? 1 : 0,
+            r.tokens.inputWithCacheWrite,
+            r.tokens.inputWithoutCacheWrite,
+            r.tokens.cacheRead,
+            r.tokens.output,
+            r.tokens.total,
+            requestsKind,
+            requestsValue,
+            r.cost,
+            r.costEstimated ? 1 : 0,
+            batchId,
+          );
+          if (info.changes === 1) {
+            added += 1;
+            rowsRestored += 1;
+            if (dateMin === null || day < dateMin) dateMin = day;
+            if (dateMax === null || day > dateMax) dateMax = day;
+          }
+        }
+
+        this.db
+          .prepare(
+            'UPDATE import_batches SET row_count_added = ?, date_min = ?, date_max = ? WHERE id = ?',
+          )
+          .run(added, dateMin, dateMax, batchId);
+      }
+
+      return { batchesRestored: snap.batches.length, rowsRestored };
+    });
+
+    return run(snapshot);
   }
 
   close(): void {

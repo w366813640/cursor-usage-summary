@@ -67,6 +67,33 @@ export type QueryName =
   | 'topBurns'
   | 'allRowsCosted';
 
+export interface CurrencyPreference {
+  code: string;
+  symbol: string;
+  /** Multiplier vs. underlying USD. 1 = no conversion. */
+  multiplier: number;
+}
+
+export interface UserSettings {
+  monthlyRequestBudget: number;
+  currency: CurrencyPreference;
+  lastBackupAt: string | null;
+}
+
+export interface ExportToFileResult {
+  canceled: boolean;
+  path?: string;
+  bytesWritten?: number;
+}
+
+export interface ImportFromFileResult {
+  canceled: boolean;
+  path?: string;
+  batchesRestored?: number;
+  rowsRestored?: number;
+  error?: string;
+}
+
 /**
  * Shape of `window.bridge` exposed by `apps/desktop/src/preload.ts`.
  * The renderer treats this as advisory: a missing or partial bridge
@@ -92,6 +119,11 @@ export interface DesktopBridge {
       appName: string;
     }>;
   };
+  settings: {
+    get: () => Promise<UserSettings>;
+    set: (partial: Partial<UserSettings>) => Promise<UserSettings>;
+    getPath: () => Promise<string>;
+  };
   db: {
     counts: () => Promise<DbCounts>;
     importRows: (rows: RowWithCost[], info: ImportBatchInfo) => Promise<ImportResult>;
@@ -100,6 +132,10 @@ export interface DesktopBridge {
     listBatches: () => Promise<BatchSummary[]>;
     undoBatch: (id: number) => Promise<{ removedRows: number }>;
     query: <T = unknown>(name: QueryName, params?: Record<string, unknown>) => Promise<T>;
+    exportToFile: () => Promise<ExportToFileResult>;
+    importFromFile: () => Promise<ImportFromFileResult>;
+    getDbPath: () => Promise<string>;
+    revealDbInFolder: () => Promise<void>;
   };
   platform: string;
 }
