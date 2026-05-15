@@ -2,6 +2,7 @@ import Database, { type Database as DatabaseInstance } from 'better-sqlite3';
 import { PRAGMAS, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
 import type {
   BatchSnapshot,
+  BatchStats,
   BatchSummary,
   DayRow,
   DbCounts,
@@ -407,6 +408,161 @@ export class UsageDb {
        ORDER BY imported_at DESC`,
     );
     return stmt.all() as BatchSummary[];
+  }
+
+  /**
+   * Rich per-batch aggregate for the "compare two batches" panel.
+   *
+   * Pulls every row tagged with this batch_id and folds it down to a
+   * compact `BatchStats`. We deliberately do the aggregation in JS
+   * rather than 4 separate GROUP BY queries — typical batches are
+   * a few hundred to a few thousand rows so the single pass is plenty
+   * fast and keeps the SQL surface small.
+   *
+   * Returns `null` if the batch id doesn't exist (eg. it was undone
+   * between the renderer reading the list and clicking Compare).
+   */
+  batchStats(batchId: number): BatchStats | null {
+    const batch = this.batchSummary(batchId);
+    if (!batch) return null;
+
+    const rowsForBatch = this.db
+      .prepare(
+        `SELECT date_iso                  AS dateISO,
+                cloud_agent_id            AS cloudAgentId,
+                automation_id             AS automationId,
+                model,
+                max_mode                  AS maxMode,
+                input_with_cache_write    AS inputWithCacheWrite,
+                input_without_cache_write AS inputWithoutCacheWrite,
+                cache_read                AS cacheRead,
+                output,
+                total,
+                requests_kind             AS requestsKind,
+                requests_value            AS requestsValue,
+                cost,
+                cost_estimated            AS costEstimated
+         FROM rows
+         WHERE batch_id = ?
+         ORDER BY date_iso ASC`,
+      )
+      .all(batchId) as Array<{
+      dateISO: string;
+      cloudAgentId: string;
+      automationId: string;
+      model: string;
+      maxMode: 0 | 1;
+      inputWithCacheWrite: number;
+      inputWithoutCacheWrite: number;
+      cacheRead: number;
+      output: number;
+      total: number;
+      requestsKind: string;
+      requestsValue: number;
+      cost: number;
+      costEstimated: 0 | 1;
+    }>;
+
+    let totalCost = 0;
+    let totalRequests = 0;
+    let totalTokens = 0;
+    let cacheReadTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let maxModeRows = 0;
+    let estimatedRows = 0;
+    const modelMap = new Map<string, { cost: number; rows: number }>();
+    const dayMap = new Map<string, { cost: number; rows: number }>();
+    const agentMap = new Map<
+      string,
+      { id: string; kind: 'cloud-agent' | 'automation'; cost: number; rows: number }
+    >();
+
+    for (const r of rowsForBatch) {
+      totalCost += r.cost;
+      if (r.requestsKind === 'units') totalRequests += r.requestsValue;
+      totalTokens += r.total;
+      cacheReadTokens += r.cacheRead;
+      inputTokens += r.inputWithCacheWrite + r.inputWithoutCacheWrite;
+      outputTokens += r.output;
+      if (r.maxMode === 1) maxModeRows += 1;
+      if (r.costEstimated === 1) estimatedRows += 1;
+
+      const m = modelMap.get(r.model) ?? { cost: 0, rows: 0 };
+      m.cost += r.cost;
+      m.rows += 1;
+      modelMap.set(r.model, m);
+
+      const day = r.dateISO.slice(0, 10);
+      const d = dayMap.get(day) ?? { cost: 0, rows: 0 };
+      d.cost += r.cost;
+      d.rows += 1;
+      dayMap.set(day, d);
+
+      const cloud = r.cloudAgentId.trim();
+      const auto = r.automationId.trim();
+      if (cloud) {
+        const key = `ca:${cloud}`;
+        const a = agentMap.get(key) ?? {
+          id: cloud,
+          kind: 'cloud-agent' as const,
+          cost: 0,
+          rows: 0,
+        };
+        a.cost += r.cost;
+        a.rows += 1;
+        agentMap.set(key, a);
+      } else if (auto) {
+        const key = `au:${auto}`;
+        const a = agentMap.get(key) ?? {
+          id: auto,
+          kind: 'automation' as const,
+          cost: 0,
+          rows: 0,
+        };
+        a.cost += r.cost;
+        a.rows += 1;
+        agentMap.set(key, a);
+      }
+    }
+
+    const cacheHitRatio =
+      inputTokens + cacheReadTokens > 0 ? cacheReadTokens / (inputTokens + cacheReadTokens) : 0;
+
+    const topModels = [...modelMap.entries()]
+      .map(([model, v]) => ({
+        model,
+        cost: v.cost,
+        rows: v.rows,
+        share: totalCost > 0 ? v.cost / totalCost : 0,
+      }))
+      .sort((a, b) => b.cost - a.cost)
+      .slice(0, 8);
+
+    const byDay = [...dayMap.entries()]
+      .map(([date, v]) => ({ date, cost: v.cost, rows: v.rows }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const topAgents = [...agentMap.values()].sort((a, b) => b.cost - a.cost).slice(0, 5);
+
+    return {
+      batch,
+      totals: {
+        rowCount: rowsForBatch.length,
+        totalCost,
+        totalRequests,
+        totalTokens,
+        cacheReadTokens,
+        inputTokens,
+        outputTokens,
+        maxModeRows,
+        cacheHitRatio,
+        estimatedRows,
+      },
+      topModels,
+      byDay,
+      topAgents,
+    };
   }
 
   /**

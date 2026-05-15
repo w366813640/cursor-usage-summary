@@ -396,6 +396,65 @@ describe('UsageDb', () => {
     db.close();
   });
 
+  it('batchStats aggregates per-batch totals + top models + agents', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+
+    const r = db.importRows(
+      [
+        makeRow(1, {
+          model: 'claude-4-sonnet',
+          cloudAgentId: 'ca-1',
+          automationId: '',
+          cost: 0.5,
+          maxMode: true,
+        }),
+        makeRow(2, {
+          model: 'claude-4-sonnet',
+          cloudAgentId: 'ca-1',
+          automationId: '',
+          cost: 0.7,
+        }),
+        makeRow(3, {
+          model: 'gpt-5-thinking',
+          cloudAgentId: '',
+          automationId: 'auto-9',
+          cost: 1.5,
+          costEstimated: true,
+        }),
+      ],
+      { filename: 'compare-test.csv', fileSha256: 'CMP' },
+    );
+
+    const stats = db.batchStats(r.batchId);
+    expect(stats).not.toBeNull();
+    expect(stats!.batch.sourceFilename).toBe('compare-test.csv');
+    expect(stats!.totals.rowCount).toBe(3);
+    expect(stats!.totals.totalCost).toBeCloseTo(2.7, 8);
+    expect(stats!.totals.maxModeRows).toBe(1);
+    expect(stats!.totals.estimatedRows).toBe(1);
+
+    // Top model should be the higher-cost gpt-5 even though claude has more rows.
+    expect(stats!.topModels[0]?.model).toBe('gpt-5-thinking');
+    expect(stats!.topModels[0]?.share).toBeCloseTo(1.5 / 2.7, 5);
+
+    // Agents include both ca-1 (cloud) and auto-9 (automation).
+    const kinds = stats!.topAgents.map((a) => a.kind).sort();
+    expect(kinds).toEqual(['automation', 'cloud-agent']);
+    const cloud = stats!.topAgents.find((a) => a.kind === 'cloud-agent');
+    expect(cloud?.id).toBe('ca-1');
+    expect(cloud?.rows).toBe(2);
+
+    db.close();
+  });
+
+  it('batchStats returns null for an unknown batch id', () => {
+    const db = new UsageDb(':memory:');
+    db.init();
+    expect(db.batchStats(999)).toBeNull();
+    db.close();
+  });
+
   it('importSnapshot rejects unknown snapshot versions', () => {
     const db = new UsageDb(':memory:');
     db.init();

@@ -47,6 +47,37 @@ export interface BatchSummary {
   fileSha256: string;
 }
 
+/**
+ * Rich per-batch aggregate used by the "compare two batches" panel.
+ *
+ * `batch` is the same record `listBatches()` returns. The rest is a single
+ * in-memory pass over rows WHERE batch_id = ?, kept cheap by SQLite's
+ * b-tree index on (batch_id) — even a million-row DB returns in <50ms.
+ */
+export interface BatchStats {
+  batch: BatchSummary;
+  totals: {
+    rowCount: number;
+    totalCost: number;
+    totalRequests: number;
+    totalTokens: number;
+    cacheReadTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    maxModeRows: number;
+    cacheHitRatio: number;
+    estimatedRows: number;
+  };
+  topModels: Array<{ model: string; cost: number; rows: number; share: number }>;
+  byDay: Array<{ date: string; cost: number; rows: number }>;
+  topAgents: Array<{
+    id: string;
+    kind: 'cloud-agent' | 'automation';
+    cost: number;
+    rows: number;
+  }>;
+}
+
 /** Cheap aggregate over the whole rows table. */
 export interface DbCounts {
   /** Number of rows in the `rows` table. */

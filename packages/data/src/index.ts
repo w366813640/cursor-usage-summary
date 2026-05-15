@@ -19,3 +19,11 @@ export {
   type RowWithCost,
   type UsageSummary,
 } from './aggregators';
+export {
+  fillMissingDays,
+  forecastDailyCost,
+  type ForecastOptions,
+  type ForecastPoint,
+  type ForecastResult,
+  type HistoricalPoint,
+} from './forecast';

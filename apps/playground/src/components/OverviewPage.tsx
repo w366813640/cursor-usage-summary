@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
+import { ForecastPanel } from './ForecastPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
@@ -63,6 +64,17 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
         transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
       >
         <CompareRangesPanel rows={rows} />
+      </motion.section>
+
+      {/* Forecast (PR24) — sits right after Compare Ranges because once
+          you've seen the "how am I doing today vs the last 30 days"
+          comparison, the next instinct is "where am I heading?". */}
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
+      >
+        <ForecastPanel rows={rows} />
       </motion.section>
 
       <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />

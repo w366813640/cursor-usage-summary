@@ -1,4 +1,5 @@
 import type {
+  BatchStats,
   BatchSummary,
   DbCounts,
   ImportBatchInfo,
@@ -102,6 +103,14 @@ const bridge = {
     listBatches: () => ipcRenderer.invoke('db:listBatches') as Promise<BatchSummary[]>,
     undoBatch: (id: number) =>
       ipcRenderer.invoke('db:undoBatch', id) as Promise<{ removedRows: number }>,
+    /**
+     * Rich per-batch stats for the "compare two batches" panel. Returns
+     * `null` when the batch id no longer exists (e.g. the user undid it
+     * in another tab between the renderer's listBatches() and the
+     * compare click).
+     */
+    batchStats: (id: number) =>
+      ipcRenderer.invoke('db:batchStats', id) as Promise<BatchStats | null>,
     query: <T = unknown>(name: QueryName, params?: Record<string, unknown>) =>
       ipcRenderer.invoke('db:query', name, params) as Promise<T>,
     /**

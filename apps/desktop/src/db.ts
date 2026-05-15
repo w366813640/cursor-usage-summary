@@ -74,6 +74,8 @@ export function registerDbIpc(): void {
 
   ipcMain.handle('db:undoBatch', (_event, id: number) => getDb().undoBatch(id));
 
+  ipcMain.handle('db:batchStats', (_event, id: number) => getDb().batchStats(id));
+
   ipcMain.handle(
     'db:query',
     (_event, name: import('@cu/storage').QueryName, params?: Record<string, unknown>) =>

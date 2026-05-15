@@ -1,8 +1,9 @@
-import { Clock, FileSpreadsheet, History, Loader2, Trash2, X } from '@cu/icons';
+import { Clock, FileSpreadsheet, History, Loader2, Sliders, Trash2, X } from '@cu/icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import type { BatchSummary } from '../electron/types';
 import { describeLastUpdate } from '../utils/relativeTime';
+import { CompareBatchesModal } from './CompareBatchesModal';
 
 interface ImportHistoryDrawerProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function ImportHistoryDrawer({
   const [pendingUndoId, setPendingUndoId] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -104,14 +106,30 @@ export function ImportHistoryDrawer({
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close history"
-                className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
-              >
-                <X size={14} aria-hidden="true" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCompareOpen(true)}
+                  disabled={!batches || batches.length < 2}
+                  title={
+                    !batches || batches.length < 2
+                      ? 'Need at least two imports to compare'
+                      : 'Compare any two import batches'
+                  }
+                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Sliders size={11} aria-hidden="true" />
+                  compare
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close history"
+                  className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </div>
             </div>
 
             {error ? (
@@ -239,6 +257,14 @@ export function ImportHistoryDrawer({
               Undo only removes rows this batch actually wrote. Rows that dedup-collapsed onto an
               earlier import stay with their original batch.
             </p>
+
+            <CompareBatchesModal
+              open={compareOpen}
+              batches={batches ?? []}
+              initialLeftId={batches?.[0]?.id}
+              initialRightId={batches?.[1]?.id}
+              onClose={() => setCompareOpen(false)}
+            />
           </motion.aside>
         </motion.div>
       ) : null}

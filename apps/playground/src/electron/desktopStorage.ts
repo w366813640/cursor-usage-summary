@@ -1,6 +1,7 @@
 import type { RowWithCost } from '@cu/data';
 import { getBridge } from './bridge';
 import type {
+  BatchStats,
   BatchSummary,
   DbCounts,
   ExportToFileResult,
@@ -69,6 +70,10 @@ export async function listBatches(): Promise<BatchSummary[]> {
 
 export async function undoBatch(id: number): Promise<{ removedRows: number }> {
   return bridge().db.undoBatch(id);
+}
+
+export async function loadBatchStats(id: number): Promise<BatchStats | null> {
+  return bridge().db.batchStats(id);
 }
 
 /**

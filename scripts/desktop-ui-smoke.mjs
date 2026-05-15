@@ -69,6 +69,21 @@ await new Promise((resolveFn, rejectFn) => {
   );
 });
 
+// Rebuild main + preload so the smoke always tests current src/ code.
+// Without this, edits to src/preload.ts or src/db.ts silently no-op
+// because `electron.launch()` runs whatever is in `dist/main/`.
+log('ui-smoke', '36', 'Building main + preload bundles...');
+await new Promise((resolveFn, rejectFn) => {
+  const child = spawn(pnpmCmd, ['--filter', '@cu/desktop', 'build:main'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: isWindows,
+  });
+  child.on('exit', (code) =>
+    code === 0 ? resolveFn() : rejectFn(new Error(`build:main exited ${code}`)),
+  );
+});
+
 const RENDERER_PORT = 5177;
 const rendererUrl = `http://localhost:${RENDERER_PORT}`;
 log('ui-smoke', '36', `Starting renderer at ${rendererUrl}...`);
@@ -250,9 +265,54 @@ try {
   });
   log('ui-smoke', '32', 'captured 06-settings-drawer.png');
 
+  // Close settings drawer.
+  await win.keyboard.press('Escape');
+  await win.mouse.click(50, 200);
+  await new Promise((r) => setTimeout(r, 300));
+
+  // PR24 — Forecast panel. Sits below Compare Ranges on the Overview.
+  log('ui-smoke', '36', 'Capturing forecast panel (PR24)...');
+  await win.evaluate(() => {
+    const candidates = Array.from(document.querySelectorAll('div'));
+    for (const el of candidates) {
+      if (el.textContent?.startsWith('Forecast · next 30 days')) {
+        el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        break;
+      }
+    }
+  });
+  await new Promise((r) => setTimeout(r, 800));
+  await win.screenshot({
+    path: join(screenshotDir, '07-forecast-panel.png'),
+    fullPage: false,
+  });
+  log('ui-smoke', '32', 'captured 07-forecast-panel.png');
+
+  // PR24 — Compare-batches modal. Open the history drawer, then click
+  // the new compare button at the top, then capture the side-by-side modal.
+  log('ui-smoke', '36', 'Capturing compare-batches modal (PR24)...');
+  await win.evaluate(() => window.scrollTo(0, 0));
+  await new Promise((r) => setTimeout(r, 300));
+  await win.getByText('history', { exact: true }).first().click();
+  await win.waitForSelector('text=Import history', { timeout: 5_000 });
+  await new Promise((r) => setTimeout(r, 400));
+  await win.getByRole('button', { name: /compare/i }).first().click();
+  await win.waitForSelector('text=Compare batches', { timeout: 5_000 });
+  // Wait for the batch stats to finish loading.
+  await new Promise((r) => setTimeout(r, 900));
+  await win.screenshot({
+    path: join(screenshotDir, '08-compare-batches.png'),
+    fullPage: false,
+  });
+  log('ui-smoke', '32', 'captured 08-compare-batches.png');
+
   log('ui-smoke', '36', 'Closing app...');
   await app.close();
-  log('ui-smoke', '32', 'ALL PASS · dashboard + history + settings drawer captured');
+  log(
+    'ui-smoke',
+    '32',
+    'ALL PASS · dashboard + history + settings + forecast + compare-batches captured (8 PNGs)',
+  );
 } catch (err) {
   console.error(err);
   exitCode = 1;

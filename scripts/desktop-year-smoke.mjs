@@ -64,6 +64,18 @@ await new Promise((resolveFn, rejectFn) => {
   );
 });
 
+log('year-smoke', '36', 'Building main + preload bundles...');
+await new Promise((resolveFn, rejectFn) => {
+  const child = spawn(pnpmCmd, ['--filter', '@cu/desktop', 'build:main'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: isWindows,
+  });
+  child.on('exit', (code) =>
+    code === 0 ? resolveFn() : rejectFn(new Error(`build:main exited ${code}`)),
+  );
+});
+
 const RENDERER_PORT = 5178;
 const rendererUrl = `http://localhost:${RENDERER_PORT}`;
 log('year-smoke', '36', `Starting renderer at ${rendererUrl}...`);
@@ -129,10 +141,8 @@ function buildSeed() {
       // across multiple rows (mod 4 / mod 6) so it accumulates real cost.
       const agentSlot = r % 4;
       const autoSlot = r % 6;
-      const cloudAgentId =
-        agentSlot < 2 ? `cloud-agent-${(agentSlot + 1) * 11 + (i % 3)}` : '';
-      const automationId =
-        autoSlot === 0 ? `automation-run-${(i % 5) + 1}` : '';
+      const cloudAgentId = agentSlot < 2 ? `cloud-agent-${(agentSlot + 1) * 11 + (i % 3)}` : '';
+      const automationId = autoSlot === 0 ? `automation-run-${(i % 5) + 1}` : '';
       rows.push({
         id: `seed-${counter}`,
         dateISO,
@@ -299,11 +309,7 @@ try {
 
   log('year-smoke', '36', 'Closing app...');
   await app.close();
-  log(
-    'year-smoke',
-    '32',
-    'ALL PASS · Year route + heatmap + Agents page captured (8 PNGs total)',
-  );
+  log('year-smoke', '32', 'ALL PASS · Year route + heatmap + Agents page captured (8 PNGs total)');
 } catch (err) {
   console.error(err);
   exitCode = 1;

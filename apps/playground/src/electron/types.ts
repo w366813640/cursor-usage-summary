@@ -47,6 +47,34 @@ export interface BatchSummary {
   fileSha256: string;
 }
 
+/**
+ * Mirror of `BatchStats` in @cu/storage — drives the compare-batches modal.
+ * Keep in sync with `packages/storage/src/types.ts`.
+ */
+export interface BatchStats {
+  batch: BatchSummary;
+  totals: {
+    rowCount: number;
+    totalCost: number;
+    totalRequests: number;
+    totalTokens: number;
+    cacheReadTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    maxModeRows: number;
+    cacheHitRatio: number;
+    estimatedRows: number;
+  };
+  topModels: Array<{ model: string; cost: number; rows: number; share: number }>;
+  byDay: Array<{ date: string; cost: number; rows: number }>;
+  topAgents: Array<{
+    id: string;
+    kind: 'cloud-agent' | 'automation';
+    cost: number;
+    rows: number;
+  }>;
+}
+
 export interface DbCounts {
   rowCount: number;
   batchCount: number;
@@ -131,6 +159,7 @@ export interface DesktopBridge {
     allRowsCosted: () => Promise<SerializedRowWithCost[]>;
     listBatches: () => Promise<BatchSummary[]>;
     undoBatch: (id: number) => Promise<{ removedRows: number }>;
+    batchStats: (id: number) => Promise<BatchStats | null>;
     query: <T = unknown>(name: QueryName, params?: Record<string, unknown>) => Promise<T>;
     exportToFile: () => Promise<ExportToFileResult>;
     importFromFile: () => Promise<ImportFromFileResult>;

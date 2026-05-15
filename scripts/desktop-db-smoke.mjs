@@ -70,6 +70,18 @@ await new Promise((resolveFn, rejectFn) => {
   );
 });
 
+log('smoke', '36', 'Building main + preload bundles...');
+await new Promise((resolveFn, rejectFn) => {
+  const child = spawn(pnpmCmd, ['--filter', '@cu/desktop', 'build:main'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: isWindows,
+  });
+  child.on('exit', (code) =>
+    code === 0 ? resolveFn() : rejectFn(new Error(`build:main exited ${code}`)),
+  );
+});
+
 // We need a renderer for the BrowserWindow to load; reuse the same
 // vite-on-:5176 pattern from PR15 smoke so concurrent dev servers don't
 // collide.

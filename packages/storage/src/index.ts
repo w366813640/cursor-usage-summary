@@ -2,6 +2,7 @@ export { UsageDb } from './usageDb';
 export { SCHEMA_VERSION } from './schema';
 export type {
   BatchSnapshot,
+  BatchStats,
   BatchSummary,
   DayRow,
   DbCounts,
