@@ -1,6 +1,7 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRoute } from '../router/useRoute';
+import { AgentsPage } from './AgentsPage';
 import { DetailsPage } from './DetailsPage';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { HoursPage } from './HoursPage';
@@ -75,6 +76,7 @@ export function DashboardShell({
           {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
           {route === 'year' ? <YearReviewPage rows={rows} /> : null}
           {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
+          {route === 'agents' ? <AgentsPage rows={rows} /> : null}
           {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
           {route === 'hours' ? <HoursPage summary={summary} rows={rows} /> : null}
         </motion.div>

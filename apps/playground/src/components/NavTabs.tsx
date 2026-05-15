@@ -5,6 +5,7 @@ const LABELS: Record<AppRoute, string> = {
   overview: 'Overview',
   year: 'Year',
   models: 'Models',
+  agents: 'Agents',
   details: 'Details',
   hours: 'Hours',
 };
@@ -13,6 +14,7 @@ const TAB_HINTS: Record<AppRoute, string> = {
   overview: 'Hero KPIs · activity rhythm · top burns',
   year: 'Year-in-review · 12-month roll-up · cross-month trends',
   models: 'Per-model drill-down · cost / share / cache hit',
+  agents: 'Cost per Cloud Agent / Automation · who is burning your budget',
   details: 'Full request log · filterable, sortable, paginated',
   hours: 'When did the money burn · 24h × 7d patterns + filters',
 };

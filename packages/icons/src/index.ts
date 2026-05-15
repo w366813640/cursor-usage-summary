@@ -29,6 +29,7 @@ export {
   Clock,
   Code as CodeIcon,
   Code2,
+  Cog,
   Copy,
   Cpu,
   DollarSign,

@@ -1,4 +1,4 @@
-import { Sparkline, fmtUSD, fmtUSDCompact } from '@cu/charts';
+import { Heatmap, Sparkline, fmtUSD, fmtUSDCompact } from '@cu/charts';
 import type { RowWithCost } from '@cu/data';
 import {
   ArrowDownRight,
@@ -13,7 +13,7 @@ import {
 import { calcCacheSavings } from '@cu/pricing';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
-import { Panel } from './Panel';
+import { MetricToggle, Panel } from './Panel';
 
 interface YearReviewPageProps {
   rows: ReadonlyArray<RowWithCost>;
@@ -130,6 +130,10 @@ function YearReviewPanel({ year, availableYears, onSelectYear, rows }: YearRevie
       </div>
 
       <div className="mt-6">
+        <YearCalendarHeatmap year={year} byDay={review.byDay} />
+      </div>
+
+      <div className="mt-6">
         <SubTitle>Cost by month</SubTitle>
         <YearMonthBars months={review.byMonth} />
       </div>
@@ -142,6 +146,111 @@ function YearReviewPanel({ year, availableYears, onSelectYear, rows }: YearRevie
       ) : null}
     </Panel>
   );
+}
+
+/* -------------------------------------------------------------- *
+ *  Year-bound GitHub-style activity calendar
+ * -------------------------------------------------------------- */
+
+type YearMetric = 'cost' | 'requests' | 'tokens';
+
+function YearCalendarHeatmap({
+  year,
+  byDay,
+}: {
+  year: number;
+  byDay: YearReview['byDay'];
+}) {
+  const [metric, setMetric] = useState<YearMetric>('cost');
+
+  // Pin to the full calendar year — Heatmap fills in zero-value days so we
+  // get a "blank pixel" for every quiet weekend instead of a hole in the grid.
+  const startDate = useMemo(() => new Date(Date.UTC(year, 0, 1)), [year]);
+  const endDate = useMemo(() => new Date(Date.UTC(year, 11, 31)), [year]);
+
+  const heatmapData = useMemo(() => {
+    return byDay.map((d) => {
+      const value = metric === 'cost' ? d.cost : metric === 'requests' ? d.requests : d.tokens;
+      // Meta line shown in the SVG <title> + custom tooltip; keep the
+      // *other* two metrics visible so hover always tells the full story.
+      const metaParts: string[] = [];
+      if (metric !== 'cost') metaParts.push(fmtUSDCompact(d.cost));
+      if (metric !== 'requests') metaParts.push(`${d.requests.toLocaleString()} req`);
+      if (metric !== 'tokens') metaParts.push(formatTokensCompact(d.tokens));
+      metaParts.push(`${d.rows} rows`);
+      return { date: d.date, value, meta: metaParts.join(' · ') };
+    });
+  }, [byDay, metric]);
+
+  const hasData = byDay.length > 0;
+  const subtitle = hasData
+    ? `${byDay.length} active days · ${metricLabel(metric)}`
+    : `No usage in ${year}`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <SubTitle>
+          {year} activity calendar · {subtitle}
+        </SubTitle>
+        <MetricToggle
+          value={metric}
+          options={['cost', 'requests', 'tokens'] as const}
+          onChange={(v) => setMetric(v)}
+        />
+      </div>
+      {hasData ? (
+        <div className="overflow-x-auto pb-1">
+          <Heatmap
+            data={heatmapData}
+            startDate={startDate}
+            endDate={endDate}
+            cellSize={11}
+            cellGap={2}
+            renderTooltip={(d) =>
+              d ? (
+                <>
+                  <span className="text-[var(--color-accent)]">{d.date}</span>
+                  <span className="px-1 text-[var(--color-text-subtle)]">·</span>
+                  <span>{formatYearMetric(metric, d.value)}</span>
+                  {d.meta ? (
+                    <>
+                      <span className="px-1 text-[var(--color-text-subtle)]">·</span>
+                      <span>{d.meta}</span>
+                    </>
+                  ) : null}
+                </>
+              ) : null
+            }
+          />
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-[var(--color-border)] px-4 py-10 text-center font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          no usage recorded in {year}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function metricLabel(m: YearMetric): string {
+  if (m === 'cost') return 'USD per day';
+  if (m === 'requests') return 'requests per day';
+  return 'tokens per day';
+}
+
+function formatYearMetric(m: YearMetric, v: number): string {
+  if (m === 'cost') return fmtUSD(v);
+  if (m === 'requests') return `${v.toLocaleString()} req`;
+  return formatTokensCompact(v);
+}
+
+function formatTokensCompact(t: number): string {
+  if (!Number.isFinite(t) || t <= 0) return '0 tok';
+  if (t >= 1_000_000_000) return `${(t / 1_000_000_000).toFixed(1)}B tok`;
+  if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M tok`;
+  if (t >= 1_000) return `${(t / 1_000).toFixed(1)}K tok`;
+  return `${t.toLocaleString()} tok`;
 }
 
 interface YearReview {
@@ -158,6 +267,12 @@ interface YearReview {
   topModel: { model: string; cost: number; shareOfYear: number } | null;
   byMonth: Array<{ month: string; cost: number; isCurrent: boolean }>;
   quarters: Array<{ label: string; cost: number }>;
+  /**
+   * Per-day aggregates for every day with usage in the year. Drives the
+   * GitHub-style year heatmap which fills empty days at render time so we
+   * don't have to enumerate 366 dates here.
+   */
+  byDay: Array<{ date: string; cost: number; requests: number; tokens: number; rows: number }>;
 }
 
 function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): YearReview {
@@ -173,10 +288,17 @@ function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): Year
   const peakByDay = new Map<string, number>();
   const costByModel = new Map<string, number>();
   const costByMonth = new Map<string, number>();
+  // Roll up cost / requests / tokens / rows per day so the year-heatmap can
+  // toggle between three metrics without rewalking `rows`.
+  const dayAggregates = new Map<
+    string,
+    { date: string; cost: number; requests: number; tokens: number; rows: number }
+  >();
 
   for (const r of yearRows) {
     totalCost += r.cost;
-    totalRequests += r.requests.kind === 'units' ? r.requests.value : 0;
+    const reqUnits = r.requests.kind === 'units' ? r.requests.value : 0;
+    totalRequests += reqUnits;
     totalTokens += r.tokens.total;
 
     const day = r.dateISO.slice(0, 10);
@@ -186,6 +308,16 @@ function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): Year
     costByMonth.set(month, (costByMonth.get(month) ?? 0) + r.cost);
 
     costByModel.set(r.model, (costByModel.get(r.model) ?? 0) + r.cost);
+
+    let agg = dayAggregates.get(day);
+    if (!agg) {
+      agg = { date: day, cost: 0, requests: 0, tokens: 0, rows: 0 };
+      dayAggregates.set(day, agg);
+    }
+    agg.cost += r.cost;
+    agg.requests += reqUnits;
+    agg.tokens += r.tokens.total;
+    agg.rows += 1;
   }
 
   const peakEntry = [...peakByDay.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
@@ -250,6 +382,8 @@ function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): Year
   // card uses, just fed a year-bounded slice instead of every row.
   const cacheStats = calcCacheSavings(yearRows);
 
+  const byDay = [...dayAggregates.values()].sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     year,
     totalCost,
@@ -267,6 +401,7 @@ function computeYearReview(rows: ReadonlyArray<RowWithCost>, year: number): Year
     topModel,
     byMonth,
     quarters,
+    byDay,
   };
 }
 

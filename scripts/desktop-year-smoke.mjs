@@ -124,12 +124,21 @@ function buildSeed() {
               ? models[1]
               : models[r % models.length]
           : models[(r + i) % models.length];
+      // Sprinkle cloud-agent + automation IDs across ~30% of rows so the
+      // Agents page has meaningful buckets to render. Each agent stays alive
+      // across multiple rows (mod 4 / mod 6) so it accumulates real cost.
+      const agentSlot = r % 4;
+      const autoSlot = r % 6;
+      const cloudAgentId =
+        agentSlot < 2 ? `cloud-agent-${(agentSlot + 1) * 11 + (i % 3)}` : '';
+      const automationId =
+        autoSlot === 0 ? `automation-run-${(i % 5) + 1}` : '';
       rows.push({
         id: `seed-${counter}`,
         dateISO,
         date: new Date(dateISO),
-        cloudAgentId: '',
-        automationId: '',
+        cloudAgentId,
+        automationId,
         kind: 'Included',
         model: m,
         maxMode: r % 7 === 0,
@@ -194,13 +203,33 @@ try {
   // NavTabs renders LABELS in serif title case ("Year", "Overview", ...).
   await win.getByRole('button', { name: 'Year', exact: true }).first().click();
   await win.waitForSelector('text=in review', { timeout: 5_000 });
-  await new Promise((r) => setTimeout(r, 600));
+  await new Promise((r) => setTimeout(r, 800));
 
   await win.screenshot({
     path: join(screenshotDir, '01-year-current.png'),
     fullPage: false,
   });
   log('year-smoke', '32', 'captured 01-year-current.png');
+
+  // PR23-1 — Year activity heatmap: scroll to the new GitHub-style
+  // 365-day calendar and capture it standalone so a regression in the
+  // metric toggle / cell rendering shows up immediately.
+  log('year-smoke', '36', 'Capturing year heatmap (PR23-1)...');
+  await win.evaluate(() => {
+    const candidates = Array.from(document.querySelectorAll('div'));
+    for (const el of candidates) {
+      if (el.textContent?.includes('activity calendar')) {
+        el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        break;
+      }
+    }
+  });
+  await new Promise((r) => setTimeout(r, 600));
+  await win.screenshot({
+    path: join(screenshotDir, '01b-year-heatmap.png'),
+    fullPage: false,
+  });
+  log('year-smoke', '32', 'captured 01b-year-heatmap.png');
 
   // Pick the previous year (2025) via the YearPicker; it renders all
   // available years as <button> children of the panel's action slot.
@@ -245,9 +274,36 @@ try {
   });
   log('year-smoke', '32', 'captured 04-year-full.png');
 
+  // PR23-3 — Agents route. Tab nav comes from NavTabs LABELS in
+  // serif title case. Capture KPI strip + table, then expand the
+  // first row to capture the model-mix detail card.
+  log('year-smoke', '36', 'Navigating to the Agents tab (PR23-3)...');
+  await win.evaluate(() => window.scrollTo(0, 0));
+  await win.getByRole('button', { name: 'Agents', exact: true }).first().click();
+  await win.waitForSelector('text=Cost per agent', { timeout: 5_000 });
+  await new Promise((r) => setTimeout(r, 600));
+  await win.screenshot({
+    path: join(screenshotDir, '05-agents-table.png'),
+    fullPage: false,
+  });
+  log('year-smoke', '32', 'captured 05-agents-table.png');
+
+  log('year-smoke', '36', 'Expanding top agent row to capture detail card...');
+  await win.locator('button[aria-label="expand"]').first().click();
+  await new Promise((r) => setTimeout(r, 400));
+  await win.screenshot({
+    path: join(screenshotDir, '06-agents-expanded.png'),
+    fullPage: false,
+  });
+  log('year-smoke', '32', 'captured 06-agents-expanded.png');
+
   log('year-smoke', '36', 'Closing app...');
   await app.close();
-  log('year-smoke', '32', 'ALL PASS · Year route captured (current + prev + trends + full)');
+  log(
+    'year-smoke',
+    '32',
+    'ALL PASS · Year route + heatmap + Agents page captured (8 PNGs total)',
+  );
 } catch (err) {
   console.error(err);
   exitCode = 1;
