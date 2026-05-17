@@ -10,25 +10,17 @@ const LABELS: Record<AppRoute, string> = {
   hours: 'Hours',
 };
 
-const TAB_HINTS: Record<AppRoute, string> = {
-  overview: 'Hero KPIs · activity rhythm · top burns',
-  year: 'Year-in-review · 12-month roll-up · cross-month trends',
-  models: 'Per-model drill-down · cost / share / cache hit',
-  agents: 'Cost per Cloud Agent / Automation · who is burning your budget',
-  details: 'Full request log · filterable, sortable, paginated',
-  hours: 'When did the money burn · 24h × 7d patterns + filters',
-};
-
 interface NavTabsProps {
   current: AppRoute;
   onNavigate: (route: AppRoute) => void;
 }
 
 /**
- * Minimal four-tab nav strip. Bloomberg-style: small caps, mono, accent
+ * Minimal six-tab nav strip. Bloomberg-style: small caps, mono, accent
  * underline on the active tab — animated with framer's `layoutId` so the bar
- * slides between tabs. Hints live in the title tooltip so the strip stays
- * compact.
+ * slides between tabs. Labels speak for themselves; we used to also attach
+ * a `title` tooltip with a one-liner per route, but native tooltips are
+ * inconsistent across browsers and the labels are unambiguous already.
  */
 export function NavTabs({ current, onNavigate }: NavTabsProps) {
   return (
@@ -43,7 +35,6 @@ export function NavTabs({ current, onNavigate }: NavTabsProps) {
             key={route}
             type="button"
             onClick={() => onNavigate(route)}
-            title={TAB_HINTS[route]}
             className={[
               'group relative px-4 py-2.5 transition-colors',
               isActive ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]',

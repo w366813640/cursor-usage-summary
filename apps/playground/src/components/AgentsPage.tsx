@@ -428,12 +428,21 @@ function ExpandableAgentRow({
 
   return (
     <>
-      <tr className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]">
+      <motion.tr
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.28,
+          delay: Math.min(0.04 * (rank - 1), 0.3),
+          ease: [0.2, 0, 0, 1],
+        }}
+        className="border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-muted)]"
+      >
         <td
           className="px-3 py-2 font-mono text-[12px] text-[var(--color-text)]"
           title={bucket.fullId || 'no agent identifier'}
         >
-          <span className="mr-1.5 text-[var(--color-text-subtle)]">#{rank}</span>
+          <RankChip rank={rank} />
           {bucket.label}
         </td>
         <td className="px-3 py-2">
@@ -460,10 +469,10 @@ function ExpandableAgentRow({
           ) : null}
         </td>
         <td
-          className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]"
-          title={dateRange}
+          className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)] whitespace-nowrap"
+          title={firstDate === lastDate ? lastDate : `${firstDate} → ${lastDate}`}
         >
-          {lastDate}
+          {dateRange}
         </td>
         <td className="px-3 py-2">
           <Sparkline
@@ -493,9 +502,40 @@ function ExpandableAgentRow({
             </motion.span>
           </button>
         </td>
-      </tr>
+      </motion.tr>
       {expanded ? <AgentDetailRow bucket={bucket} /> : null}
     </>
+  );
+}
+
+/**
+ * Top-3 rank chip — visually anchors the burn leaderboard the same way
+ * the Top 5 burns cards do. Ranks beyond #3 get a muted "#N" inline so
+ * the table still reads as a ranked list without screaming.
+ */
+function RankChip({ rank }: { rank: number }) {
+  if (rank > 3) {
+    return (
+      <span className="mr-1.5 font-mono text-[10px] text-[var(--color-text-subtle)]">#{rank}</span>
+    );
+  }
+  const isFirst = rank === 1;
+  return (
+    <span
+      className="mr-2 inline-flex h-[18px] w-[18px] items-center justify-center rounded-sm border font-mono text-[10px] tabular-nums"
+      style={{
+        color: isFirst ? 'var(--color-accent)' : 'var(--color-text-muted)',
+        borderColor: isFirst
+          ? 'color-mix(in oklab, var(--color-accent) 50%, transparent)'
+          : 'var(--color-border)',
+        background: isFirst
+          ? 'color-mix(in oklab, var(--color-accent) 10%, transparent)'
+          : 'var(--color-surface-muted)',
+      }}
+      aria-label={`rank ${rank}`}
+    >
+      {rank}
+    </span>
   );
 }
 
@@ -600,7 +640,10 @@ function AgentKpi({
         {label}
       </div>
       <div
-        className="mt-1 font-serif text-[22px] leading-[1.15] tracking-tight tabular-nums truncate"
+        className={[
+          'mt-1 font-serif leading-[1.1] tracking-tight tabular-nums truncate',
+          accent ? 'text-[28px]' : 'text-[22px]',
+        ].join(' ')}
         style={accent ? { color: 'var(--color-accent)' } : undefined}
         title={value}
       >

@@ -176,15 +176,17 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         insetSlot={
           <div className="flex flex-col gap-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <div className="flex items-baseline justify-between">
-              <span>if billed as fresh input</span>
+              <span>tokens reused</span>
               <span className="text-[var(--color-text)]">
-                {fmtUSD(cacheSavings.hypotheticalInputCost)}
+                {fmtTokens(cacheSavings.cacheReadTokens)}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span>actual cache-read cost</span>
-              <span className="text-[var(--color-text)]">
-                {fmtUSD(cacheSavings.actualCacheReadCost)}
+              <span>≈ free compute multiple</span>
+              <span style={{ color: 'var(--color-accent)' }}>
+                {summary.totalCost > 0
+                  ? `${(cacheSavings.savings / Math.max(0.0001, summary.totalCost)).toFixed(1)}× spend`
+                  : '—'}
               </span>
             </div>
           </div>

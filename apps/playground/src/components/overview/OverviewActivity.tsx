@@ -142,20 +142,25 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       </div>
 
       <SectionHeader title="Composition" subtitle="What kinds of tokens · which providers" />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Panel
-          title="Token mix"
-          subtitle={`${fmtTokens(summary.totalTokens.total)} tokens · cache hit ${(summary.cacheHitStats.hitRatio * 100).toFixed(1)}%`}
-        >
-          <StatGrid items={tokenStats} formatValue={fmtTokens} columns={2} />
-        </Panel>
-        <Panel
-          title="Spend by provider"
-          subtitle={`${fmtUSD(summary.totalCost)} · ${providerStats.length} providers`}
-        >
-          <StatGrid items={providerStats} formatValue={fmtUSD} columns={2} />
-        </Panel>
-      </div>
+      <Panel
+        title="Token & provider mix"
+        subtitle={`${fmtTokens(summary.totalTokens.total)} tokens · ${fmtUSD(summary.totalCost)} across ${providerStats.length} providers · cache hit ${(summary.cacheHitStats.hitRatio * 100).toFixed(1)}%`}
+      >
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+              Token mix
+            </div>
+            <StatGrid items={tokenStats} formatValue={fmtTokens} columns={2} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+              Spend by provider
+            </div>
+            <StatGrid items={providerStats} formatValue={fmtUSD} columns={2} />
+          </div>
+        </div>
+      </Panel>
 
       <Panel
         title="Spend by model"
