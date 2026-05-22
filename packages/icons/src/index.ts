@@ -32,6 +32,7 @@ export {
   Cog,
   Copy,
   Cpu,
+  Database,
   DollarSign,
   Download,
   Edit,

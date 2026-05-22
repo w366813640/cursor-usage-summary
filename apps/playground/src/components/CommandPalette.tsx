@@ -45,6 +45,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       // Navigation
       navAction('overview', ['g', 'o'], 'home dashboard kpi'),
       navAction('year', ['g', 'y'], 'annual review heatmap calendar'),
+      navAction('anomalies', ['g', 'n'], 'anomaly outlier spike z-score'),
       navAction('models', ['g', 'm'], 'per model breakdown table'),
       navAction('agents', ['g', 'a'], 'cloud agent automation drill'),
       navAction('details', ['g', 'd'], 'every row request table'),

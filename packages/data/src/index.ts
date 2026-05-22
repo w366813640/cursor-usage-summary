@@ -28,3 +28,19 @@ export {
   type HistoricalPoint,
 } from './forecast';
 export { composeWeekSummary, type WeekSummary } from './weekSummary';
+export {
+  detectAllAnomalies,
+  detectCacheHitDrops,
+  detectCostPerReqShifts,
+  detectCostSpikes,
+  median,
+  medianAbsoluteDeviation,
+  robustZScore,
+  type Anomaly,
+  type AnomalyDetectionOptions,
+  type CacheHitDropAnomaly,
+  type CostPerReqShiftAnomaly,
+  type CostSpikeAnomaly,
+  type DetectAllResult,
+  type Severity,
+} from './anomalies';

@@ -11,11 +11,19 @@ import { useCallback, useEffect, useState } from 'react';
  *
  * Anything else (including no hash at all) resolves to `defaultRoute`.
  */
-export type AppRoute = 'overview' | 'models' | 'details' | 'hours' | 'year' | 'agents';
+export type AppRoute =
+  | 'overview'
+  | 'models'
+  | 'details'
+  | 'hours'
+  | 'year'
+  | 'agents'
+  | 'anomalies';
 
 export const ALL_ROUTES: ReadonlyArray<AppRoute> = [
   'overview',
   'year',
+  'anomalies',
   'models',
   'agents',
   'details',

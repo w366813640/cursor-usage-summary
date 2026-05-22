@@ -4,6 +4,7 @@ import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
 const LABELS: Record<AppRoute, string> = {
   overview: 'Overview',
   year: 'Year',
+  anomalies: 'Anomalies',
   models: 'Models',
   agents: 'Agents',
   details: 'Details',
