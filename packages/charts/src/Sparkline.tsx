@@ -2,7 +2,7 @@ import { extent, max } from 'd3-array';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 export interface SparkPoint {
   date: string;
@@ -30,6 +30,24 @@ export interface SparklineProps {
   referenceValue?: number | null;
   /** Label rendered above the reference line, right-aligned. */
   referenceLabel?: string;
+  /**
+   * When provided, the chart enables hover crosshair + click-to-drill.
+   * Mouse-move tracks the nearest data point and shows a vertical guide
+   * + a floating tooltip with the value; click invokes this callback.
+   *
+   * When omitted, the chart is read-only (legacy KPI card behaviour).
+   */
+  onPointClick?: (point: SparkPoint) => void;
+  /**
+   * Optional value formatter for the hover tooltip. Defaults to a compact
+   * "1.23K" style so callers don't have to wire fmtUSD just to get a tooltip.
+   */
+  formatValue?: (n: number) => string;
+  /**
+   * Master switch for the hover crosshair. Enabled automatically when
+   * `onPointClick` is set; can also be enabled standalone via `showHover`.
+   */
+  showHover?: boolean;
 }
 
 /**
@@ -48,10 +66,16 @@ export function Sparkline({
   fillArea = true,
   referenceValue = null,
   referenceLabel,
+  onPointClick,
+  formatValue,
+  showHover,
 }: SparklineProps) {
-  const { linePath, areaPath, peak, last, refY } = useMemo(() => {
+  const interactive = !!onPointClick || !!showHover;
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
+  const { linePath, areaPath, peak, last, refY, points } = useMemo(() => {
     if (data.length === 0) {
-      return { linePath: '', areaPath: '', peak: null, last: null, refY: null };
+      return { linePath: '', areaPath: '', peak: null, last: null, refY: null, points: [] };
     }
     const dates = data.map((d) => new Date(`${d.date}T00:00:00Z`));
     const xExt = extent(dates) as [Date, Date];
@@ -81,6 +105,13 @@ export function Sparkline({
     const peakIdx = data.reduce((acc, d, idx) => (d.value > data[acc]!.value ? idx : acc), 0);
     const peakPt = data[peakIdx]!;
     const lastPt = data[data.length - 1]!;
+    // Pre-compute pixel positions for every point so hover lookup is O(n)
+    // single-pass without re-running d3 scales on every mouse-move.
+    const pts = data.map((d) => ({
+      x: x(new Date(`${d.date}T00:00:00Z`)),
+      y: y(d.value),
+      v: d,
+    }));
     return {
       linePath: lineGen(data as SparkPoint[]) ?? '',
       areaPath: areaGen(data as SparkPoint[]) ?? '',
@@ -90,8 +121,28 @@ export function Sparkline({
         typeof referenceValue === 'number' && Number.isFinite(referenceValue) && referenceValue > 0
           ? y(referenceValue)
           : null,
+      points: pts,
     };
   }, [data, width, height, referenceValue]);
+
+  /** Map a mouse X coordinate to the nearest data-point index. */
+  function nearestIdx(clientX: number, rect: DOMRect): number | null {
+    if (points.length === 0) return null;
+    const localX = clientX - rect.left;
+    let best = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < points.length; i++) {
+      const dx = Math.abs(points[i]!.x - localX);
+      if (dx < bestDist) {
+        best = i;
+        bestDist = dx;
+      }
+    }
+    return best;
+  }
+
+  const hoverPt = hoverIdx !== null ? points[hoverIdx] : null;
+  const fmt = formatValue ?? defaultFmt;
 
   if (data.length === 0) {
     return (
@@ -110,82 +161,152 @@ export function Sparkline({
   }
 
   return (
-    <svg width={width} height={height} role="img" aria-label="Trend sparkline">
-      <title>Trend sparkline</title>
-      {fillArea ? (
-        <motion.path
-          d={areaPath}
-          fill={`var(${strokeVar})`}
-          fillOpacity={0.12}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.45, ease: [0.2, 0, 0, 1] }}
-        />
-      ) : null}
-      {refY !== null ? (
-        <g>
-          <line
-            x1={2}
-            x2={width - 2}
-            y1={refY}
-            y2={refY}
-            stroke="var(--color-text-subtle)"
-            strokeOpacity={0.55}
-            strokeWidth={1}
-            strokeDasharray="2 3"
+    <div className="relative inline-block" style={{ width, height }}>
+      <svg
+        width={width}
+        height={height}
+        role={interactive ? 'button' : 'img'}
+        aria-label={interactive ? 'Interactive trend sparkline' : 'Trend sparkline'}
+        style={{ cursor: interactive ? 'crosshair' : 'default' }}
+        onMouseMove={
+          interactive
+            ? (e) => {
+                const idx = nearestIdx(e.clientX, e.currentTarget.getBoundingClientRect());
+                if (idx !== hoverIdx) setHoverIdx(idx);
+              }
+            : undefined
+        }
+        onMouseLeave={interactive ? () => setHoverIdx(null) : undefined}
+        onClick={
+          interactive && onPointClick
+            ? () => {
+                if (hoverIdx !== null && points[hoverIdx]) {
+                  onPointClick(points[hoverIdx]!.v);
+                }
+              }
+            : undefined
+        }
+      >
+        <title>Trend sparkline</title>
+        {fillArea ? (
+          <motion.path
+            d={areaPath}
+            fill={`var(${strokeVar})`}
+            fillOpacity={0.12}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.45, ease: [0.2, 0, 0, 1] }}
           />
-          {referenceLabel ? (
-            <text
-              x={width - 4}
-              y={Math.max(8, refY - 3)}
-              textAnchor="end"
-              fontSize={8}
-              fontFamily="ui-monospace, SFMono-Regular, monospace"
-              fill="var(--color-text-subtle)"
-            >
-              {referenceLabel}
-            </text>
-          ) : null}
-        </g>
-      ) : null}
-      <motion.path
-        d={linePath}
-        fill="none"
-        stroke={`var(${strokeVar})`}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{
-          pathLength: { duration: 1.1, ease: [0.2, 0, 0, 1] },
-          opacity: { duration: 0.3, ease: [0.2, 0, 0, 1] },
-        }}
-      />
-      {showPeak && peak ? (
-        <motion.circle
-          cx={peak.x}
-          cy={peak.y}
-          r={2.2}
-          fill="var(--color-bg)"
+        ) : null}
+        {refY !== null ? (
+          <g>
+            <line
+              x1={2}
+              x2={width - 2}
+              y1={refY}
+              y2={refY}
+              stroke="var(--color-text-subtle)"
+              strokeOpacity={0.55}
+              strokeWidth={1}
+              strokeDasharray="2 3"
+            />
+            {referenceLabel ? (
+              <text
+                x={width - 4}
+                y={Math.max(8, refY - 3)}
+                textAnchor="end"
+                fontSize={8}
+                fontFamily="ui-monospace, SFMono-Regular, monospace"
+                fill="var(--color-text-subtle)"
+              >
+                {referenceLabel}
+              </text>
+            ) : null}
+          </g>
+        ) : null}
+        <motion.path
+          d={linePath}
+          fill="none"
           stroke={`var(${strokeVar})`}
-          strokeWidth={1}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.95, duration: 0.34, ease: [0.2, 0, 0, 1] }}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{
+            pathLength: { duration: 1.1, ease: [0.2, 0, 0, 1] },
+            opacity: { duration: 0.3, ease: [0.2, 0, 0, 1] },
+          }}
         />
+        {showPeak && peak ? (
+          <motion.circle
+            cx={peak.x}
+            cy={peak.y}
+            r={2.2}
+            fill="var(--color-bg)"
+            stroke={`var(${strokeVar})`}
+            strokeWidth={1}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.95, duration: 0.34, ease: [0.2, 0, 0, 1] }}
+          />
+        ) : null}
+        {showLastPoint && last ? (
+          <motion.circle
+            cx={last.x}
+            cy={last.y}
+            r={2.5}
+            fill={`var(${strokeVar})`}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 1.1, duration: 0.32, ease: [0.2, 0, 0, 1] }}
+          />
+        ) : null}
+        {interactive && hoverPt ? (
+          <g pointerEvents="none">
+            <line
+              x1={hoverPt.x}
+              x2={hoverPt.x}
+              y1={0}
+              y2={height}
+              stroke="var(--color-text-subtle)"
+              strokeWidth={1}
+              strokeDasharray="2 2"
+              opacity={0.65}
+            />
+            <circle
+              cx={hoverPt.x}
+              cy={hoverPt.y}
+              r={3.2}
+              fill="var(--color-bg)"
+              stroke={`var(${strokeVar})`}
+              strokeWidth={1.6}
+            />
+          </g>
+        ) : null}
+      </svg>
+      {interactive && hoverPt ? (
+        <div
+          className="pointer-events-none absolute z-10 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text)] shadow-md whitespace-nowrap"
+          style={{
+            left: Math.min(width - 90, Math.max(0, hoverPt.x + 6)),
+            top: Math.max(0, hoverPt.y - 26),
+          }}
+        >
+          <span className="text-[var(--color-text-subtle)]">{hoverPt.v.date}</span>
+          <span className="px-1 text-[var(--color-text-subtle)]">·</span>
+          <span style={{ color: `var(${strokeVar})` }}>{fmt(hoverPt.v.value)}</span>
+        </div>
       ) : null}
-      {showLastPoint && last ? (
-        <motion.circle
-          cx={last.x}
-          cy={last.y}
-          r={2.5}
-          fill={`var(${strokeVar})`}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 1.1, duration: 0.32, ease: [0.2, 0, 0, 1] }}
-        />
-      ) : null}
-    </svg>
+    </div>
   );
+}
+
+function defaultFmt(n: number): string {
+  if (!Number.isFinite(n)) return '0';
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (Math.abs(n) >= 100) return n.toFixed(0);
+  if (Math.abs(n) >= 1) return n.toFixed(2);
+  return n.toFixed(2);
 }

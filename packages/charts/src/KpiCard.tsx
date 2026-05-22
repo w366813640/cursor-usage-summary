@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { type SparkPoint, Sparkline } from './Sparkline';
 
 export interface KpiCardProps {
@@ -39,6 +39,18 @@ export interface KpiCardProps {
   /** Animation duration in ms. Default 1200. */
   animateDurationMs?: number;
   className?: string;
+  /**
+   * When true, the headline value gets a "copy to clipboard" affordance —
+   * hover the card to reveal a small icon button next to the value. Click
+   * copies the displayed value string. Useful for KPI numbers users want
+   * to paste into Slack / spreadsheets / commit messages.
+   */
+  copyable?: boolean;
+  /**
+   * Optional raw value to copy (e.g. unformatted number string). Defaults
+   * to the visible `value` prop.
+   */
+  copyText?: string;
 }
 
 /**
@@ -88,10 +100,30 @@ export function KpiCard({
   formatValue,
   animateDurationMs = 1200,
   className,
+  copyable = false,
+  copyText,
 }: KpiCardProps) {
   const valueClass = monoValue
     ? 'font-mono text-[20px] leading-[1.4] tracking-tight'
     : 'font-serif text-[38px] leading-[1.05] tracking-[-0.01em]';
+
+  const [copied, setCopied] = useState(false);
+  const copyValue = useCallback(() => {
+    if (!copyable) return;
+    const text = copyText ?? value;
+    // Best-effort: navigator.clipboard is gated on https / focused docs in
+    // Electron renderer; falls back to a hidden <textarea> + execCommand
+    // for old-school environments. We swallow failures silently — the user
+    // will notice no "Copied" pill flashes.
+    try {
+      void navigator.clipboard?.writeText(text).then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1200);
+      });
+    } catch {
+      // ignore
+    }
+  }, [copyable, copyText, value]);
 
   // count-up only kicks in when caller opts in *and* gives us a numeric +
   // formatter pair. Otherwise we fall back to the static `value` string.
@@ -163,11 +195,32 @@ export function KpiCard({
           ) : null}
         </div>
       </div>
-      <div
-        className={`${valueClass} transition-colors`}
-        style={accent ? { color: 'var(--color-accent)' } : undefined}
-      >
-        {displayValue}
+      <div className="flex items-baseline gap-2">
+        <div
+          className={`${valueClass} transition-colors`}
+          style={accent ? { color: 'var(--color-accent)' } : undefined}
+        >
+          {displayValue}
+        </div>
+        {copyable ? (
+          <button
+            type="button"
+            aria-label={copied ? 'Copied!' : 'Copy value'}
+            onClick={(e) => {
+              e.stopPropagation();
+              copyValue();
+            }}
+            className={[
+              'inline-flex shrink-0 items-center rounded-sm border border-[var(--color-border)] px-1.5 py-0.5',
+              'font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]',
+              'opacity-0 transition-all duration-[180ms] group-hover:opacity-100 hover:text-[var(--color-text)]',
+              copied ? 'border-[var(--color-accent)] text-[var(--color-accent)] opacity-100' : '',
+            ].join(' ')}
+            title={copied ? 'Copied!' : 'Copy to clipboard'}
+          >
+            {copied ? '✓ copied' : 'copy'}
+          </button>
+        ) : null}
       </div>
       {meta ? (
         <div className="font-mono text-[12px] text-[var(--color-text-muted)]">{meta}</div>

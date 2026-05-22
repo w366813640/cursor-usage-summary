@@ -1,7 +1,7 @@
 import { WeekHourHeatmap, fmtTokens, fmtUSD, hourWeekdayToCells } from '@cu/charts';
 import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type DateFilter, DateRangeFilter, applyDateFilter } from './DateRangeFilter';
 import { MetricToggle, Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
@@ -27,7 +27,41 @@ const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
  */
 export function HoursPage({ summary, rows }: HoursPageProps) {
   const [metric, setMetric] = useState<'cost' | 'rows'>('cost');
-  const [filter, setFilter] = useState<DateFilter>({ kind: 'all' });
+  const [filter, setFilter] = useState<DateFilter>(() => {
+    // On first mount, honour a pending drill-down hint left by the
+    // Overview heatmap (or any other page that wants to point the
+    // user at a single day). One-shot — read & clear immediately.
+    if (typeof window === 'undefined') return { kind: 'all' };
+    try {
+      const pending = sessionStorage.getItem('cu:pendingHoursDate');
+      if (pending) {
+        sessionStorage.removeItem('cu:pendingHoursDate');
+        return { kind: 'single', date: pending };
+      }
+    } catch {
+      // sessionStorage can throw in private-mode sandboxes — fall through.
+    }
+    return { kind: 'all' };
+  });
+
+  // Late arrivals: if a drill-down lands while HoursPage is already mounted
+  // (e.g. user navigates Hours → Overview → Hours via another date click),
+  // pick it up via the hashchange event without remounting.
+  useEffect(() => {
+    function pickUpPending() {
+      try {
+        const pending = sessionStorage.getItem('cu:pendingHoursDate');
+        if (pending) {
+          sessionStorage.removeItem('cu:pendingHoursDate');
+          setFilter({ kind: 'single', date: pending });
+        }
+      } catch {
+        // ignore — best-effort.
+      }
+    }
+    window.addEventListener('hashchange', pickUpPending);
+    return () => window.removeEventListener('hashchange', pickUpPending);
+  }, []);
 
   // Re-aggregate when the date filter changes. `aggregate` is cheap enough that
   // we don't bother memoising the filtering step separately — the inner loop

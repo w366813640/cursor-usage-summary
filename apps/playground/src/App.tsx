@@ -8,6 +8,7 @@ import {
   ToastProvider,
   TooltipProvider,
 } from '@cu/ui';
+import { CommandPaletteProvider } from './components/CommandPalette';
 import { WelcomePage } from './pages/WelcomePage';
 
 export function App() {
@@ -20,7 +21,11 @@ export function App() {
               <ModalStackProvider>
                 <KeyboardShortcutsProvider>
                   <SidebarStateProvider defaultExpanded>
-                    <WelcomePage />
+                    {/* The palette wraps everything below so Cmd/Ctrl+K
+                        works on both the welcome screen and the dashboard. */}
+                    <CommandPaletteProvider>
+                      <WelcomePage />
+                    </CommandPaletteProvider>
                   </SidebarStateProvider>
                 </KeyboardShortcutsProvider>
               </ModalStackProvider>

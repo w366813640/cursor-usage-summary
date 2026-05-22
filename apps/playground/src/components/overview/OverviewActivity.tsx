@@ -87,7 +87,7 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Panel
           title="Daily activity"
-          subtitle={`${daysSpan} days · ${heatMetric === 'cost' ? 'USD' : 'request count'}`}
+          subtitle={`${daysSpan} days · ${heatMetric === 'cost' ? 'USD' : 'request count'} · click a day to drill`}
           action={
             <MetricToggle
               value={heatMetric}
@@ -116,6 +116,18 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
                   </>
                 ) : null
               }
+              onSelectDate={(date) => {
+                // Hand off to HoursPage via session storage — keeps the
+                // tiny hash-only router untouched. HoursPage reads and
+                // clears the key on mount.
+                try {
+                  sessionStorage.setItem('cu:pendingHoursDate', date);
+                } catch {
+                  // sessionStorage can throw in private-mode sandboxes;
+                  // failing silently still lets the route change happen.
+                }
+                window.location.hash = '/hours';
+              }}
             />
           </div>
         </Panel>

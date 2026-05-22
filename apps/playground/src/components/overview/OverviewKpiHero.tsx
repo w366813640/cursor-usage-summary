@@ -72,6 +72,8 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         formatValue={fmtUSD}
         accent
         animate
+        copyable
+        copyText={fmtUSD(summary.totalCost)}
         meta={
           <>
             <span>{daysSpan} days · </span>
@@ -101,6 +103,8 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         numericValue={hottest?.cost}
         formatValue={fmtUSD}
         animate={!!hottest}
+        copyable={!!hottest}
+        copyText={hottest ? fmtUSD(hottest.cost) : undefined}
         meta={
           hottest ? (
             <>
@@ -128,6 +132,8 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         label="Top model by spend"
         value={topModel?.model ?? '—'}
         monoValue
+        copyable={!!topModel}
+        copyText={topModel?.model}
         meta={
           topModel ? (
             <>
@@ -156,6 +162,8 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         numericValue={cacheSavings.savings}
         formatValue={fmtUSD}
         animate
+        copyable
+        copyText={fmtUSD(cacheSavings.savings)}
         badge={
           <span
             className="rounded-sm border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"

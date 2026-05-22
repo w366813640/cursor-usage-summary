@@ -27,3 +27,4 @@ export {
   type ForecastResult,
   type HistoricalPoint,
 } from './forecast';
+export { composeWeekSummary, type WeekSummary } from './weekSummary';

@@ -8,6 +8,7 @@ import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
 import { OverviewKpiHero } from './overview/OverviewKpiHero';
+import { WeekSummaryCard } from './overview/WeekSummaryCard';
 
 export interface OverviewPageProps {
   summary: UsageSummary;
@@ -46,6 +47,8 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
 
   return (
     <div className="flex flex-col gap-8">
+      <WeekSummaryCard summary={summary} rows={rows} />
+
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
 
       {/* Plan budget — sits between hero and system view because it's the
