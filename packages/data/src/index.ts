@@ -52,3 +52,9 @@ export {
   type EfficiencyScenario,
   type ModelEfficiency,
 } from './efficiency';
+export {
+  computeBudgetUrgency,
+  type BudgetGuardOptions,
+  type BudgetSeverity,
+  type BudgetUrgency,
+} from './budgetGuard';

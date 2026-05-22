@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { ForecastPanel } from './ForecastPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
+import { BudgetUrgencyBanner } from './overview/BudgetUrgencyBanner';
 import { EfficiencyCard } from './overview/EfficiencyCard';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
@@ -54,6 +55,11 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Budget urgency banner (PR6) — auto-hides for safe months and
+          when the user dismisses; sits above everything because urgency
+          should win the first eye-second on the page. */}
+      <BudgetUrgencyBanner summary={summary} rows={rows} />
+
       <WeekSummaryCard summary={summary} rows={rows} />
 
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
