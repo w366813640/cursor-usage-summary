@@ -1,6 +1,7 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { useFocusMode } from '../hooks/useFocusMode';
 import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { ForecastPanel } from './ForecastPanel';
@@ -46,48 +47,56 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
   // historical baseline for one frame before the real value lands.
   const { settings } = useSettings();
 
+  // Focus mode hides context panels and keeps only the high-signal acts:
+  // week summary, KPI hero, and efficiency. The user toggles it from the
+  // FileToolbar; localStorage-persisted (see useFocusMode).
+  const [focusMode] = useFocusMode();
+
   return (
     <div className="flex flex-col gap-8">
       <WeekSummaryCard summary={summary} rows={rows} />
 
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
 
-      {/* Plan budget — sits between hero and system view because it's the
-          single most actionable "are you about to overspend?" question. */}
-      <motion.section
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
-      >
-        <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
-      </motion.section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
-      >
-        <CompareRangesPanel rows={rows} />
-      </motion.section>
-
-      {/* Forecast (PR24) — sits right after Compare Ranges because once
-          you've seen the "how am I doing today vs the last 30 days"
-          comparison, the next instinct is "where am I heading?". */}
-      <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
-      >
-        <ForecastPanel rows={rows} />
-      </motion.section>
-
-      {/* Efficiency (PR3) — the "where can I cut" surface, placed after
-          Forecast so the natural reading order is "today -> trend ->
-          where to trim". */}
+      {/* Efficiency (PR3) — placed early in focus mode so the "where can
+          I cut" surface stays visible even when context panels collapse. */}
       <EfficiencyCard summary={summary} rows={rows} />
 
-      <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />
-      <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />
+      {focusMode ? null : (
+        <>
+          {/* Plan budget — sits between hero and system view because it's the
+              single most actionable "are you about to overspend?" question. */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
+          >
+            <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
+          >
+            <CompareRangesPanel rows={rows} />
+          </motion.section>
+
+          {/* Forecast (PR24) — sits right after Compare Ranges because once
+              you've seen the "how am I doing today vs the last 30 days"
+              comparison, the next instinct is "where am I heading?". */}
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
+          >
+            <ForecastPanel rows={rows} />
+          </motion.section>
+
+          <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />
+          <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />
+        </>
+      )}
     </div>
   );
 }

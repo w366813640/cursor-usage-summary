@@ -1,6 +1,16 @@
 import { type UsageRow, type UsageSummary, redactRowsToCsv, redactedFileName } from '@cu/data';
-import { Clock, Download, FileSpreadsheet, HardDrive, History, Upload } from '@cu/icons';
+import {
+  Clock,
+  Download,
+  Eye,
+  EyeOff,
+  FileSpreadsheet,
+  HardDrive,
+  History,
+  Upload,
+} from '@cu/icons';
 import { motion } from 'framer-motion';
+import { useFocusMode } from '../hooks/useFocusMode';
 import { describeLastUpdate } from '../utils/relativeTime';
 
 /**
@@ -68,6 +78,8 @@ export function FileToolbar({
     triggerDownload(csv, redactedFileName(fileName));
   };
 
+  const [focusMode, setFocusMode] = useFocusMode();
+
   const mergedLabel = sourceFiles.length > 1 ? `${sourceFiles.length} files merged` : null;
   const lastSaved = describeLastUpdate(lastIngestedAt);
   const storageLabel = desktopActions.storageHint;
@@ -120,6 +132,23 @@ export function FileToolbar({
 
       <div className="flex items-center gap-1.5">
         <ToolbarButton
+          icon={
+            focusMode ? (
+              <EyeOff size={12} aria-hidden="true" />
+            ) : (
+              <Eye size={12} aria-hidden="true" />
+            )
+          }
+          label={focusMode ? 'focused' : 'focus'}
+          onClick={() => setFocusMode(!focusMode)}
+          title={
+            focusMode
+              ? 'Focus mode on — context panels hidden. Click to show everything.'
+              : 'Focus mode — hide forecast / budget / activity panels and show only week summary + KPIs + efficiency.'
+          }
+          active={focusMode}
+        />
+        <ToolbarButton
           icon={<Upload size={12} aria-hidden="true" />}
           label="import"
           onClick={desktopActions.onOpenImport}
@@ -156,17 +185,28 @@ interface ToolbarButtonProps {
   onClick: () => void;
   title: string;
   danger?: boolean;
+  active?: boolean;
 }
 
-function ToolbarButton({ icon, label, onClick, title, danger = false }: ToolbarButtonProps) {
+function ToolbarButton({
+  icon,
+  label,
+  onClick,
+  title,
+  danger = false,
+  active = false,
+}: ToolbarButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
+      aria-pressed={active}
       className={[
         'flex items-center gap-1 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors',
-        'border-[var(--color-border)] text-[var(--color-text-muted)]',
+        active
+          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+          : 'border-[var(--color-border)] text-[var(--color-text-muted)]',
         danger
           ? 'hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]'
           : 'hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]',

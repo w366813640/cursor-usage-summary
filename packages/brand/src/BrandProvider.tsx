@@ -62,7 +62,32 @@ export const cuMonoBrand: BrandTheme = {
   },
 };
 
-export const builtInBrands: readonly BrandTheme[] = [cuBloombergBrand, cuWarmBrand, cuMonoBrand];
+/**
+ * Linear-night brand · vibrant violet/indigo over dark navy. Inspired by the
+ * Linear app's high-contrast night UI; designed for users who want a more
+ * "modern SaaS" aesthetic than the default warm-Bloomberg palette.
+ */
+export const cuLinearNightBrand: BrandTheme = {
+  id: 'cu-linear-night',
+  name: 'Cursor Usage · Linear Night',
+  tagline: 'Indigo on midnight — modern SaaS night mode',
+  logo: <CuMark size={22} />,
+  logoCompact: <CuMark size={18} />,
+  preferTheme: 'dark',
+  palette: {
+    accent: '#7c83ff',
+    accentHover: '#9095ff',
+    accentSoft: '#1f2247',
+    mark: '#7c83ff',
+  },
+};
+
+export const builtInBrands: readonly BrandTheme[] = [
+  cuBloombergBrand,
+  cuWarmBrand,
+  cuMonoBrand,
+  cuLinearNightBrand,
+];
 
 const BrandContext = createContext<BrandTheme>(cuBloombergBrand);
 

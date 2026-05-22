@@ -13,7 +13,7 @@ import {
   providersToStackSegments,
   tokensToStackSegments,
 } from '@cu/charts';
-import type { RowWithCost, UsageSummary } from '@cu/data';
+import { type RowWithCost, type UsageSummary, detectAllAnomalies } from '@cu/data';
 import { motion } from 'framer-motion';
 import { type RefObject, useMemo, useRef, useState } from 'react';
 import { ExportButton } from '../../export/ExportButton';
@@ -75,6 +75,14 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       ),
     [rows, summary.byModel],
   );
+  // Highlight anomaly days on the calendar with an accent outline ring so
+  // the eye can find the days the Anomaly inspector flagged without
+  // leaving Overview. The Set is small (typically <10 entries) so memo
+  // is cheap; re-computed alongside the existing calendar memos.
+  const anomalyDates = useMemo(() => {
+    const r = detectAllAnomalies(summary, rows);
+    return new Set(r.all.map((a) => a.date));
+  }, [summary, rows]);
 
   return (
     <motion.section
@@ -87,7 +95,7 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Panel
           title="Daily activity"
-          subtitle={`${daysSpan} days · ${heatMetric === 'cost' ? 'USD' : 'request count'} · click a day to drill`}
+          subtitle={`${daysSpan} days · ${heatMetric === 'cost' ? 'USD' : 'request count'} · click a day to drill${anomalyDates.size > 0 ? ` · ${anomalyDates.size} flagged` : ''}`}
           action={
             <MetricToggle
               value={heatMetric}
@@ -99,6 +107,7 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
           <div className="overflow-x-auto">
             <Heatmap
               data={calendar}
+              outlierDates={anomalyDates}
               renderTooltip={(d) =>
                 d ? (
                   <>

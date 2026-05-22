@@ -29,6 +29,12 @@ export interface HeatmapProps {
   renderTooltip?: (d: HeatmapDatum | null) => ReactNode;
   /** Click handler on a single day cell. */
   onSelectDate?: (date: string) => void;
+  /**
+   * Optional set of ISO dates (`YYYY-MM-DD`) that should be highlighted with
+   * an accent outline ring — used to surface anomaly days on the overview
+   * calendar without changing the underlying value-driven heat colour.
+   */
+  outlierDates?: ReadonlySet<string>;
 }
 
 const monthLabel = timeFormat('%b');
@@ -50,6 +56,7 @@ export function Heatmap({
   endDate,
   renderTooltip,
   onSelectDate,
+  outlierDates,
 }: HeatmapProps) {
   const byDate = useMemo(() => {
     const m = new Map<string, HeatmapDatum>();
@@ -170,6 +177,31 @@ export function Heatmap({
             </motion.rect>
           );
         })}
+        {outlierDates && outlierDates.size > 0
+          ? days.map((day, i) => {
+              const iso = day.toISOString().slice(0, 10);
+              if (!outlierDates.has(iso)) return null;
+              const week = Math.floor(i / 7);
+              const weekday = day.getUTCDay();
+              const x = labelW + week * (cellSize + cellGap);
+              const y = headerH + weekday * (cellSize + cellGap);
+              return (
+                <rect
+                  key={`outlier-${iso}`}
+                  x={x - 1.25}
+                  y={y - 1.25}
+                  width={cellSize + 2.5}
+                  height={cellSize + 2.5}
+                  rx={3}
+                  ry={3}
+                  fill="none"
+                  stroke="var(--color-accent)"
+                  strokeWidth={1.5}
+                  pointerEvents="none"
+                />
+              );
+            })
+          : null}
       </svg>
       {hover && renderTooltip ? (
         <div
