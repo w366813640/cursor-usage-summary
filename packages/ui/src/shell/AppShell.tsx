@@ -54,7 +54,7 @@ export function AppShell({
           style={{
             width: sidebarWidth,
             paddingTop: titlebarHeight,
-            transition: 'width 240ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+            transition: 'width 140ms ease-out',
           }}
         >
           <div className="h-full">{sidebar}</div>

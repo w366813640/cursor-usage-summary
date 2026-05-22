@@ -31,7 +31,7 @@ interface AnomaliesPageProps {
  *
  * The page is deliberately read-mostly: each card explains *what* and *why*
  * in plain English, and provides a single "Open day" affordance that hands
- * the date off to the Hours page via sessionStorage (same mechanism as the
+ * the date off to the Day page via sessionStorage (same mechanism as the
  * overview heatmap drill).
  */
 export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
@@ -395,9 +395,9 @@ function MethodPanel() {
 
 function openDay(dateISO: string) {
   try {
-    sessionStorage.setItem('cu:pendingHoursDate', dateISO);
+    sessionStorage.setItem('cu:pendingDayDate', dateISO);
   } catch {
     // sessionStorage might be unavailable in some sandboxes; fall through.
   }
-  window.location.hash = '/hours';
+  window.location.hash = '/day';
 }

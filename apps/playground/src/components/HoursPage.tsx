@@ -6,7 +6,7 @@ import { type DateFilter, DateRangeFilter, applyDateFilter } from './DateRangeFi
 import { MetricToggle, Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
 
-interface HoursPageProps {
+interface DayPageProps {
   summary: UsageSummary;
   rows: ReadonlyArray<RowWithCost>;
 }
@@ -14,45 +14,45 @@ interface HoursPageProps {
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 /**
- * "When did the money burn?" page. Splits the hour-weekday grid three ways:
+ * Day drilldown page. Splits the selected day/range into three retained charts:
  *
  *   - hour-only bar (24 bars)             — answers "morning vs evening"
  *   - weekday-only bar (7 bars)           — answers "weekend vs weekday"
  *   - big 7×24 heatmap                    — answers "which slot specifically"
  *   - top 5 hot slots as a leaderboard    — answers "what should I avoid"
  *
- * A date filter on top lets the user narrow to a single day, a few days, or
- * a custom range — useful for comparing "this week vs last week" or
- * inspecting a specific burn day in isolation.
+ * The default selection is today. A date filter on top lets the user choose
+ * any single day, multiple days, or a range.
  */
-export function HoursPage({ summary, rows }: HoursPageProps) {
+export function DayPage({ summary, rows }: DayPageProps) {
   const [metric, setMetric] = useState<'cost' | 'rows'>('cost');
   const [filter, setFilter] = useState<DateFilter>(() => {
     // On first mount, honour a pending drill-down hint left by the
     // Overview heatmap (or any other page that wants to point the
     // user at a single day). One-shot — read & clear immediately.
-    if (typeof window === 'undefined') return { kind: 'all' };
+    const today = new Date().toISOString().slice(0, 10);
+    if (typeof window === 'undefined') return { kind: 'single', date: today };
     try {
-      const pending = sessionStorage.getItem('cu:pendingHoursDate');
+      const pending = sessionStorage.getItem('cu:pendingDayDate');
       if (pending) {
-        sessionStorage.removeItem('cu:pendingHoursDate');
+        sessionStorage.removeItem('cu:pendingDayDate');
         return { kind: 'single', date: pending };
       }
     } catch {
       // sessionStorage can throw in private-mode sandboxes — fall through.
     }
-    return { kind: 'all' };
+    return { kind: 'single', date: today };
   });
 
-  // Late arrivals: if a drill-down lands while HoursPage is already mounted
-  // (e.g. user navigates Hours → Overview → Hours via another date click),
+  // Late arrivals: if a drill-down lands while DayPage is already mounted
+  // (e.g. user navigates Day → Overview → Day via another date click),
   // pick it up via the hashchange event without remounting.
   useEffect(() => {
     function pickUpPending() {
       try {
-        const pending = sessionStorage.getItem('cu:pendingHoursDate');
+        const pending = sessionStorage.getItem('cu:pendingDayDate');
         if (pending) {
-          sessionStorage.removeItem('cu:pendingHoursDate');
+          sessionStorage.removeItem('cu:pendingDayDate');
           setFilter({ kind: 'single', date: pending });
         }
       } catch {
@@ -132,7 +132,7 @@ export function HoursPage({ summary, rows }: HoursPageProps) {
       className="flex flex-col gap-4"
     >
       <SectionHeader
-        title="Hours · when the money burns"
+        title="Day · request timeline"
         subtitle={`UTC · ${grandLabel}${filterSummary ? ` · ${filterSummary}` : ''}`}
         action={<MetricToggle value={metric} options={['cost', 'rows']} onChange={setMetric} />}
       />
@@ -388,8 +388,7 @@ const DETAIL_CAP = 500;
  * Per-row drill-down for the current date filter. Hidden when "All days" is
  * selected — at that scope the full Details route is the better tool. Once
  * the user narrows down (single day / multi / range) every request inside
- * the selection is listed, sorted by cost desc so the worst offenders rise
- * to the top.
+ * the selection is listed newest-first, which matches how users audit a day.
  *
  * Capped to 500 rows so a wide range doesn't blow up the DOM; the cap pretty
  * much never bites for the single-day path that motivated this panel.
@@ -434,7 +433,7 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
   return (
     <Panel
       title="Requests in selection"
-      subtitle={`${scopeLabel} · ${sorted.length} requests · sorted by cost ↓${
+      subtitle={`${scopeLabel} · ${sorted.length} requests · newest first${
         sorted.length > DETAIL_CAP ? ` · showing first ${DETAIL_CAP}` : ''
       }`}
     >
@@ -582,7 +581,11 @@ function SelectionStat({
 
 function useMemoSorted(rows: ReadonlyArray<RowWithCost>): RowWithCost[] {
   return useMemo(
-    () => [...rows].sort((a, b) => b.cost - a.cost || b.tokens.total - a.tokens.total),
+    () =>
+      [...rows].sort(
+        (a, b) =>
+          b.date.getTime() - a.date.getTime() || b.cost - a.cost || b.tokens.total - a.tokens.total,
+      ),
     [rows],
   );
 }

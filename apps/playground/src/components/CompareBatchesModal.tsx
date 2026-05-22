@@ -305,33 +305,6 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
           />
         </div>
       ) : null}
-
-      {stats.topAgents.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          <SubTitle>Top agents</SubTitle>
-          {stats.topAgents.slice(0, 3).map((a) => (
-            <div
-              key={`${a.kind}-${a.id}`}
-              className="flex items-center justify-between gap-2 font-mono text-[10px]"
-            >
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block size-1.5 rounded-[1px]"
-                  style={{
-                    background: a.kind === 'cloud-agent' ? 'var(--cu-cat-2)' : 'var(--cu-cat-3)',
-                  }}
-                />
-                <span className="truncate text-[var(--color-text-muted)]" title={a.id}>
-                  {truncateId(a.id)}
-                </span>
-              </span>
-              <span className="tabular-nums text-[var(--color-text-muted)]">
-                {fmtUSDCompact(a.cost)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </motion.section>
   );
 }
@@ -442,11 +415,6 @@ function formatDelta(v: number, fmt: 'usd' | 'num' | 'tokens' | 'pct'): string {
   if (fmt === 'tokens') return `${sign}${fmtTokens(abs)}`;
   if (fmt === 'pct') return `${sign}${(abs * 100).toFixed(1)} pp`;
   return `${sign}${abs.toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
-}
-
-function truncateId(id: string): string {
-  if (id.length <= 14) return id;
-  return `${id.slice(0, 6)}…${id.slice(-5)}`;
 }
 
 /* -------------------------------------------------------------- *

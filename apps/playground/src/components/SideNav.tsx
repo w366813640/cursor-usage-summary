@@ -1,14 +1,4 @@
-import {
-  AlertTriangle,
-  Bot,
-  Calendar,
-  Clock,
-  Cpu,
-  type IconProps,
-  Layout,
-  Table2,
-} from '@cu/icons';
-import { motion } from 'framer-motion';
+import { AlertTriangle, Calendar, Clock, Cpu, type IconProps, Layout, Table2 } from '@cu/icons';
 import type { ComponentType } from 'react';
 import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
 
@@ -17,9 +7,8 @@ const ICONS: Record<AppRoute, ComponentType<IconProps>> = {
   year: Calendar,
   anomalies: AlertTriangle,
   models: Cpu,
-  agents: Bot,
   details: Table2,
-  hours: Clock,
+  day: Clock,
 };
 
 const LABELS: Record<AppRoute, string> = {
@@ -27,9 +16,8 @@ const LABELS: Record<AppRoute, string> = {
   year: 'Year',
   anomalies: 'Anomalies',
   models: 'Models',
-  agents: 'Agents',
-  details: 'Details',
-  hours: 'Hours',
+  details: 'Rows',
+  day: 'Day',
 };
 
 const SHORTCUTS: Record<AppRoute, string> = {
@@ -37,9 +25,8 @@ const SHORTCUTS: Record<AppRoute, string> = {
   year: 'g y',
   anomalies: 'g n',
   models: 'g m',
-  agents: 'g a',
-  details: 'g d',
-  hours: 'g h',
+  details: 'g r',
+  day: 'g d',
 };
 
 interface SideNavProps {
@@ -61,20 +48,23 @@ interface SideNavProps {
  *   - Hover the rail (transient — collapses again on mouse leave)
  *
  * We deliberately keep the rail in the document flow (no `position: fixed`)
- * so the page never has to know about its width; framer's layout animation
- * does the smooth resize, and the active-route accent stripe slides between
- * items via `layoutId` (same trick NavTabs uses).
+ * so the page never has to know about its width. The rail uses a cheap CSS
+ * width transition instead of layout animation; expanding it should never
+ * compete with the dense charts on the Year page.
  */
 export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNavProps) {
   return (
-    <motion.nav
+    <nav
       aria-label="Sections"
       onMouseEnter={() => onSetExpanded(true)}
       onMouseLeave={() => onSetExpanded(false)}
-      animate={{ width: expanded ? 196 : 56 }}
-      transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
       className="sticky top-4 flex shrink-0 flex-col justify-between gap-1 self-start overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
-      style={{ minHeight: 56 * 8 }}
+      style={{
+        minHeight: 56 * 8,
+        width: expanded ? 196 : 56,
+        transition: 'width 140ms ease-out',
+        willChange: 'width',
+      }}
     >
       <ul className="flex flex-col gap-1">
         {ALL_ROUTES.map((route) => {
@@ -114,9 +104,7 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
                 ) : null}
               </button>
               {isActive ? (
-                <motion.span
-                  layoutId="sidenav-active-stripe"
-                  transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
+                <span
                   className="-translate-y-1/2 absolute top-1/2 left-0 h-5 w-[3px] rounded-r"
                   style={{ background: 'var(--color-accent)' }}
                 />
@@ -125,6 +113,6 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
           );
         })}
       </ul>
-    </motion.nav>
+    </nav>
   );
 }

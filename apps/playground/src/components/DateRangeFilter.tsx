@@ -1,9 +1,9 @@
 import type { RowWithCost } from '@cu/data';
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 /**
- * A date-shaped filter used by the Hours page (and re-usable elsewhere).
+ * A date-shaped filter used by the Day page (and re-usable elsewhere).
  *
  * `single`, `multi`, and `range` all index by ISO date strings (`YYYY-MM-DD`,
  * UTC), matching `UsageRow.dateISO` so we never have to deal with timezone
@@ -22,7 +22,7 @@ interface DateRangeFilterProps {
 }
 
 /**
- * Calendar-style filter for the Hours page.
+ * Calendar-style filter for the Day page.
  *
  * Interaction model — designed to stay one-click for the common case:
  *
@@ -43,6 +43,8 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
   // The month currently rendered in the picker. Defaults to the month of the
   // most recent data day so the user always sees something useful first.
   const [cursor, setCursor] = useState<{ year: number; month: number }>(() => {
+    const selectedCursor = cursorFromSelection(value);
+    if (selectedCursor) return selectedCursor;
     if (maxISO) {
       const [y, m] = maxISO.split('-').map(Number) as [number, number];
       return { year: y, month: m - 1 };
@@ -53,6 +55,11 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
 
   // We track the "anchor" click so a subsequent click forms a range.
   const [anchor, setAnchor] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next = cursorFromSelection(value);
+    if (next) setCursor(next);
+  }, [value]);
 
   const monthDays = useMemo(() => buildMonthGrid(cursor.year, cursor.month), [cursor]);
 
@@ -415,6 +422,20 @@ function describeSelection(filter: DateFilter): string {
 
 function toISO(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function cursorFromSelection(value: DateFilter): { year: number; month: number } | null {
+  const iso =
+    value.kind === 'single'
+      ? value.date
+      : value.kind === 'range'
+        ? value.end
+        : value.kind === 'multi'
+          ? value.dates.at(-1)
+          : null;
+  if (!iso) return null;
+  const [year, month] = iso.split('-').map(Number) as [number, number];
+  return { year, month: month - 1 };
 }
 
 function formatMonthLabel(year: number, month: number): string {

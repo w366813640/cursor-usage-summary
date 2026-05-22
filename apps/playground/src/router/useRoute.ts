@@ -7,27 +7,19 @@ import { useCallback, useEffect, useState } from 'react';
  *
  * Routes are kebab-case strings starting with `#/`:
  *
- *   #/overview · #/models · #/details · #/hours
+ *   #/overview · #/models · #/details · #/day
  *
  * Anything else (including no hash at all) resolves to `defaultRoute`.
  */
-export type AppRoute =
-  | 'overview'
-  | 'models'
-  | 'details'
-  | 'hours'
-  | 'year'
-  | 'agents'
-  | 'anomalies';
+export type AppRoute = 'overview' | 'models' | 'details' | 'day' | 'year' | 'anomalies';
 
 export const ALL_ROUTES: ReadonlyArray<AppRoute> = [
   'overview',
   'year',
   'anomalies',
   'models',
-  'agents',
   'details',
-  'hours',
+  'day',
 ];
 
 function parseHash(hash: string, fallback: AppRoute): AppRoute {

@@ -126,16 +126,16 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
                 ) : null
               }
               onSelectDate={(date) => {
-                // Hand off to HoursPage via session storage — keeps the
-                // tiny hash-only router untouched. HoursPage reads and
+                // Hand off to DayPage via session storage — keeps the
+                // tiny hash-only router untouched. DayPage reads and
                 // clears the key on mount.
                 try {
-                  sessionStorage.setItem('cu:pendingHoursDate', date);
+                  sessionStorage.setItem('cu:pendingDayDate', date);
                 } catch {
                   // sessionStorage can throw in private-mode sandboxes;
                   // failing silently still lets the route change happen.
                 }
-                window.location.hash = '/hours';
+                window.location.hash = '/day';
               }}
             />
           </div>

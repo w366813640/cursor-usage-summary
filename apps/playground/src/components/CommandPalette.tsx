@@ -15,7 +15,7 @@ import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
 /**
  * Global Cmd/Ctrl-K command palette. Powers:
  *
- *   - Route jumps (g o / g y / g m / g a / g d / g h)
+ *   - Route jumps (g o / g y / g n / g m / g r / g d)
  *   - Quick actions (Import CSV, Export PNG, Open History, …)
  *   - Settings drawer toggle
  *
@@ -47,9 +47,8 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       navAction('year', ['g', 'y'], 'annual review heatmap calendar'),
       navAction('anomalies', ['g', 'n'], 'anomaly outlier spike z-score'),
       navAction('models', ['g', 'm'], 'per model breakdown table'),
-      navAction('agents', ['g', 'a'], 'cloud agent automation drill'),
-      navAction('details', ['g', 'd'], 'every row request table'),
-      navAction('hours', ['g', 'h'], 'hour weekday burn schedule'),
+      navAction('details', ['g', 'r'], 'every row request table'),
+      navAction('day', ['g', 'd'], 'single day request timeline hour weekday burn schedule'),
     ];
   }, []);
 

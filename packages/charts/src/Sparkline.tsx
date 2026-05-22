@@ -1,7 +1,6 @@
 import { extent, max } from 'd3-array';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
-import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
 
 export interface SparkPoint {
@@ -189,13 +188,11 @@ export function Sparkline({
       >
         <title>Trend sparkline</title>
         {fillArea ? (
-          <motion.path
+          <path
+            className="cu-sparkline-area"
             d={areaPath}
             fill={`var(${strokeVar})`}
             fillOpacity={0.12}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.45, ease: [0.2, 0, 0, 1] }}
           />
         ) : null}
         {refY !== null ? (
@@ -224,42 +221,34 @@ export function Sparkline({
             ) : null}
           </g>
         ) : null}
-        <motion.path
+        <path
+          className="cu-sparkline-line"
           d={linePath}
           fill="none"
           stroke={`var(${strokeVar})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{
-            pathLength: { duration: 1.1, ease: [0.2, 0, 0, 1] },
-            opacity: { duration: 0.3, ease: [0.2, 0, 0, 1] },
-          }}
+          pathLength={1}
         />
         {showPeak && peak ? (
-          <motion.circle
+          <circle
+            className="cu-sparkline-dot cu-sparkline-dot--peak"
             cx={peak.x}
             cy={peak.y}
             r={2.2}
             fill="var(--color-bg)"
             stroke={`var(${strokeVar})`}
             strokeWidth={1}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.95, duration: 0.34, ease: [0.2, 0, 0, 1] }}
           />
         ) : null}
         {showLastPoint && last ? (
-          <motion.circle
+          <circle
+            className="cu-sparkline-dot cu-sparkline-dot--last"
             cx={last.x}
             cy={last.y}
             r={2.5}
             fill={`var(${strokeVar})`}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 1.1, duration: 0.32, ease: [0.2, 0, 0, 1] }}
           />
         ) : null}
         {interactive && hoverPt ? (

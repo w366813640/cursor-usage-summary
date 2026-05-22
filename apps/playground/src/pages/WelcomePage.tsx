@@ -1,4 +1,4 @@
-import { useBrand, useBrandSwitcher } from '@cu/brand';
+import { useBrand } from '@cu/brand';
 import {
   AlertTriangle,
   CuMark,
@@ -10,7 +10,7 @@ import {
   Sun,
   Upload,
 } from '@cu/icons';
-import { Badge, BrandMark, Button, IconButton, Tooltipped, useTheme } from '@cu/ui';
+import { BrandMark, Button, IconButton, Tooltipped, useTheme } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
@@ -266,7 +266,9 @@ function NonDesktopNotice() {
  * only supported runtime, so the variant prop is gone — the brand
  * strip always shows the desktop / sqlite badge. When `onOpenSettings`
  * is provided the header renders a cog button next to the theme
- * toggle; the welcome hero omits it (no DB to configure yet).
+ * toggle; the welcome hero omits it (no DB to configure yet). The titlebar
+ * keeps theme controls icon-only so the Windows chrome stays calm instead of
+ * advertising brand swatches across the top edge.
  */
 function PageChrome({
   children,
@@ -277,7 +279,6 @@ function PageChrome({
 }) {
   const { mode, resolved, toggle } = useTheme();
   const brand = useBrand();
-  const { brands, setBrandById } = useBrandSwitcher();
   return (
     <div
       className="relative min-h-screen w-full"
@@ -304,30 +305,6 @@ function PageChrome({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-1 mr-2">
-            {brands.map((b) => {
-              const active = b.id === brand.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setBrandById(b.id)}
-                  className={[
-                    'h-7 w-7 rounded-full transition-transform duration-[160ms]',
-                    'hover:scale-110 active:scale-95',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]',
-                    active ? 'ring-2 ring-offset-2 ring-offset-[var(--color-bg)]' : '',
-                  ].join(' ')}
-                  style={{
-                    background: b.palette?.accent ?? 'var(--color-accent)',
-                    boxShadow: active ? '0 0 0 1.5px var(--color-accent)' : undefined,
-                  }}
-                  title={b.name}
-                  aria-label={`Switch brand to ${b.name}`}
-                />
-              );
-            })}
-          </div>
           <Tooltipped
             label={resolved === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             side="bottom"
@@ -343,13 +320,7 @@ function PageChrome({
               </IconButton>
             </Tooltipped>
           ) : null}
-          <Badge tone="neutral" className="font-mono text-[10px]">
-            {mode === 'system'
-              ? 'theme · system'
-              : mode === 'dark'
-                ? 'theme · dark'
-                : 'theme · light'}
-          </Badge>
+          <span className="sr-only">Theme mode: {mode}</span>
         </div>
       </header>
 

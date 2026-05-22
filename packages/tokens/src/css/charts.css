@@ -60,3 +60,87 @@
     --cu-cat-6: #b8af9f;
   }
 }
+
+@keyframes cu-heatmap-cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cu-heatmap-cell {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cu-heatmap-cell-in 240ms var(--ease-standard, ease-out) both;
+  transition: stroke 120ms var(--ease-standard, ease-out);
+}
+
+.cu-heatmap-cell:hover {
+  stroke: var(--color-accent);
+}
+
+@keyframes cu-sparkline-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes cu-sparkline-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cu-sparkline-dot-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cu-sparkline-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: cu-sparkline-draw 520ms var(--ease-standard, ease-out) 80ms both;
+}
+
+.cu-sparkline-area {
+  opacity: 0;
+  animation: cu-sparkline-fade 360ms var(--ease-standard, ease-out) 180ms both;
+}
+
+.cu-sparkline-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: cu-sparkline-dot-in 180ms var(--ease-standard, ease-out) 420ms both;
+}
+
+.cu-sparkline-dot--peak {
+  animation-delay: 360ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cu-heatmap-cell,
+  .cu-sparkline-line,
+  .cu-sparkline-area,
+  .cu-sparkline-dot {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}

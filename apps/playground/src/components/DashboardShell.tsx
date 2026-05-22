@@ -1,13 +1,11 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useRoute } from '../router/useRoute';
-import { AgentsPage } from './AgentsPage';
 import { AnomaliesPage } from './AnomaliesPage';
 import { DetailsPage } from './DetailsPage';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
-import { HoursPage } from './HoursPage';
+import { DayPage } from './HoursPage';
 import { ModelsPage } from './ModelsPage';
 import { OverviewPage } from './OverviewPage';
 import { SideNav } from './SideNav';
@@ -36,8 +34,9 @@ interface DashboardShellProps {
  *   │   <active route>                             │
  *   └──────────────────────────────────────────────┘
  *
- * Routing is hash-based (no react-router dep). Page switches use a cross-fade
- * via `AnimatePresence`, so the user always knows the route changed.
+ * Routing is hash-based (no react-router dep). Page switches are intentionally
+ * static: the year heatmap and trend tables already carry hundreds of SVG
+ * nodes, so route-level animation only adds jank without adding meaning.
  */
 export function DashboardShell({
   summary,
@@ -80,23 +79,14 @@ export function DashboardShell({
           desktopActions={desktopActions}
         />
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={route}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
-          >
-            {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
-            {route === 'year' ? <YearReviewPage rows={rows} /> : null}
-            {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}
-            {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
-            {route === 'agents' ? <AgentsPage rows={rows} /> : null}
-            {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
-            {route === 'hours' ? <HoursPage summary={summary} rows={rows} /> : null}
-          </motion.div>
-        </AnimatePresence>
+        <div key={route}>
+          {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
+          {route === 'year' ? <YearReviewPage rows={rows} /> : null}
+          {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}
+          {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
+          {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
+          {route === 'day' ? <DayPage summary={summary} rows={rows} /> : null}
+        </div>
       </div>
     </div>
   );

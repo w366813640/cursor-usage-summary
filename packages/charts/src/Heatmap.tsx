@@ -1,7 +1,6 @@
 import { timeDay, timeSunday } from 'd3-time';
 import { timeFormat } from 'd3-time-format';
-import { motion } from 'framer-motion';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, memo, useMemo, useState } from 'react';
 import { bucketize, fmtUSD, quantileBreakpoints } from './utils';
 
 export interface HeatmapDatum {
@@ -38,6 +37,8 @@ export interface HeatmapProps {
 }
 
 const monthLabel = timeFormat('%b');
+
+type HeatmapHover = { key: string; x: number; y: number };
 
 /**
  * GitHub-style activity calendar. Y-axis = weekday (Sun → Sat), X-axis = week.
@@ -95,7 +96,7 @@ export function Heatmap({
     [data, levels],
   );
 
-  const [hover, setHover] = useState<{ key: string; x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<HeatmapHover | null>(null);
 
   const totalWeeks = Math.ceil(days.length / 7);
   const labelW = 22;
@@ -133,50 +134,17 @@ export function Heatmap({
             </text>
           );
         })}
-        {days.map((day, i) => {
-          const iso = day.toISOString().slice(0, 10);
-          const entry = byDate.get(iso);
-          const value = entry?.value ?? 0;
-          const level = value > 0 ? bucketize(value, breakpoints) : 0;
-          const week = Math.floor(i / 7);
-          const weekday = day.getUTCDay();
-          const x = labelW + week * (cellSize + cellGap);
-          const y = headerH + weekday * (cellSize + cellGap);
-          const isHover = hover?.key === iso;
-          // Wave by week so the eye reads left → right rather than dot-by-dot.
-          // Capped so very long ranges still complete in ~1.1s.
-          const waveDelay = Math.min(0.001 * i + week * 0.012, 1.1);
-          return (
-            <motion.rect
-              key={iso}
-              x={x}
-              y={y}
-              width={cellSize}
-              height={cellSize}
-              rx={2}
-              ry={2}
-              fill={`var(--cu-heat-${level})`}
-              stroke={isHover ? 'var(--color-accent)' : 'transparent'}
-              strokeWidth={1}
-              style={{
-                cursor: onSelectDate ? 'pointer' : 'default',
-                originX: '50%',
-                originY: '50%',
-              }}
-              initial={{ opacity: 0, scale: 0.4 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: waveDelay, duration: 0.28, ease: [0.2, 0, 0, 1] }}
-              onMouseEnter={() => setHover({ key: iso, x: x + cellSize / 2, y })}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => onSelectDate?.(iso)}
-            >
-              <title>
-                {iso} · {entry ? fmtUSD(entry.value) : '$0.00'}
-                {entry?.meta ? ` · ${entry.meta}` : ''}
-              </title>
-            </motion.rect>
-          );
-        })}
+        <HeatmapCells
+          days={days}
+          byDate={byDate}
+          breakpoints={breakpoints}
+          labelW={labelW}
+          headerH={headerH}
+          cellSize={cellSize}
+          cellGap={cellGap}
+          onSelectDate={onSelectDate}
+          onHoverChange={setHover}
+        />
         {outlierDates && outlierDates.size > 0
           ? days.map((day, i) => {
               const iso = day.toISOString().slice(0, 10);
@@ -242,3 +210,67 @@ export function Heatmap({
     </div>
   );
 }
+
+const HeatmapCells = memo(function HeatmapCells({
+  days,
+  byDate,
+  breakpoints,
+  labelW,
+  headerH,
+  cellSize,
+  cellGap,
+  onSelectDate,
+  onHoverChange,
+}: {
+  days: ReadonlyArray<Date>;
+  byDate: ReadonlyMap<string, HeatmapDatum>;
+  breakpoints: ReadonlyArray<number>;
+  labelW: number;
+  headerH: number;
+  cellSize: number;
+  cellGap: number;
+  onSelectDate?: (date: string) => void;
+  onHoverChange: (hover: HeatmapHover | null) => void;
+}) {
+  return (
+    <>
+      {days.map((day, i) => {
+        const iso = day.toISOString().slice(0, 10);
+        const entry = byDate.get(iso);
+        const value = entry?.value ?? 0;
+        const level = value > 0 ? bucketize(value, breakpoints) : 0;
+        const week = Math.floor(i / 7);
+        const weekday = day.getUTCDay();
+        const x = labelW + week * (cellSize + cellGap);
+        const y = headerH + weekday * (cellSize + cellGap);
+        return (
+          <rect
+            key={iso}
+            className="cu-heatmap-cell"
+            x={x}
+            y={y}
+            width={cellSize}
+            height={cellSize}
+            rx={2}
+            ry={2}
+            fill={`var(--cu-heat-${level})`}
+            stroke="transparent"
+            strokeWidth={1}
+            style={{
+              cursor: onSelectDate ? 'pointer' : 'default',
+              animationDelay: `${Math.min(i * 1.5 + week * 10, 900)}ms`,
+            }}
+            onMouseEnter={() => onHoverChange({ key: iso, x: x + cellSize / 2, y })}
+            onMouseLeave={() => onHoverChange(null)}
+            onClick={() => onSelectDate?.(iso)}
+          >
+            <title>
+              {iso} · {entry ? fmtUSD(entry.value) : '$0.00'}
+              {entry?.meta ? ` · ${entry.meta}` : ''}
+            </title>
+          </rect>
+        );
+      })}
+    </>
+  );
+});

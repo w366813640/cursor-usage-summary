@@ -126,15 +126,21 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   ::selection {
     background-color: var(--color-accent-soft);
     color: var(--color-text);
   }
 
-  /* Three-stage scrollbar — invisible until you hover the scrollable region. */
+  /* Low-contrast scrollbar — neutral ink, hidden until interaction.
+     Avoid brand/accent colors here; a hot scrollbar reads like an error rail
+     on data-dense screens. */
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -143,31 +149,33 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--color-border) 8%, transparent);
+    background: transparent;
     border-radius: 999px;
-    border: 3px solid transparent;
+    border: 2px solid transparent;
     background-clip: content-box;
-    transition: background-color 160ms var(--ease-standard, ease-out);
+    transition: background-color 180ms var(--ease-standard, ease-out);
   }
-  *:hover::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--color-border) 45%, transparent);
+  html:hover ::-webkit-scrollbar-thumb,
+  body:hover ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-text) 14%, transparent);
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--color-border-strong) 90%, transparent);
+    background: color-mix(in srgb, var(--color-text) 24%, transparent);
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:active {
-    background: var(--color-text-subtle);
+    background: color-mix(in srgb, var(--color-text) 34%, transparent);
     background-clip: content-box;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--color-border) 12%, transparent) transparent;
+    scrollbar-color: transparent transparent;
   }
-  *:hover {
-    scrollbar-color: color-mix(in srgb, var(--color-border) 55%, transparent) transparent;
+  html:hover *,
+  body:hover * {
+    scrollbar-color: color-mix(in srgb, var(--color-text) 18%, transparent) transparent;
   }
 
   *:focus-visible {
