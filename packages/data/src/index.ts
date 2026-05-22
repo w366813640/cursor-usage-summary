@@ -44,3 +44,11 @@ export {
   type DetectAllResult,
   type Severity,
 } from './anomalies';
+export {
+  computeEfficiency,
+  type ComputeEfficiencyOptions,
+  type EfficiencyRecommendation,
+  type EfficiencyReport,
+  type EfficiencyScenario,
+  type ModelEfficiency,
+} from './efficiency';

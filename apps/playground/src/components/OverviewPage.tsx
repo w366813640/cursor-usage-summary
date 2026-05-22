@@ -5,6 +5,7 @@ import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { ForecastPanel } from './ForecastPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
+import { EfficiencyCard } from './overview/EfficiencyCard';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
 import { OverviewKpiHero } from './overview/OverviewKpiHero';
@@ -79,6 +80,11 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
       >
         <ForecastPanel rows={rows} />
       </motion.section>
+
+      {/* Efficiency (PR3) — the "where can I cut" surface, placed after
+          Forecast so the natural reading order is "today -> trend ->
+          where to trim". */}
+      <EfficiencyCard summary={summary} rows={rows} />
 
       <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />
       <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />

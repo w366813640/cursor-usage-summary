@@ -179,9 +179,6 @@ function PaletteResults() {
               <div style={{ display: 'flex', gap: 4 }}>
                 {item.shortcut.map((s, i) => (
                   <span
-                    // Shortcut chars are positional within an action; the index
-                    // is the natural identifier here.
-                    // biome-ignore lint/suspicious/noArrayIndexKey: shortcut sequence is ordered
                     key={`${item.id}-shortcut-${i}`}
                     style={{
                       display: 'inline-flex',
