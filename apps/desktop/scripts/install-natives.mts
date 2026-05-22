@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,10 +37,73 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../..');
+const desktopRoot = path.resolve(__dirname, '..');
 
 const NATIVE_DEPS = [{ name: 'better-sqlite3', tagPrefix: 'v' }] as const;
 
 type Runtime = 'electron' | 'node';
+
+/**
+ * prebuild-install fetches release tarballs from GitHub by default — a
+ * notoriously flaky path from CN networks (the user's terminal log showed
+ * "Request timed out" after the default 30s window). We do four things:
+ *
+ *   1. Bump the per-request timeout via `--timeout` so a slow-but-alive
+ *      mirror still completes.
+ *   2. Cycle through a list of mirror hosts on each retry — first attempt
+ *      uses the upstream default (works instantly outside CN), then
+ *      drop-in GitHub mirrors that 1:1 map every release URL. The user
+ *      can override the list via BETTER_SQLITE3_BINARY_HOST.
+ *   3. Each host gets its own retry with linear backoff.
+ *   4. Fall back to `electron-rebuild` (build-from-source via @electron/
+ *      rebuild) on the very last failure. The fallback emits a clear
+ *      message so the user knows whether to install MSVC tools or just
+ *      configure a different mirror.
+ *
+ * Override the host(s) via env:
+ *
+ *   BETTER_SQLITE3_BINARY_HOST=https://github.com.your.mirror/
+ *     # single host (comma-separated also accepted); passed to
+ *     # `prebuild-install --download-host=...`. When set, the bundled
+ *     # CN mirror cycle is skipped.
+ *   CU_PREBUILD_RETRIES=3              # attempts PER host, default 2
+ *   CU_PREBUILD_TIMEOUT_MS=120000      # default 120s per attempt
+ *   CU_DISABLE_REBUILD_FALLBACK=1      # skip the build-from-source step
+ */
+const PREBUILD_RETRIES = Number(process.env.CU_PREBUILD_RETRIES ?? '2');
+const PREBUILD_TIMEOUT_MS = Number(process.env.CU_PREBUILD_TIMEOUT_MS ?? '120000');
+const DISABLE_REBUILD_FALLBACK = process.env.CU_DISABLE_REBUILD_FALLBACK === '1';
+
+/**
+ * Drop-in GitHub mirrors used when the user hasn't set
+ * BETTER_SQLITE3_BINARY_HOST. All entries 1:1 map release URLs so
+ * prebuild-install builds the correct path without any URL surgery.
+ * Ordered cheapest → costliest from the project author's perspective:
+ *
+ *   - ''           : empty string = prebuild-install's own default
+ *                    (github.com). Works instantly outside CN, costs us
+ *                    zero retries when the network is healthy.
+ *   - kkgithub.com : community-maintained 1:1 github mirror, generally
+ *                    reachable from CN without auth.
+ *   - bgithub.xyz  : alternative 1:1 mirror, used as a second backup.
+ *
+ * Mirrors come and go; bake in 2–3 here, and let users override with
+ * env when none of them work.
+ */
+const DEFAULT_MIRROR_CYCLE = ['', 'https://kkgithub.com/', 'https://bgithub.xyz/'];
+
+function buildHostCycle(): string[] {
+  const env = process.env.BETTER_SQLITE3_BINARY_HOST?.trim();
+  if (!env) return DEFAULT_MIRROR_CYCLE;
+  return env
+    .split(',')
+    .map((h) => h.trim())
+    .filter((h) => h.length > 0);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 interface RuntimeMarker {
   runtime: Runtime;
@@ -217,30 +280,131 @@ for (const dep of NATIVE_DEPS) {
     }
 
     console.log(`[install-natives] ${dep.name}@${version}${label} @ ${dir}`);
-    try {
-      execSync(
-        `npx prebuild-install --runtime=${runtime} --target=${target} --tag-prefix=${dep.tagPrefix}`,
-        {
-          cwd: dir,
-          stdio: 'inherit',
-          shell: process.platform === 'win32' ? 'powershell' : '/bin/sh',
-        },
-      );
+    const ok = await tryInstall(dep.name, dep.tagPrefix, dir, runtime, target, isCanonical);
+    if (ok) {
       writeMarker(buildReleaseDir, { runtime, target, ts: new Date().toISOString() });
       didAnyWork = true;
       console.log(`[install-natives] ${dep.name}@${version} → ${buildReleaseDir}`);
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (isCanonical) {
-        console.error(`[install-natives] ${dep.name}@${version} failed:`, msg);
-        process.exitCode = 1;
-      } else {
-        console.warn(`[install-natives] ${dep.name}@${version} (orphan) skipped:`, msg);
-      }
     }
   }
 }
 
 if (ensure && !didAnyWork && process.exitCode !== 1) {
   console.log('[install-natives] all canonical native deps already on requested runtime');
+}
+
+/* --------------------------------------------------------------- *
+ *  Install pipeline — prebuild-install (with retry + mirror) then
+ *  electron-rebuild fallback when prebuilds are unreachable.
+ * --------------------------------------------------------------- */
+
+async function tryInstall(
+  name: string,
+  tagPrefix: string,
+  dir: string,
+  runtime: Runtime,
+  target: string,
+  isCanonical: boolean,
+): Promise<boolean> {
+  const hosts = buildHostCycle();
+  const totalAttempts = hosts.length * PREBUILD_RETRIES;
+  let attempt = 0;
+  // --- cycle through mirrors, each with PREBUILD_RETRIES attempts ---
+  for (const host of hosts) {
+    for (let perHost = 1; perHost <= PREBUILD_RETRIES; perHost++) {
+      attempt += 1;
+      const args = [
+        'prebuild-install',
+        `--runtime=${runtime}`,
+        `--target=${target}`,
+        `--tag-prefix=${tagPrefix}`,
+        `--timeout=${PREBUILD_TIMEOUT_MS}`,
+      ];
+      if (host) args.push(`--download-host=${host}`);
+      const cmd = `npx ${args.join(' ')}`;
+      const label = host || 'upstream github.com (default)';
+      try {
+        console.log(
+          `[install-natives] attempt ${attempt}/${totalAttempts} via ${label}\n  $ ${cmd}`,
+        );
+        execSync(cmd, {
+          cwd: dir,
+          stdio: 'inherit',
+          shell: process.platform === 'win32' ? 'powershell' : '/bin/sh',
+        });
+        return true;
+      } catch (err) {
+        const msg = (err as Error).message;
+        const firstLine = msg.split('\n')[0];
+        const isLastAttempt = attempt === totalAttempts;
+        if (!isLastAttempt) {
+          const backoff = perHost * 2000;
+          console.warn(
+            `[install-natives] ${name} attempt ${attempt}/${totalAttempts} via ${label} failed (${firstLine}). Retrying in ${backoff}ms...`,
+          );
+          await sleep(backoff);
+        } else {
+          console.warn(
+            `[install-natives] ${name} prebuild exhausted ${totalAttempts} attempts across ${hosts.length} host(s): ${firstLine}`,
+          );
+        }
+      }
+    }
+  }
+
+  // --- final fallback: build from source via @electron/rebuild ---
+  if (DISABLE_REBUILD_FALLBACK) {
+    if (isCanonical) {
+      const giveUpMessage = [
+        `[install-natives] ${name} install failed and CU_DISABLE_REBUILD_FALLBACK=1, giving up.`,
+        '  To recover: ensure GitHub releases are reachable, OR set',
+        '    BETTER_SQLITE3_BINARY_HOST=<mirror>',
+        '  OR run `pnpm --filter @cu/desktop rebuild-natives` to build from source.',
+      ].join('\n');
+      console.error(giveUpMessage);
+      process.exitCode = 1;
+    } else {
+      console.warn(`[install-natives] ${name} (orphan) skipped after retries (no fallback).`);
+    }
+    return false;
+  }
+
+  if (runtime !== 'electron') {
+    // electron-rebuild is electron-specific. For node-runtime requests we
+    // simply propagate the failure (vitest can fall back to its own
+    // resolver) and let the canonical/orphan branches decide.
+    if (isCanonical) process.exitCode = 1;
+    return false;
+  }
+
+  console.log(
+    `[install-natives] ${name} prebuilds unreachable — falling back to electron-rebuild (build from source, may take ~60s).`,
+  );
+  const rebuild = spawnSync(
+    process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    ['electron-rebuild', '-w', name, '-f'],
+    {
+      cwd: desktopRoot,
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    },
+  );
+  if (rebuild.status === 0) {
+    console.log(`[install-natives] ${name} rebuilt from source against Electron ${target}.`);
+    return true;
+  }
+  if (isCanonical) {
+    const diagnose = [
+      `[install-natives] ${name} electron-rebuild fallback also failed (exit ${rebuild.status}).`,
+      '  Diagnose:',
+      '    1. Confirm Python 3 + C++ build tools are installed (Windows: VS 2022 Build Tools w/ "Desktop dev with C++").',
+      '    2. Or get prebuilds working: set BETTER_SQLITE3_BINARY_HOST=<your-mirror>, or',
+      '       temporarily disable any VPN/proxy that intercepts GitHub release downloads.',
+    ].join('\n');
+    console.error(diagnose);
+    process.exitCode = 1;
+  } else {
+    console.warn(`[install-natives] ${name} (orphan) rebuild skipped after retries + fallback.`);
+  }
+  return false;
 }
