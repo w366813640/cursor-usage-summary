@@ -92,6 +92,9 @@ export function ImportPreviewDrawer({
                   >
                     {fileName}
                   </span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                    review before saving to cursor-usage.db
+                  </span>
                 </div>
               </div>
               <button
@@ -205,6 +208,15 @@ function PreviewSummary({
         </li>
         <li>You can undo this batch from the Import history drawer afterwards.</li>
       </ul>
+      <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3">
+        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          Commit guarantee
+        </div>
+        <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+          Confirming writes only the {preview.wouldAdd.toLocaleString()} new row(s). Skipped rows
+          stay attached to their original batch, and the whole import can be undone as one unit.
+        </p>
+      </div>
     </div>
   );
 }

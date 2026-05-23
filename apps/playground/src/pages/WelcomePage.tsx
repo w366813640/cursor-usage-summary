@@ -1,9 +1,12 @@
 import { useBrand } from '@cu/brand';
 import {
   AlertTriangle,
+  CheckCircle2,
   CuMark,
+  Database,
   FileSpreadsheet,
   Loader2,
+  Lock,
   Moon,
   RefreshCw,
   Settings as SettingsIcon,
@@ -391,7 +394,7 @@ function WelcomeHero({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, delay: 0.08, ease: [0.2, 0, 0, 1] }}
-        className="mb-12"
+        className="mb-6"
       >
         <div
           onDragOver={(e) => {
@@ -485,6 +488,8 @@ function WelcomeHero({
         </div>
       </motion.div>
 
+      <OnboardingProofStrip />
+
       <motion.section
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -517,6 +522,54 @@ function WelcomeHero({
         </div>
       </motion.section>
     </>
+  );
+}
+
+function OnboardingProofStrip() {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
+      className="mb-12 grid grid-cols-1 gap-3 md:grid-cols-3"
+      aria-label="Import safety guarantees"
+    >
+      <ProofCard
+        icon={<Lock size={14} aria-hidden="true" />}
+        label="Local only"
+        body="CSV bytes stay inside the desktop app. No upload, no pricing API call, no cookie."
+      />
+      <ProofCard
+        icon={<CheckCircle2 size={14} aria-hidden="true" />}
+        label="Preview first"
+        body="You see new rows, skipped duplicates, parse failures, and date range before commit."
+      />
+      <ProofCard
+        icon={<Database size={14} aria-hidden="true" />}
+        label="Undo by batch"
+        body="Every import becomes an auditable batch in SQLite and can be rolled back later."
+      />
+    </motion.section>
+  );
+}
+
+function ProofCard({
+  icon,
+  label,
+  body,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+      <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent)]">
+        {icon}
+        {label}
+      </div>
+      <p className="text-[12px] leading-relaxed text-[var(--color-text-muted)]">{body}</p>
+    </div>
   );
 }
 
