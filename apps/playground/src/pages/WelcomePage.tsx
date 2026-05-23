@@ -289,7 +289,7 @@ function PageChrome({
       }}
     >
       <header
-        className="flex h-12 items-center justify-between border-b border-[var(--color-border)] px-6"
+        className="app-drag sticky top-0 z-50 flex h-12 items-center justify-between border-b border-[var(--color-border)] px-6"
         style={{
           background: 'color-mix(in oklab, var(--color-bg) 78%, transparent)',
           backdropFilter: 'blur(8px)',
@@ -304,7 +304,7 @@ function PageChrome({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="app-no-drag flex items-center gap-2">
           <Tooltipped
             label={resolved === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
             side="bottom"
@@ -372,17 +372,18 @@ function WelcomeHero({
           <CuMark size={64} />
         </div>
         <h1 className="font-serif text-[44px] leading-[1.05] tracking-[-0.01em] mb-3">
-          Make your Cursor usage
+          Know what Cursor cost,
           <br />
-          add up.
+          and what to do next.
         </h1>
         <p className="text-[15px] text-[var(--color-text-muted)] max-w-[560px]">
           Drop in a{' '}
           <code className="font-mono text-[13px] text-[var(--color-accent)]">
             usage-events-*.csv
           </code>{' '}
-          exported from cursor.com/dashboard/usage. Costs are computed against the official
-          published pricing — 100% on your device, nothing leaves the page.
+          exported from cursor.com/dashboard/usage. Cursor Usage turns it into a local cost coach:
+          what happened, why it happened, and which habit saves the next dollar. Everything is
+          computed on your device.
         </p>
       </motion.section>
 
@@ -416,8 +417,8 @@ function WelcomeHero({
             {parsing ? 'Parsing…' : 'Drop CSV here or click to upload'}
           </div>
           <div className="text-[13px] text-[var(--color-text-muted)] mb-5 max-w-[420px]">
-            Single <code className="font-mono">usage-events-YYYY-MM-DD.csv</code>. Full summary is
-            logged to the browser console (F12 → Console).
+            Single <code className="font-mono">usage-events-YYYY-MM-DD.csv</code>. You will preview
+            new rows, skipped duplicates, and the covered date range before anything is saved.
           </div>
           <Button variant="primary" size="md" onClick={onPick} disabled={parsing}>
             {parsing ? (
@@ -490,27 +491,27 @@ function WelcomeHero({
         transition={{ duration: 0.42, delay: 0.16 }}
       >
         <div className="flex items-baseline justify-between mb-3">
-          <h2 className="font-serif text-[20px] tracking-tight">Design system preview</h2>
+          <h2 className="font-serif text-[20px] tracking-tight">What you will learn first</h2>
           <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Sample · replaced with your data after upload
+            Local analysis · replaced with your data after upload
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiPreviewCard
             label="Total spend"
             value="$1,247.83"
-            meta="60 days · 2,335 requests"
+            meta="What happened · total cost, requests, tokens"
             accent
           />
           <KpiPreviewCard
             label="Single most expensive"
             value="$139.37"
-            meta="claude-opus-4-7-thinking-max · 2026-05-13"
+            meta="Why it happened · model, day, max-mode context"
           />
           <KpiPreviewCard
             label="Top model by spend"
             value="claude-4-sonnet-thinking"
-            meta="557 requests · 23.8% of total cost"
+            meta="What to do next · switch, reduce, cache, or watch"
             valueClass="font-mono text-[18px] leading-[1.4] tracking-tight"
           />
         </div>

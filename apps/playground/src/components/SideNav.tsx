@@ -1,6 +1,6 @@
 import { AlertTriangle, Calendar, Clock, Cpu, type IconProps, Layout, Table2 } from '@cu/icons';
 import type { ComponentType } from 'react';
-import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
+import type { AppRoute } from '../router/useRoute';
 
 const ICONS: Record<AppRoute, ComponentType<IconProps>> = {
   overview: Layout,
@@ -16,8 +16,8 @@ const LABELS: Record<AppRoute, string> = {
   year: 'Year',
   anomalies: 'Anomalies',
   models: 'Models',
-  details: 'Rows',
-  day: 'Day',
+  details: 'Requests',
+  day: 'Day audit',
 };
 
 const SHORTCUTS: Record<AppRoute, string> = {
@@ -28,6 +28,14 @@ const SHORTCUTS: Record<AppRoute, string> = {
   details: 'g r',
   day: 'g d',
 };
+
+const ROUTE_GROUPS: ReadonlyArray<{
+  label: string;
+  routes: ReadonlyArray<AppRoute>;
+}> = [
+  { label: 'Analyze', routes: ['overview', 'year', 'anomalies'] },
+  { label: 'Investigate', routes: ['models', 'details', 'day'] },
+];
 
 interface SideNavProps {
   current: AppRoute;
@@ -66,52 +74,67 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
         willChange: 'width',
       }}
     >
-      <ul className="flex flex-col gap-1">
-        {ALL_ROUTES.map((route) => {
-          const Icon = ICONS[route];
-          const isActive = route === current;
-          return (
-            <li key={route} className="relative">
-              <button
-                type="button"
-                onClick={() => onNavigate(route)}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={`Navigate to ${LABELS[route]}`}
-                className={[
-                  'group flex h-10 w-full items-center gap-3 rounded-[10px] px-2.5 transition-colors',
-                  isActive
-                    ? 'text-[var(--color-text)]'
-                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-                  isActive
-                    ? 'bg-[var(--color-surface-muted)]'
-                    : 'hover:bg-[var(--color-surface-muted)]/40',
-                ].join(' ')}
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span
-                  className={[
-                    'flex-1 text-left font-serif text-[14px] tracking-tight transition-opacity duration-150',
-                    expanded ? 'opacity-100' : 'opacity-0',
-                  ].join(' ')}
-                  style={{ pointerEvents: expanded ? 'auto' : 'none' }}
-                >
-                  {LABELS[route]}
-                </span>
-                {expanded ? (
-                  <span className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-                    {SHORTCUTS[route]}
-                  </span>
-                ) : null}
-              </button>
-              {isActive ? (
-                <span
-                  className="-translate-y-1/2 absolute top-1/2 left-0 h-5 w-[3px] rounded-r"
-                  style={{ background: 'var(--color-accent)' }}
-                />
-              ) : null}
-            </li>
-          );
-        })}
+      <ul className="flex flex-col gap-2">
+        {ROUTE_GROUPS.map((group) => (
+          <li key={group.label} className="flex flex-col gap-1">
+            <div
+              className={[
+                'px-2 pt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)] transition-opacity duration-150',
+                expanded ? 'opacity-100' : 'opacity-0',
+              ].join(' ')}
+              aria-hidden={!expanded}
+            >
+              {group.label}
+            </div>
+            <ul className="flex flex-col gap-1">
+              {group.routes.map((route) => {
+                const Icon = ICONS[route];
+                const isActive = route === current;
+                return (
+                  <li key={route} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => onNavigate(route)}
+                      aria-current={isActive ? 'page' : undefined}
+                      aria-label={`Navigate to ${LABELS[route]}`}
+                      className={[
+                        'group flex h-10 w-full items-center gap-3 rounded-[10px] px-2.5 transition-colors',
+                        isActive
+                          ? 'text-[var(--color-text)]'
+                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+                        isActive
+                          ? 'bg-[var(--color-surface-muted)]'
+                          : 'hover:bg-[var(--color-surface-muted)]/40',
+                      ].join(' ')}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span
+                        className={[
+                          'flex-1 text-left font-serif text-[14px] tracking-tight transition-opacity duration-150',
+                          expanded ? 'opacity-100' : 'opacity-0',
+                        ].join(' ')}
+                        style={{ pointerEvents: expanded ? 'auto' : 'none' }}
+                      >
+                        {LABELS[route]}
+                      </span>
+                      {expanded ? (
+                        <span className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+                          {SHORTCUTS[route]}
+                        </span>
+                      ) : null}
+                    </button>
+                    {isActive ? (
+                      <span
+                        className="-translate-y-1/2 absolute top-1/2 left-0 h-5 w-[3px] rounded-r"
+                        style={{ background: 'var(--color-accent)' }}
+                      />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
       </ul>
     </nav>
   );

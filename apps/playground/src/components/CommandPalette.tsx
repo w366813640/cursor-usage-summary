@@ -30,9 +30,14 @@ import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
  */
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const baseActions = useMemo<Action[]>(() => {
-    const navAction = (route: AppRoute, shortcut: string[], hint: string): Action => ({
+    const navAction = (
+      route: AppRoute,
+      shortcut: string[],
+      label: string,
+      hint: string,
+    ): Action => ({
       id: `nav-${route}`,
-      name: `Go to ${titleCase(route)}`,
+      name: `Go to ${label}`,
       keywords: `${route} navigate jump open ${hint}`,
       shortcut,
       section: 'Navigate',
@@ -43,12 +48,12 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 
     return [
       // Navigation
-      navAction('overview', ['g', 'o'], 'home dashboard kpi'),
-      navAction('year', ['g', 'y'], 'annual review heatmap calendar'),
-      navAction('anomalies', ['g', 'n'], 'anomaly outlier spike z-score'),
-      navAction('models', ['g', 'm'], 'per model breakdown table'),
-      navAction('details', ['g', 'r'], 'every row request table'),
-      navAction('day', ['g', 'd'], 'single day request timeline hour weekday burn schedule'),
+      navAction('overview', ['g', 'o'], 'Overview', 'home dashboard kpi actions coach'),
+      navAction('year', ['g', 'y'], 'Year', 'annual review heatmap calendar trends'),
+      navAction('anomalies', ['g', 'n'], 'Anomalies', 'outlier spike z-score explain why'),
+      navAction('models', ['g', 'm'], 'Models', 'per model breakdown table substitution'),
+      navAction('details', ['g', 'r'], 'Requests', 'every row request table audit log'),
+      navAction('day', ['g', 'd'], 'Day audit', 'single day request timeline hour burn schedule'),
     ];
   }, []);
 
@@ -206,10 +211,5 @@ function PaletteResults() {
     />
   );
 }
-
-function titleCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 // Re-export for ergonomics — callers shouldn't have to import ALL_ROUTES separately.
 export { ALL_ROUTES };
