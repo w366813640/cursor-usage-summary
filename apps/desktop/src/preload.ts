@@ -24,6 +24,7 @@ interface UserSettings {
   monthlyRequestBudget: number;
   currency: { code: string; symbol: string; multiplier: number };
   lastBackupAt: string | null;
+  displayDensity: 'comfortable' | 'dense' | 'presentation';
 }
 
 interface ExportToFileResult {

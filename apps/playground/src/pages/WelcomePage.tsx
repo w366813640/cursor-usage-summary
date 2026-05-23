@@ -22,6 +22,7 @@ import { ImportPreviewDrawer } from '../components/ImportPreviewDrawer';
 import { SettingsDrawer } from '../components/SettingsDrawer';
 import { isDesktop as detectDesktop } from '../electron/bridge';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
+import { useSettings } from '../hooks/useSettings';
 
 /**
  * App shell + entry surface.
@@ -61,6 +62,7 @@ export function WelcomePage() {
  */
 function DesktopWelcomePage() {
   const desktop = useDesktopIngest();
+  const { settings } = useSettings();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [bootChecked, setBootChecked] = useState(false);
@@ -151,10 +153,15 @@ function DesktopWelcomePage() {
     desktop.state.status === 'preview' || desktop.state.status === 'committing'
       ? desktop.state
       : null;
+  const pagePadding = pagePaddingForDensity(settings.displayDensity);
+
+  useEffect(() => {
+    document.documentElement.dataset.density = settings.displayDensity;
+  }, [settings.displayDensity]);
 
   return (
     <PageChrome onOpenSettings={() => setSettingsOpen(true)}>
-      <main className="max-w-[1280px] mx-auto px-6 py-8">
+      <main className="max-w-[1280px] mx-auto px-6 py-8" style={pagePadding}>
         <input
           ref={inputRef}
           type="file"
@@ -235,6 +242,12 @@ function DesktopWelcomePage() {
       />
     </PageChrome>
   );
+}
+
+function pagePaddingForDensity(density: 'comfortable' | 'dense' | 'presentation') {
+  if (density === 'dense') return { padding: '20px 20px' };
+  if (density === 'presentation') return { padding: '40px 32px' };
+  return { padding: '32px 24px' };
 }
 
 /**

@@ -106,6 +106,7 @@ export interface UserSettings {
   monthlyRequestBudget: number;
   currency: CurrencyPreference;
   lastBackupAt: string | null;
+  displayDensity: 'comfortable' | 'dense' | 'presentation';
 }
 
 export interface ExportToFileResult {

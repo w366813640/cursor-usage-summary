@@ -14,7 +14,10 @@ const FALLBACK: UserSettings = {
   monthlyRequestBudget: 500,
   currency: { code: 'USD', symbol: '$', multiplier: 1 },
   lastBackupAt: null,
+  displayDensity: 'comfortable',
 };
+
+const SETTINGS_EVENT = 'cu:settings-change';
 
 export interface UseSettings {
   settings: UserSettings;
@@ -50,11 +53,20 @@ export function useSettings(): UseSettings {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    const onSettingsChange = () => {
+      void reload();
+    };
+    window.addEventListener(SETTINGS_EVENT, onSettingsChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onSettingsChange);
+  }, [reload]);
+
   const save = useCallback(async (partial: Partial<UserSettings>) => {
     try {
       const next = await updateSettings(partial);
       setSettings(next);
       setError(null);
+      window.dispatchEvent(new CustomEvent(SETTINGS_EVENT));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       throw err;

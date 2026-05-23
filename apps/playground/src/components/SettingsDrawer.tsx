@@ -141,6 +141,20 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
     }
   };
 
+  const onSaveDensity = async (displayDensity: 'comfortable' | 'dense' | 'presentation') => {
+    setStatus({ kind: 'busy', message: `Switching display density to ${displayDensity}...` });
+    try {
+      await save({ displayDensity });
+      document.documentElement.dataset.density = displayDensity;
+      setStatus({ kind: 'ok', message: `Display density set to ${displayDensity}.` });
+    } catch (err) {
+      setStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
   const onResetCurrency = async () => {
     setStatus({ kind: 'busy', message: 'Restoring USD default…' });
     try {
@@ -297,6 +311,44 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
               <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                 resolved: {resolved}
               </p>
+            </Section>
+
+            <Section
+              icon={<Monitor size={12} aria-hidden="true" />}
+              title="Display density"
+              hint="Comfortable is the default. Dense tightens the workbench; Presentation gives screenshots more air."
+            >
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ['comfortable', 'Comfortable', 'Balanced spacing for daily review.'],
+                    ['dense', 'Dense', 'Tighter rows and chrome for power scanning.'],
+                    ['presentation', 'Presentation', 'More breathing room for exports and demos.'],
+                  ] as const
+                ).map(([id, label, hint]) => {
+                  const active = settings.displayDensity === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => void onSaveDensity(id)}
+                      className={[
+                        'flex min-h-[76px] flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors',
+                        active
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]/35 text-[var(--color-text)]'
+                          : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+                      ].join(' ')}
+                    >
+                      <span className="font-mono text-[10px] uppercase tracking-[0.08em]">
+                        {label}
+                      </span>
+                      <span className="text-[11px] leading-snug text-[var(--color-text-subtle)]">
+                        {hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </Section>
 
             <Section

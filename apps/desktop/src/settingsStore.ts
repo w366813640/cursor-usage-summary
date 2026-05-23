@@ -36,12 +36,14 @@ export interface UserSettings {
   monthlyRequestBudget: number;
   currency: CurrencyPreference;
   lastBackupAt: string | null;
+  displayDensity: 'comfortable' | 'dense' | 'presentation';
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
   monthlyRequestBudget: 500,
   currency: { code: 'USD', symbol: '$', multiplier: 1 },
   lastBackupAt: null,
+  displayDensity: 'comfortable',
 };
 
 const SETTINGS_FILENAME = 'cursor-usage-settings.json';
@@ -62,6 +64,10 @@ function clamp(n: unknown, min: number, max: number, fallback: number): number {
 function normalize(raw: unknown): UserSettings {
   const obj = (raw ?? {}) as Partial<UserSettings>;
   const currency = (obj.currency ?? {}) as Partial<CurrencyPreference>;
+  const displayDensity =
+    obj.displayDensity === 'dense' || obj.displayDensity === 'presentation'
+      ? obj.displayDensity
+      : 'comfortable';
   return {
     monthlyRequestBudget: clamp(obj.monthlyRequestBudget, 1, 1_000_000, 500),
     currency: {
@@ -70,6 +76,7 @@ function normalize(raw: unknown): UserSettings {
       multiplier: clamp(currency.multiplier, 0.0001, 10_000, 1),
     },
     lastBackupAt: typeof obj.lastBackupAt === 'string' ? obj.lastBackupAt : null,
+    displayDensity,
   };
 }
 
