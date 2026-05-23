@@ -102,6 +102,21 @@ export interface CurrencyPreference {
   multiplier: number;
 }
 
+/**
+ * Mirror of `NavRouteId` in `apps/desktop/src/settingsStore.ts`. The
+ * renderer's `AppRoute` union (router/useRoute.ts) is the canonical
+ * source of these strings — we duplicate them here only so the
+ * settings payload stays self-typed without a cross-package import.
+ */
+export type NavRouteId = 'overview' | 'year' | 'anomalies' | 'models' | 'details' | 'day';
+
+export interface NavigationPreference {
+  /** Routes in user-specified order. Always covers all known routes. */
+  order: NavRouteId[];
+  /** Subset of `order` the user wants hidden from the rail and palette. */
+  hidden: NavRouteId[];
+}
+
 export interface UserSettings {
   monthlyRequestBudget: number;
   currency: CurrencyPreference;
@@ -111,6 +126,7 @@ export interface UserSettings {
     monthlyRequestTarget: number | null;
     habitFocus: 'cache' | 'top-burn' | 'volume' | null;
   };
+  navigation: NavigationPreference;
 }
 
 export interface ExportToFileResult {

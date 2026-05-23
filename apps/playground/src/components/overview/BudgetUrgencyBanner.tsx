@@ -109,13 +109,13 @@ export function BudgetUrgencyBanner({ summary }: BudgetUrgencyBannerProps) {
       <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <div className="flex flex-1 flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] opacity-80">
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] opacity-80">
             {tone.label}
           </span>
           <span className="text-[var(--color-text-subtle)] opacity-60" aria-hidden="true">
             ·
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
             {urgency.monthStart.slice(0, 7)}
           </span>
         </div>
@@ -171,7 +171,7 @@ function Metric({
 }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </span>
       <span className="flex items-center gap-1 font-mono text-[12px] tabular-nums text-[var(--color-text)]">

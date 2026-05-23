@@ -122,7 +122,7 @@ export function CompareBatchesModal({
                 onChange={setLeftId}
                 label="Left"
               />
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+              <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
                 vs
               </span>
               <BatchPicker
@@ -246,11 +246,11 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
           >
             {stats.batch.sourceFilename}
           </span>
-          <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             {side === 'left' ? 'A' : 'B'}
           </span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
           {describeLastUpdate(stats.batch.importedAt) ?? 'just now'} · {dateRange}
         </span>
       </header>
@@ -271,7 +271,7 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
       <div className="flex flex-col gap-1">
         <SubTitle>Top models</SubTitle>
         {stats.topModels.slice(0, 4).map((m) => (
-          <div key={m.model} className="flex items-center gap-2 font-mono text-[10px]">
+          <div key={m.model} className="flex items-center gap-2 font-mono text-[11px]">
             <span className="w-32 truncate text-[var(--color-text)]" title={m.model}>
               {m.model}
             </span>
@@ -352,7 +352,7 @@ function DeltaCard({ left, right }: { left: BatchStats; right: BatchStats }) {
       <div className="border-t border-[var(--color-border)] pt-2">
         <SubTitle>Common top models</SubTitle>
         {intersection.length > 0 ? (
-          <ul className="mt-1 flex flex-col gap-0.5 font-mono text-[10px] text-[var(--color-text)]">
+          <ul className="mt-1 flex flex-col gap-0.5 font-mono text-[11px] text-[var(--color-text)]">
             {intersection.map((m) => (
               <li key={m.model} className="truncate" title={m.model}>
                 · {m.model}
@@ -360,12 +360,12 @@ function DeltaCard({ left, right }: { left: BatchStats; right: BatchStats }) {
             ))}
           </ul>
         ) : (
-          <span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
+          <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
             no overlap — totally different model mixes
           </span>
         )}
       </div>
-      <div className="border-t border-[var(--color-border)] pt-2 text-center font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="border-t border-[var(--color-border)] pt-2 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         <Calendar size={9} className="mr-1 inline-block" aria-hidden="true" />
         {left.batch.importedAt < right.batch.importedAt ? 'A is older' : 'A is newer'}
       </div>
@@ -436,7 +436,7 @@ function BatchPicker({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </span>
       <select
@@ -467,7 +467,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2">
-      <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -486,7 +486,7 @@ function Metric({
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-sm bg-[var(--color-surface)] px-2 py-1.5">
-      <div className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         <Zap size={9} aria-hidden="true" />
         {label}
       </div>
@@ -499,7 +499,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 function SubTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+    <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
       {children}
     </div>
   );

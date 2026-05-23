@@ -37,10 +37,14 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
       transition={{ duration: 0.38, ease: [0.2, 0, 0, 1] }}
       aria-label="This week in a sentence"
       className={[
-        'group relative overflow-hidden rounded-[14px] border border-[var(--color-border)]',
-        'bg-[var(--color-surface)] p-5',
+        'group relative overflow-hidden border border-[var(--color-border)]',
+        'bg-[var(--color-surface)]',
         'shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent)]',
       ].join(' ')}
+      style={{
+        borderRadius: 'var(--cu-density-panel-radius)',
+        padding: 'var(--cu-density-panel-padding)',
+      }}
     >
       <span
         aria-hidden="true"
@@ -64,7 +68,7 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
             This week
           </span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {week.degraded
             ? 'not enough history'
             : `${week.windowDays} ${week.windowDays === 1 ? 'day' : 'days'} of data`}
@@ -72,7 +76,7 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
       </header>
 
       <p
-        className="font-serif text-[20px] leading-snug tracking-[-0.005em] text-[var(--color-text)]"
+        className="font-serif text-[22px] leading-[1.4] tracking-[-0.005em] text-[var(--color-text)]"
         // Tabular nums on the $ figure keeps the dollar amount aligned even
         // when the headline re-renders mid-animation.
         style={{ fontFeatureSettings: '"tnum" 1' }}
@@ -81,7 +85,7 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
       </p>
 
       {week.bullets.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5 font-mono text-[12px] text-[var(--color-text-muted)]">
+        <ul className="mt-3 flex flex-col gap-2 font-mono text-[12px] leading-relaxed text-[var(--color-text-muted)]">
           {week.bullets.map((b, i) => (
             <li
               // Bullets are a stable ordered list — the index is the identifier.

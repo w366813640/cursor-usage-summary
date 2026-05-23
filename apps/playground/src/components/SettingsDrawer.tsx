@@ -1,10 +1,18 @@
+﻿import { type RowWithCost, type UsageSummary, redactRowsToCsv, redactedFileName } from '@cu/data';
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   Check,
   Download,
+  Eye,
+  EyeOff,
+  FileSpreadsheet,
   FileText,
   FolderOpen,
   HardDrive,
+  History,
+  Layout,
   Loader2,
   Monitor,
   Moon,
@@ -31,14 +39,36 @@ import {
   revealDbInFolder,
   updateSettings,
 } from '../electron/desktopStorage';
-import type { UpdateStatus } from '../electron/types';
+import type { NavRouteId, UpdateStatus } from '../electron/types';
 import { useSettings } from '../hooks/useSettings';
+import { buildLocalReport, triggerDownload } from '../utils/localReport';
+
+/**
+ * Snapshot of the loaded dataset the Data management section needs to
+ * export reports / redacted CSVs without going back through the
+ * desktop bridge. `null` while the welcome hero is showing (no data
+ * yet) so the export affordances render as disabled placeholders.
+ */
+export interface SettingsDataset {
+  summary: UsageSummary;
+  rows: ReadonlyArray<RowWithCost>;
+  fileName: string;
+}
 
 interface SettingsDrawerProps {
   open: boolean;
   onClose: () => void;
   /** Called after a successful backup restore — parent re-hydrates the dashboard. */
   onAfterRestore?: () => void | Promise<void>;
+  /**
+   * Snapshot of the currently-loaded dataset. Drives the export
+   * affordances; absent while the welcome hero is up.
+   */
+  dataset?: SettingsDataset | null;
+  /** Opens the CSV file picker (delegates back to WelcomePage). */
+  onOpenImport?: () => void;
+  /** Opens the Import history drawer (delegates back to WelcomePage). */
+  onOpenHistory?: () => void;
 }
 
 type Status =
@@ -65,7 +95,14 @@ type Status =
  * Errors and successes funnel into a single `Status` banner at the
  * top so the user always has feedback in eye-line.
  */
-export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawerProps) {
+export function SettingsDrawer({
+  open,
+  onClose,
+  onAfterRestore,
+  dataset,
+  onOpenImport,
+  onOpenHistory,
+}: SettingsDrawerProps) {
   const { settings, loading, save } = useSettings();
   const { mode: themeMode, setMode: setThemeMode, resolved } = useTheme();
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -159,7 +196,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
       await save({ currency: { code, symbol, multiplier } });
       setStatus({
         kind: 'ok',
-        message: `Currency display set to ${code} (${symbol}, ×${multiplier}).`,
+        message: `Currency display set to ${code} (${symbol}, ?${multiplier}).`,
       });
     } catch (err) {
       setStatus({
@@ -216,7 +253,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
     try {
       await save({ currency: { code: 'USD', symbol: '$', multiplier: 1 } });
       setCurrencyDraft({ code: 'USD', symbol: '$', multiplier: '1' });
-      setStatus({ kind: 'ok', message: 'Currency reset to USD ($, ×1).' });
+      setStatus({ kind: 'ok', message: 'Currency reset to USD ($, ?1).' });
     } catch (err) {
       setStatus({
         kind: 'error',
@@ -375,6 +412,56 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
 
             <StatusBanner status={status} />
 
+            <DataManagementSection
+              dataset={dataset ?? null}
+              monthlyRequestBudget={settings.monthlyRequestBudget}
+              onOpenImport={() => {
+                if (!onOpenImport) return;
+                onOpenImport();
+                onClose();
+              }}
+              onOpenHistory={() => {
+                if (!onOpenHistory) return;
+                onOpenHistory();
+                onClose();
+              }}
+              onStatus={setStatus}
+            />
+
+            <NavigationSection
+              order={settings.navigation.order}
+              hidden={settings.navigation.hidden}
+              onChange={async (next) => {
+                setStatus({ kind: 'busy', message: 'Saving navigation layout…' });
+                try {
+                  await save({ navigation: next });
+                  setStatus({ kind: 'ok', message: 'Navigation layout saved.' });
+                } catch (err) {
+                  setStatus({
+                    kind: 'error',
+                    message: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }}
+              onReset={async () => {
+                setStatus({ kind: 'busy', message: 'Restoring default navigation…' });
+                try {
+                  await save({
+                    navigation: {
+                      order: ['overview', 'year', 'anomalies', 'models', 'details', 'day'],
+                      hidden: [],
+                    },
+                  });
+                  setStatus({ kind: 'ok', message: 'Navigation reset to default.' });
+                } catch (err) {
+                  setStatus({
+                    kind: 'error',
+                    message: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }}
+            />
+
             <Section
               icon={
                 resolved === 'dark' ? (
@@ -417,7 +504,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                   );
                 })}
               </div>
-              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+              <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                 resolved: {resolved}
               </p>
             </Section>
@@ -448,7 +535,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                           : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
                       ].join(' ')}
                     >
-                      <span className="font-mono text-[10px] uppercase tracking-[0.08em]">
+                      <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
                         {label}
                       </span>
                       <span className="text-[11px] leading-snug text-[var(--color-text-subtle)]">
@@ -463,7 +550,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
             <Section
               icon={<HardDrive size={12} aria-hidden="true" />}
               title="Monthly request budget"
-              hint="Drives the plan cap displayed on the Overview → Monthly panel."
+              hint="Drives the plan cap displayed on the Overview — Monthly panel."
             >
               <div className="flex items-center gap-2">
                 <input
@@ -481,7 +568,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                   <SaveButton onClick={onSaveBudget} disabled={loading} />
                 </div>
               </div>
-              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+              <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                 current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
               </p>
             </Section>
@@ -500,7 +587,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                   type="number"
                 />
                 <label className="flex flex-col gap-1">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                     Habit focus
                   </span>
                   <select
@@ -565,14 +652,14 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                 </div>
               </div>
               <div className="mt-2 flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                  current: {settings.currency.code} ({settings.currency.symbol}, ×
+                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  current: {settings.currency.code} ({settings.currency.symbol}, ?
                   {settings.currency.multiplier})
                 </span>
                 <button
                   type="button"
                   onClick={() => void onResetCurrency()}
-                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
                 >
                   <RotateCcw size={10} aria-hidden="true" />
                   reset to USD
@@ -594,14 +681,14 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                     type="button"
                     onClick={() => void revealDbInFolder()}
                     disabled={!dbPath}
-                    className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <FolderOpen size={10} aria-hidden="true" />
                     reveal
                   </button>
                 </div>
                 {settingsPath ? (
-                  <div className="mt-1.5 font-mono text-[10px] text-[var(--color-text-subtle)]">
+                  <div className="mt-1.5 font-mono text-[11px] text-[var(--color-text-subtle)]">
                     settings: <span className="text-[var(--color-text-muted)]">{settingsPath}</span>
                   </div>
                 ) : null}
@@ -668,14 +755,14 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                       <button
                         type="button"
                         onClick={() => setConfirmRestore(false)}
-                        className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+                        className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
                         onClick={() => void onRestoreConfirmed()}
-                        className="rounded-md border border-[var(--color-destructive)] bg-[var(--color-destructive)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-white transition-opacity hover:opacity-90"
+                        className="rounded-md border border-[var(--color-destructive)] bg-[var(--color-destructive)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-white transition-opacity hover:opacity-90"
                       >
                         Replace + restore
                       </button>
@@ -683,11 +770,11 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                   </div>
                 ) : null}
                 {settings.lastBackupAt ? (
-                  <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                     last export: {new Date(settings.lastBackupAt).toLocaleString()}
                   </p>
                 ) : (
-                  <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                     no backup taken yet
                   </p>
                 )}
@@ -715,7 +802,7 @@ function Section({ icon, title, hint, children }: SectionProps) {
         {title}
       </div>
       {hint ? (
-        <p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        <p className="mb-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
           {hint}
         </p>
       ) : null}
@@ -735,7 +822,7 @@ interface FieldProps {
 function Field({ label, value, onChange, placeholder, type = 'text' }: FieldProps) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
         {label}
       </span>
       <input
@@ -758,7 +845,7 @@ function SaveButton({
       type="button"
       onClick={() => void onClick()}
       disabled={disabled}
-      className="flex items-center gap-1 rounded-md border border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_18%,transparent)] px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex items-center gap-1 rounded-md border border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_18%,transparent)] px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
     >
       <Save size={11} aria-hidden="true" />
       save
@@ -781,7 +868,7 @@ function UpdateStatusCard({
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             {status.kind}
           </div>
           <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
@@ -793,7 +880,7 @@ function UpdateStatusCard({
             type="button"
             onClick={() => void onCheck()}
             disabled={status.kind === 'checking' || status.kind === 'downloading'}
-            className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             check
           </button>
@@ -801,7 +888,7 @@ function UpdateStatusCard({
             type="button"
             onClick={() => void onInstall()}
             disabled={!canInstall}
-            className="rounded-md border border-[var(--color-accent)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-[var(--color-accent)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
             restart
           </button>
@@ -862,5 +949,333 @@ function StatusBanner({ status }: { status: Status }) {
         <span className="break-words">{status.message}</span>
       </div>
     </div>
+  );
+}
+
+/* ----------------------------------------------------------------
+ * Data management section
+ *
+ * Hosts the Import / History / Export affordances that used to live
+ * on the FileToolbar. Centralising them here was the UI polish
+ * pass's biggest information-architecture change — the toolbar now
+ * carries only the high-value Focus toggle, and the routine
+ * "manage my data" work is one settings click away.
+ * ---------------------------------------------------------------- */
+interface DataManagementSectionProps {
+  dataset: SettingsDataset | null;
+  monthlyRequestBudget: number;
+  onOpenImport: () => void;
+  onOpenHistory: () => void;
+  onStatus: (status: Status) => void;
+}
+
+function DataManagementSection({
+  dataset,
+  monthlyRequestBudget,
+  onOpenImport,
+  onOpenHistory,
+  onStatus,
+}: DataManagementSectionProps) {
+  const hasData = !!dataset && dataset.summary.totalRows > 0;
+  const onExportRedacted = () => {
+    if (!dataset) return;
+    const csv = redactRowsToCsv(dataset.rows);
+    triggerDownload(csv, redactedFileName(dataset.fileName));
+    onStatus({ kind: 'ok', message: 'Redacted CSV download started.' });
+  };
+  const onExportReport = () => {
+    if (!dataset) return;
+    const markdown = buildLocalReport({
+      summary: dataset.summary,
+      rows: dataset.rows,
+      fileName: dataset.fileName,
+      monthlyRequestBudget,
+    });
+    triggerDownload(markdown, redactedFileName(dataset.fileName).replace(/\.csv$/i, '-report.md'));
+    onStatus({ kind: 'ok', message: 'Local report download started.' });
+  };
+
+  return (
+    <Section
+      icon={<FileSpreadsheet size={12} aria-hidden="true" />}
+      title="Data management"
+      hint="Import another CSV, review past imports, or export a privacy-safe snapshot."
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <DataActionButton
+          icon={<Upload size={12} aria-hidden="true" />}
+          label="Import CSV"
+          description="Preview new rows + skipped duplicates before the merge."
+          onClick={onOpenImport}
+        />
+        <DataActionButton
+          icon={<History size={12} aria-hidden="true" />}
+          label="Import history"
+          description="Every CSV you've imported · undo any batch."
+          onClick={onOpenHistory}
+        />
+        <DataActionButton
+          icon={<Download size={12} aria-hidden="true" />}
+          label="Export redacted CSV"
+          description="Cloud Agent / Automation IDs replaced with hash aliases."
+          onClick={onExportRedacted}
+          disabled={!hasData}
+        />
+        <DataActionButton
+          icon={<Download size={12} aria-hidden="true" />}
+          label="Export local report"
+          description="Markdown summary with insights and planning scenarios."
+          onClick={onExportReport}
+          disabled={!hasData}
+        />
+      </div>
+      {dataset ? (
+        <p className="mt-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+          loaded: {dataset.fileName} · {dataset.summary.totalRows.toLocaleString()} rows
+        </p>
+      ) : (
+        <p className="mt-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+          no data loaded · drop a CSV onto the welcome hero to get started
+        </p>
+      )}
+    </Section>
+  );
+}
+
+function DataActionButton({
+  icon,
+  label,
+  description,
+  onClick,
+  disabled = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  description: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        'flex min-h-[68px] flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors',
+        disabled
+          ? 'cursor-not-allowed border-[var(--color-border)] text-[var(--color-text-subtle)] opacity-50'
+          : 'border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]',
+      ].join(' ')}
+    >
+      <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em]">
+        {icon}
+        {label}
+      </span>
+      <span className="text-[11px] leading-snug text-[var(--color-text-subtle)]">
+        {description}
+      </span>
+    </button>
+  );
+}
+
+/* ----------------------------------------------------------------
+ * Navigation section
+ *
+ * Drag-reorder (HTML5 dnd) + per-route visibility toggle for the
+ * left rail. Persisted via UserSettings.navigation; SideNav reads
+ * the layout through DashboardShell.
+ * ---------------------------------------------------------------- */
+interface NavigationSectionProps {
+  order: NavRouteId[];
+  hidden: NavRouteId[];
+  onChange: (next: { order: NavRouteId[]; hidden: NavRouteId[] }) => void | Promise<void>;
+  onReset: () => void | Promise<void>;
+}
+
+const ROUTE_LABEL: Record<NavRouteId, string> = {
+  overview: 'Overview',
+  year: 'Year',
+  anomalies: 'Anomalies',
+  models: 'Models',
+  details: 'Requests',
+  day: 'Day audit',
+};
+
+const ROUTE_HINT: Record<NavRouteId, string> = {
+  overview: 'Headline KPIs, action feed, week summary',
+  year: 'Year-long heatmap and monthly trends',
+  anomalies: 'Days that broke the weekly baseline',
+  models: 'Per-model cost / tokens / share',
+  details: 'Filterable request table',
+  day: 'Single-day audit drilldown',
+};
+
+function NavigationSection({ order, hidden, onChange, onReset }: NavigationSectionProps) {
+  const hiddenSet = new Set(hidden);
+  const [dragId, setDragId] = useState<NavRouteId | null>(null);
+
+  const move = (id: NavRouteId, direction: -1 | 1) => {
+    const idx = order.indexOf(id);
+    if (idx < 0) return;
+    const target = idx + direction;
+    if (target < 0 || target >= order.length) return;
+    const next = [...order];
+    const [removed] = next.splice(idx, 1);
+    if (removed) next.splice(target, 0, removed);
+    void onChange({ order: next, hidden });
+  };
+
+  const toggleVisibility = (id: NavRouteId) => {
+    if (hiddenSet.has(id)) {
+      void onChange({ order, hidden: hidden.filter((h) => h !== id) });
+      return;
+    }
+    if (hidden.length + 1 >= order.length) return; // refuse to hide the last visible route
+    void onChange({ order, hidden: [...hidden, id] });
+  };
+
+  const reorderTo = (sourceId: NavRouteId, targetId: NavRouteId) => {
+    if (sourceId === targetId) return;
+    const sourceIdx = order.indexOf(sourceId);
+    const targetIdx = order.indexOf(targetId);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+    const next = [...order];
+    const [removed] = next.splice(sourceIdx, 1);
+    if (removed) next.splice(targetIdx, 0, removed);
+    void onChange({ order: next, hidden });
+  };
+
+  return (
+    <Section
+      icon={<Layout size={12} aria-hidden="true" />}
+      title="Navigation"
+      hint="Drag to reorder. Toggle the eye to hide a section from the side rail and command palette."
+    >
+      <ul className="flex flex-col gap-1.5">
+        {order.map((id, idx) => {
+          const isHidden = hiddenSet.has(id);
+          const isDragging = dragId === id;
+          return (
+            <li
+              key={id}
+              draggable
+              onDragStart={(e) => {
+                setDragId(id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragEnd={() => setDragId(null)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragId && dragId !== id) reorderTo(dragId, id);
+                setDragId(null);
+              }}
+              className={[
+                'flex items-center gap-2 rounded-md border bg-[var(--color-bg)] px-3 py-2 transition-colors',
+                isDragging
+                  ? 'border-[var(--color-accent)] opacity-60'
+                  : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]',
+              ].join(' ')}
+            >
+              <span
+                className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]"
+                aria-hidden="true"
+              >
+                {String(idx + 1).padStart(2, '0')}
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span
+                  className={[
+                    'font-serif text-[14px] tracking-tight',
+                    isHidden
+                      ? 'text-[var(--color-text-subtle)] line-through'
+                      : 'text-[var(--color-text)]',
+                  ].join(' ')}
+                >
+                  {ROUTE_LABEL[id]}
+                </span>
+                <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+                  {ROUTE_HINT[id]}
+                </span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <NavIconButton label="Move up" disabled={idx === 0} onClick={() => move(id, -1)}>
+                  <ArrowUp size={11} aria-hidden="true" />
+                </NavIconButton>
+                <NavIconButton
+                  label="Move down"
+                  disabled={idx === order.length - 1}
+                  onClick={() => move(id, 1)}
+                >
+                  <ArrowDown size={11} aria-hidden="true" />
+                </NavIconButton>
+                <NavIconButton
+                  label={isHidden ? 'Show route' : 'Hide route'}
+                  pressed={isHidden}
+                  onClick={() => toggleVisibility(id)}
+                >
+                  {isHidden ? (
+                    <EyeOff size={11} aria-hidden="true" />
+                  ) : (
+                    <Eye size={11} aria-hidden="true" />
+                  )}
+                </NavIconButton>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-2.5 flex items-center justify-between">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+          {order.length - hidden.length} visible · {hidden.length} hidden
+        </span>
+        <button
+          type="button"
+          onClick={() => void onReset()}
+          className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+        >
+          <RotateCcw size={11} aria-hidden="true" />
+          reset to default
+        </button>
+      </div>
+    </Section>
+  );
+}
+
+function NavIconButton({
+  label,
+  children,
+  onClick,
+  disabled = false,
+  pressed = false,
+}: {
+  label: string;
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  pressed?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={pressed || undefined}
+      title={label}
+      className={[
+        'flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+        disabled
+          ? 'cursor-not-allowed border-[var(--color-border)] text-[var(--color-text-subtle)] opacity-50'
+          : pressed
+            ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+            : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   );
 }

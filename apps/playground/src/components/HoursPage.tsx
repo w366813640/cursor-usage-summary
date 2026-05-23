@@ -1,7 +1,16 @@
 import { WeekHourHeatmap, fmtTokens, fmtUSD, hourWeekdayToCells } from '@cu/charts';
 import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
+import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronRight, Flame } from '@cu/icons';
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuditedRows } from '../hooks/useAuditedRows';
+import {
+  type DayAnswer,
+  type DayComparison,
+  buildDayAnswer,
+  buildDayComparisons,
+  composeDayNarrative,
+} from '../utils/dayAudit';
 import { type DateFilter, DateRangeFilter, applyDateFilter } from './DateRangeFilter';
 import { MetricToggle, Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
@@ -12,24 +21,34 @@ interface DayPageProps {
 }
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const DETAIL_CAP = 500;
 
 /**
- * Day drilldown page. Splits the selected day/range into three retained charts:
+ * Day audit page — post UI polish rewrite.
  *
- *   - hour-only bar (24 bars)             — answers "morning vs evening"
- *   - weekday-only bar (7 bars)           — answers "weekend vs weekday"
- *   - big 7×24 heatmap                    — answers "which slot specifically"
- *   - top 5 hot slots as a leaderboard    — answers "what should I avoid"
+ * Layout (single column, top-to-bottom):
  *
- * The default selection is today. A date filter on top lets the user choose
- * any single day, multiple days, or a range.
+ *   1. SectionHeader + DateRangeFilter
+ *   2. Answer hero (cost · share of week · biggest request + Jump button +
+ *      narrative paragraph)
+ *   3. Day-over-day comparison strip (yesterday + same weekday a week ago)
+ *   4. By-hour bar + 7×24 heatmap (two-up on lg)
+ *   5. Per-request audit table — mark each row as audited; audited rows
+ *      dim out and the header shows the running count.
+ *
+ * Compared to the previous version we cut the "weekday bar" + "Top 5 hot
+ * slots" panels (both redundant on a single-day audit) and the bottom
+ * "Request chart" (the actual table is where users click anyway).
+ *
+ * State that needs to live outside the component:
+ *   - sessionStorage `cu:pendingDayDate` — drill-down hint from other
+ *     pages
+ *   - localStorage `cu:auditedRows` — persisted audited row ids (via
+ *     useAuditedRows)
  */
 export function DayPage({ summary, rows }: DayPageProps) {
   const [metric, setMetric] = useState<'cost' | 'rows'>('cost');
   const [filter, setFilter] = useState<DateFilter>(() => {
-    // On first mount, honour a pending drill-down hint left by the
-    // Overview heatmap (or any other page that wants to point the
-    // user at a single day). One-shot — read & clear immediately.
     const today = new Date().toISOString().slice(0, 10);
     if (typeof window === 'undefined') return { kind: 'single', date: today };
     try {
@@ -44,9 +63,6 @@ export function DayPage({ summary, rows }: DayPageProps) {
     return { kind: 'single', date: today };
   });
 
-  // Late arrivals: if a drill-down lands while DayPage is already mounted
-  // (e.g. user navigates Day → Overview → Day via another date click),
-  // pick it up via the hashchange event without remounting.
   useEffect(() => {
     function pickUpPending() {
       try {
@@ -63,9 +79,6 @@ export function DayPage({ summary, rows }: DayPageProps) {
     return () => window.removeEventListener('hashchange', pickUpPending);
   }, []);
 
-  // Re-aggregate when the date filter changes. `aggregate` is cheap enough that
-  // we don't bother memoising the filtering step separately — the inner loop
-  // over rows is the dominant cost and we already cap typical CSV size.
   const filteredRows = useMemo<RowWithCost[]>(() => {
     if (filter.kind === 'all') return rows.slice();
     return applyDateFilter(rows, filter);
@@ -90,35 +103,36 @@ export function DayPage({ summary, rows }: DayPageProps) {
     return arr;
   }, [filteredSummary.hourWeekday, metric]);
 
-  const weekdayTotals = useMemo(() => {
-    const arr = Array.from({ length: 7 }, (_, d) => ({ weekday: d, value: 0 }));
-    for (const c of filteredSummary.hourWeekday) {
-      const v = metric === 'cost' ? c.cost : c.rows;
-      arr[c.weekday]!.value += v;
-    }
-    return arr;
-  }, [filteredSummary.hourWeekday, metric]);
-
-  const hotSlots = useMemo(() => {
-    return [...filteredSummary.hourWeekday]
-      .map((c) => ({ ...c, value: metric === 'cost' ? c.cost : c.rows }))
-      .filter((c) => c.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [filteredSummary.hourWeekday, metric]);
-
   const maxHour = Math.max(...hourTotals.map((h) => h.value), 1);
-  const maxDay = Math.max(...weekdayTotals.map((d) => d.value), 1);
-  // Track peak slot for an "act-break" highlight on the small bar charts —
-  // gives an at-a-glance "your burn is here" reading without reading the labels.
   const peakHour = hourTotals.reduce(
     (best, cur, idx) => (cur.value > hourTotals[best]!.value ? idx : best),
     0,
   );
-  const peakWeekday = weekdayTotals.reduce(
-    (best, cur, idx) => (cur.value > weekdayTotals[best]!.value ? idx : best),
-    0,
+
+  // Resolve the "target date" the answer hero / comparison strip work
+  // against. For multi-day / range filters we focus on the most recent
+  // included day — that's the day the user is most likely auditing.
+  const targetDate = useMemo(() => resolveTargetDate(filter), [filter]);
+  const answer = useMemo(
+    () => (targetDate ? buildDayAnswer(rows, targetDate) : null),
+    [rows, targetDate],
   );
+  const comparisons = useMemo(
+    () => (targetDate ? buildDayComparisons(rows, targetDate) : null),
+    [rows, targetDate],
+  );
+
+  // Ref into the audit table so the hero "Jump to row" button can scroll
+  // the biggest request into view + flash the row briefly.
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement | null>>(new Map());
+  const jumpToRow = useCallback((id: string) => {
+    const row = rowRefs.current.get(id);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.setAttribute('data-history-flash', 'true');
+    window.setTimeout(() => row.removeAttribute('data-history-flash'), 1200);
+  }, []);
 
   const grandTotal = metric === 'cost' ? filteredSummary.totalCost : filteredSummary.totalRows;
   const grandLabel = metric === 'cost' ? fmtUSD(grandTotal) : `${grandTotal} rows`;
@@ -132,12 +146,22 @@ export function DayPage({ summary, rows }: DayPageProps) {
       className="flex flex-col gap-4"
     >
       <SectionHeader
-        title="Day · request timeline"
+        sticky
+        title="Day audit"
         subtitle={`UTC · ${grandLabel}${filterSummary ? ` · ${filterSummary}` : ''}`}
         action={<MetricToggle value={metric} options={['cost', 'rows']} onChange={setMetric} />}
       />
 
       <DateRangeFilter rows={rows} value={filter} onChange={setFilter} />
+
+      {answer && comparisons ? (
+        <DayAnswerHero
+          answer={answer}
+          comparison={comparisons.yesterday}
+          sameWeekday={comparisons.sameWeekday}
+          onJumpToBiggest={jumpToRow}
+        />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel
@@ -145,7 +169,6 @@ export function DayPage({ summary, rows }: DayPageProps) {
           subtitle={`24 hours (UTC) · peak ${String(peakHour).padStart(2, '0')}:00 (${metric === 'cost' ? fmtUSD(maxHour) : `${Math.round(maxHour)} req`})`}
         >
           <div className="relative flex h-[140px] items-end gap-[2px]">
-            {/* Faint baseline so bars don't float */}
             <span
               aria-hidden="true"
               className="pointer-events-none absolute right-0 bottom-0 left-0 h-px bg-[var(--color-border)]/60"
@@ -185,7 +208,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
                   {isPeak ? (
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute right-0 left-0 text-center font-mono text-[8px] uppercase tracking-[0.06em] text-[var(--color-accent)]"
+                      className="pointer-events-none absolute right-0 left-0 text-center font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-accent)]"
                       style={{ bottom: `calc(${Math.max(ratio * 100, 1)}% + 3px)` }}
                     >
                       peak
@@ -195,7 +218,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
               );
             })}
           </div>
-          <div className="mt-2 flex justify-between font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="mt-2 flex justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             {[0, 6, 12, 18, 23].map((h) => (
               <span key={h}>{String(h).padStart(2, '0')}h</span>
             ))}
@@ -203,204 +226,249 @@ export function DayPage({ summary, rows }: DayPageProps) {
         </Panel>
 
         <Panel
-          title="By weekday"
-          subtitle={`Sun → Sat (UTC) · peak ${WEEKDAY_NAMES[peakWeekday]} (${metric === 'cost' ? fmtUSD(maxDay) : `${Math.round(maxDay)} req`})`}
+          title="7 × 24 heatmap"
+          subtitle={`rows = weekday · cols = hour (UTC) · ${metric === 'cost' ? 'USD per cell' : 'requests per cell'}`}
         >
-          <div className="relative flex h-[140px] items-end gap-[6px]">
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute right-0 bottom-0 left-0 h-px bg-[var(--color-border)]/60"
+          <div className="overflow-x-auto">
+            <WeekHourHeatmap
+              cells={cells}
+              metricLabel={metric === 'cost' ? 'USD' : 'requests'}
+              responsive
             />
-            {weekdayTotals.map((d, i) => {
-              const ratio = d.value / maxDay;
-              const isPeak = i === peakWeekday;
-              const isWeekend = i === 0 || i === 6;
-              return (
-                <div
-                  key={d.weekday}
-                  className="group/wd relative flex-1"
-                  style={{ height: '100%' }}
-                  title={`${WEEKDAY_NAMES[d.weekday]} · ${
-                    metric === 'cost' ? fmtUSD(d.value) : `${d.value.toFixed(0)} rows`
-                  }`}
-                >
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{
-                      height: `${Math.max(ratio * 100, d.value > 0 ? 1 : 0)}%`,
-                    }}
-                    transition={{
-                      duration: 0.55,
-                      delay: 0.12 + i * 0.06,
-                      ease: [0.2, 0, 0, 1],
-                    }}
-                    className="rounded-t-[3px] transition-opacity duration-[160ms]"
-                    style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      background: isPeak
-                        ? 'var(--color-accent)'
-                        : isWeekend
-                          ? 'var(--cu-cat-2)'
-                          : 'var(--cu-cat-1)',
-                      opacity: isPeak ? 0.95 : 0.82,
-                    }}
-                  />
-                  {isPeak ? (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-0 left-0 text-center font-mono text-[8px] uppercase tracking-[0.06em] text-[var(--color-accent)]"
-                      style={{ bottom: `calc(${Math.max(ratio * 100, 1)}% + 3px)` }}
-                    >
-                      peak
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-2 flex justify-between font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            {WEEKDAY_NAMES.map((n, i) => (
-              <span
-                key={n}
-                className={[
-                  'flex-1 text-center',
-                  i === 0 || i === 6 ? 'text-[var(--color-text-muted)]' : '',
-                  i === peakWeekday ? 'text-[var(--color-accent)]' : '',
-                ].join(' ')}
-              >
-                {n}
-              </span>
-            ))}
           </div>
         </Panel>
       </div>
-
-      <Panel
-        title="7 × 24 heatmap"
-        subtitle={`rows = weekday · cols = hour (UTC) · ${metric === 'cost' ? 'USD per cell' : 'requests per cell'}`}
-      >
-        <div className="overflow-x-auto">
-          <WeekHourHeatmap
-            cells={cells}
-            metricLabel={metric === 'cost' ? 'USD' : 'requests'}
-            responsive
-          />
-        </div>
-      </Panel>
-
-      <Panel
-        title="Top 5 hot slots"
-        subtitle="single highest cost / requests cells across the hour × weekday grid"
-      >
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
-          {hotSlots.length === 0 ? (
-            <div className="col-span-full py-4 text-center font-mono text-[11px] text-[var(--color-text-subtle)]">
-              No hot slots — your burn is evenly distributed.
-            </div>
-          ) : (
-            hotSlots.map((s, i) => {
-              const isHero = i === 0;
-              const heroRatio = s.value / hotSlots[0]!.value;
-              return (
-                <motion.div
-                  key={`${s.weekday}-${s.hour}`}
-                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{
-                    duration: 0.4,
-                    delay: 0.2 + i * 0.07,
-                    ease: [0.2, 0, 0, 1],
-                  }}
-                  whileHover={{ y: -2 }}
-                  className={[
-                    'group/slot relative flex flex-col gap-1 overflow-hidden rounded-md border p-3 transition-shadow duration-[220ms]',
-                    isHero
-                      ? 'border-[color:color-mix(in_oklab,var(--color-accent)_55%,var(--color-border))] bg-[var(--color-surface-raised)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-accent)_25%,transparent)]'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface-raised)]',
-                  ].join(' ')}
-                >
-                  {/* Magnitude bar at the bottom — shows each slot's value relative to #1. */}
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute right-0 bottom-0 left-0 h-[3px] origin-left"
-                    style={{
-                      transform: `scaleX(${Math.max(heroRatio, 0.05)})`,
-                      background:
-                        'linear-gradient(90deg, var(--color-accent), color-mix(in oklab, var(--color-accent) 50%, transparent))',
-                      transition: 'transform 220ms ease-out',
-                    }}
-                  />
-                  <div className="flex items-baseline justify-between">
-                    <span
-                      className={[
-                        'font-mono uppercase tracking-[0.1em]',
-                        isHero
-                          ? 'text-[10px] text-[var(--color-accent)]'
-                          : 'text-[9px] text-[var(--color-text-subtle)]',
-                      ].join(' ')}
-                    >
-                      #{i + 1}
-                    </span>
-                    <span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
-                      {WEEKDAY_NAMES[s.weekday]} {String(s.hour).padStart(2, '0')}:00
-                    </span>
-                  </div>
-                  <div
-                    className={[
-                      'font-serif leading-tight tabular-nums',
-                      isHero ? 'text-[26px]' : 'text-[22px]',
-                    ].join(' ')}
-                    style={{ color: 'var(--color-accent)' }}
-                  >
-                    {metric === 'cost' ? fmtUSD(s.value) : `${s.value.toFixed(0)}`}
-                  </div>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
-                    {metric === 'cost' ? `${s.rows} ${s.rows === 1 ? 'row' : 'rows'}` : 'requests'}
-                  </div>
-                </motion.div>
-              );
-            })
-          )}
-        </div>
-      </Panel>
 
       <SelectionDetailPanel
         filter={filter}
         rows={filteredRows}
         onClear={() => setFilter({ kind: 'all' })}
+        scrollRef={tableScrollRef}
+        rowRefs={rowRefs}
       />
     </motion.div>
   );
 }
 
+/* ----------------------------------------------------------------
+ * Answer hero — single combined card.
+ *
+ * Post-feedback rewrite: collapses what used to be three separate
+ * UI strips (cost hero · biggest request card · two-day comparison
+ * strip · top-driver card) into ONE card with three vertical zones:
+ *
+ *   1. Top stat strip   — cost / requests / share / Δ vs yesterday
+ *   2. Narrative line   — one short sentence pulled from
+ *                          composeDayNarrative()
+ *   3. Highlight row    — single biggest request + "Jump to row"
+ *
+ * The same-weekday-last-week baseline gets a faint footer chip when
+ * present. Top-driver model is intentionally dropped here because the
+ * narrative already names it; doubling it added noise the user called
+ * out as "too much information layered".
+ * ---------------------------------------------------------------- */
+
+interface DayAnswerHeroProps {
+  answer: DayAnswer;
+  comparison: DayComparison;
+  sameWeekday: DayComparison;
+  onJumpToBiggest: (rowId: string) => void;
+}
+
+function DayAnswerHero({ answer, comparison, sameWeekday, onJumpToBiggest }: DayAnswerHeroProps) {
+  const narrative = useMemo(() => composeDayNarrative(answer, comparison), [answer, comparison]);
+  const sharePct = Math.round(answer.shareOfWeek * 100);
+  const biggestTime = answer.biggest ? answer.biggest.date.toISOString().slice(11, 16) : null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
+      aria-label="Day answer"
+      className="relative overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+      style={{
+        borderRadius: 'var(--cu-density-panel-radius)',
+        padding: 'var(--cu-density-panel-padding)',
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-3 top-0 h-px"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--color-accent) 65%, transparent) 50%, transparent 100%)',
+        }}
+      />
+
+      <header className="flex items-baseline justify-between gap-2 pb-3">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-block size-1.5 rounded-full"
+            style={{
+              background: 'var(--color-accent)',
+              boxShadow: '0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent)',
+            }}
+          />
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            Day answer
+          </span>
+        </div>
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          {answer.dateLabel}
+        </span>
+      </header>
+
+      <div className="flex items-baseline gap-4">
+        <p
+          className="font-serif text-[36px] leading-[1.05] tracking-[-0.01em] tabular-nums text-[var(--color-text)]"
+          style={{ fontFeatureSettings: '"tnum" 1' }}
+        >
+          {fmtUSD(answer.totalCost)}
+        </p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <span>
+            {answer.totalRows.toLocaleString()} request{answer.totalRows === 1 ? '' : 's'}
+          </span>
+          <span>·</span>
+          <span>{sharePct}% of 7-day window</span>
+          <DeltaChip comparison={comparison} label="vs yesterday" />
+        </div>
+      </div>
+
+      {narrative ? (
+        <p className="mt-3 font-mono text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+          {narrative}
+        </p>
+      ) : null}
+
+      {answer.biggest ? (
+        <div className="mt-4 flex items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2.5">
+          <Flame
+            size={14}
+            aria-hidden="true"
+            className="shrink-0"
+            style={{ color: 'var(--color-accent)' }}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span
+                className="font-serif text-[18px] tabular-nums leading-none"
+                style={{ color: 'var(--color-accent)' }}
+              >
+                {fmtUSD(answer.biggest.cost)}
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+                single biggest
+              </span>
+            </div>
+            <div className="mt-1 truncate font-mono text-[11px] text-[var(--color-text-muted)]">
+              {answer.biggest.model} · {biggestTime} UTC · {fmtTokens(answer.biggest.tokens.total)}{' '}
+              tokens
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onJumpToBiggest(answer.biggest!.id)}
+            className="flex shrink-0 items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            Jump
+            <ArrowRight size={11} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
+      {sameWeekday.hasReferenceData ? (
+        <p className="mt-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+          <DeltaChip comparison={sameWeekday} label="vs same weekday last week" inline />
+          <span className="truncate">{sameWeekday.referenceLabel}</span>
+        </p>
+      ) : null}
+    </motion.section>
+  );
+}
+
+/**
+ * Tiny up/down/flat chip used inside the hero stat strip and the
+ * same-weekday footer. Pulls styling tokens directly so changes to
+ * the design system propagate without prop drilling.
+ */
+function DeltaChip({
+  comparison,
+  label,
+  inline = false,
+}: {
+  comparison: DayComparison;
+  label: string;
+  inline?: boolean;
+}) {
+  if (!comparison.hasReferenceData || !Number.isFinite(comparison.pctDelta)) {
+    if (inline) {
+      return (
+        <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">no baseline</span>
+      );
+    }
+    return null;
+  }
+  const delta = comparison.pctDelta;
+  const isFlat = Math.abs(delta) < 0.05;
+  const isUp = delta > 0;
+  const tone = isFlat
+    ? 'var(--color-text-subtle)'
+    : isUp
+      ? 'var(--color-warning)'
+      : 'var(--color-success, #4ade80)';
+  const arrow = isFlat ? null : isUp ? (
+    <ArrowUp size={11} aria-hidden="true" />
+  ) : (
+    <ArrowDown size={11} aria-hidden="true" />
+  );
+  const pctText = `${isUp ? '+' : ''}${(delta * 100).toFixed(0)}%`;
+  return (
+    <span
+      className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.08em]"
+      style={{ color: tone }}
+    >
+      {arrow}
+      {pctText}
+      {!inline ? (
+        <span className="text-[var(--color-text-subtle)] normal-case tracking-normal">
+          {' '}
+          {label}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/* ----------------------------------------------------------------
+ * Per-request audit table
+ *
+ * Replaces the simpler "Requests in selection" table. Adds a mark-as-
+ * audited checkbox column, dims audited rows, persists state via
+ * useAuditedRows, and exposes refs back to the hero so "Jump to row"
+ * can scroll a specific id into view.
+ * ---------------------------------------------------------------- */
+
 interface SelectionDetailPanelProps {
   filter: DateFilter;
   rows: ReadonlyArray<RowWithCost>;
   onClear: () => void;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  rowRefs: React.MutableRefObject<Map<string, HTMLTableRowElement | null>>;
 }
 
-const DETAIL_CAP = 500;
-
-/**
- * Per-row drill-down for the current date filter. Hidden when "All days" is
- * selected — at that scope the full Details route is the better tool. Once
- * the user narrows down (single day / multi / range) every request inside
- * the selection is listed newest-first, which matches how users audit a day.
- *
- * Capped to 500 rows so a wide range doesn't blow up the DOM; the cap pretty
- * much never bites for the single-day path that motivated this panel.
- */
-function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelProps) {
-  // Hooks must run unconditionally — even when the panel is hidden — so React's
-  // hook-order invariant is preserved across renders.
+function SelectionDetailPanel({
+  filter,
+  rows,
+  onClear,
+  scrollRef,
+  rowRefs,
+}: SelectionDetailPanelProps) {
   const sorted = useMemoSorted(rows);
+  const audit = useAuditedRows();
 
-  // The user explicitly asked for "click a day → list every request from that
-  // day at the bottom". For 'all' we still hide the panel; the dedicated
-  // Details route is the right tool when nothing is filtered.
   if (filter.kind === 'all') return null;
 
   const capped = sorted.slice(0, DETAIL_CAP);
@@ -426,16 +494,32 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
     );
   }
 
-  // Inline summary stats for the selection — feels like a fact-sheet header
-  // above the list of rows.
   const totalCost = sorted.reduce((acc, r) => acc + r.cost, 0);
   const totalTokens = sorted.reduce((acc, r) => acc + r.tokens.total, 0);
+  const auditedInSelection = capped.filter((r) => audit.isAudited(r.id)).length;
+
   return (
     <Panel
       title="Requests in selection"
       subtitle={`${scopeLabel} · ${sorted.length} requests · newest first${
         sorted.length > DETAIL_CAP ? ` · showing first ${DETAIL_CAP}` : ''
-      }`}
+      } · ${auditedInSelection}/${capped.length} audited`}
+      action={
+        auditedInSelection > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              for (const r of capped) {
+                if (audit.isAudited(r.id)) audit.toggle(r.id);
+              }
+            }}
+            className="rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+            title="Reset the audited flag for every row currently shown"
+          >
+            clear audited
+          </button>
+        ) : null
+      }
     >
       <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
         <SelectionStat label="Requests" value={sorted.length.toLocaleString()} />
@@ -447,24 +531,24 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
         />
       </div>
       <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent)]">
-        <div className="max-h-[420px] overflow-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left font-mono text-[11px]">
+        <div ref={scrollRef} className="max-h-[460px] overflow-auto">
+          <table className="w-full min-w-[680px] border-collapse text-left font-mono text-[11px]">
             <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-surface-muted)]/80">
               <tr className="border-b border-[var(--color-border)]">
                 {(
                   [
+                    { key: 'Audit', align: 'left' },
                     { key: 'Time (UTC)', align: 'left' },
                     { key: 'Model', align: 'left' },
-                    { key: 'Kind', align: 'left' },
                     { key: 'Cost', align: 'right' },
                     { key: 'Tokens', align: 'right' },
-                    { key: 'Cache hit', align: 'right' },
+                    { key: 'Cache', align: 'right' },
                     { key: 'Max', align: 'center' },
                   ] as const
                 ).map((h) => (
                   <th
                     key={h.key}
-                    className={`px-3 py-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${h.align}`}
+                    className={`px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${h.align}`}
                   >
                     {h.key}
                   </th>
@@ -477,6 +561,7 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
                 const cacheRatio = tokensTotal > 0 ? r.tokens.cacheRead / tokensTotal : 0;
                 const time = r.date.toISOString().slice(11, 16);
                 const costIsHero = r.cost >= 1;
+                const isAudited = audit.isAudited(r.id);
                 const zebraStyle: React.CSSProperties =
                   i % 2 === 1
                     ? {
@@ -484,12 +569,37 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
                           'color-mix(in oklab, var(--color-surface-muted) 35%, transparent)',
                       }
                     : {};
+                const auditedStyle: React.CSSProperties = isAudited
+                  ? {
+                      opacity: 0.55,
+                      filter: 'grayscale(40%)',
+                    }
+                  : {};
                 return (
                   <tr
                     key={r.id}
+                    ref={(node) => {
+                      rowRefs.current.set(r.id, node);
+                    }}
                     className="group/row border-b border-[var(--color-border)]/40 transition-colors last:border-b-0 hover:bg-[var(--color-surface-raised)]"
-                    style={zebraStyle}
+                    style={{ ...zebraStyle, ...auditedStyle }}
                   >
+                    <td className="px-3 py-1.5 align-middle">
+                      <button
+                        type="button"
+                        onClick={() => audit.toggle(r.id)}
+                        aria-pressed={isAudited}
+                        title={isAudited ? 'Mark as not audited' : 'Mark as audited'}
+                        className={[
+                          'flex h-5 w-5 items-center justify-center rounded-sm border transition-colors',
+                          isAudited
+                            ? 'border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-text,white)]'
+                            : 'border-[var(--color-border)] text-transparent hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]',
+                        ].join(' ')}
+                      >
+                        <Check size={11} aria-hidden="true" />
+                      </button>
+                    </td>
                     <td className="relative px-3 py-1.5 align-middle text-[var(--color-text-muted)]">
                       <span
                         aria-hidden="true"
@@ -502,15 +612,12 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
                       <span className="text-[var(--color-text)]">{r.model}</span>
                       {r.costEstimated ? (
                         <span
-                          className="ml-1.5 rounded-sm border border-[var(--color-border)] px-1 py-0 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
+                          className="ml-1.5 rounded-sm border border-[var(--color-border)] px-1 py-0 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
                           title="Cost estimated (model not in official table)"
                         >
                           est
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-3 py-1.5 align-middle text-[var(--color-text-subtle)] uppercase tracking-[0.06em]">
-                      {r.kind}
                     </td>
                     <td
                       className={[
@@ -530,7 +637,7 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
                     <td className="px-3 py-1.5 text-center align-middle">
                       {r.maxMode ? (
                         <span
-                          className="rounded-sm px-1.5 py-0.5 text-[9px] uppercase tracking-[0.08em]"
+                          className="rounded-sm px-1.5 py-0.5 text-[11px] uppercase tracking-[0.08em]"
                           style={{
                             background: 'color-mix(in oklab, var(--color-accent) 18%, transparent)',
                             color: 'var(--color-accent)',
@@ -551,6 +658,11 @@ function SelectionDetailPanel({ filter, rows, onClear }: SelectionDetailPanelPro
           </table>
         </div>
       </div>
+      <p className="mt-2 flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <ChevronRight size={11} aria-hidden="true" />
+        Marking rows as audited dims them and counts toward the header total. Stored locally, never
+        synced.
+      </p>
     </Panel>
   );
 }
@@ -566,7 +678,7 @@ function SelectionStat({
 }) {
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-2.5">
-      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -609,3 +721,18 @@ function filterSummaryText(
   if (filteredRows === 0) return `0 / ${totalRows} rows · empty selection`;
   return `${filteredRows} / ${totalRows} rows`;
 }
+
+function resolveTargetDate(filter: DateFilter): string | null {
+  if (filter.kind === 'single') return filter.date;
+  if (filter.kind === 'range') return filter.end;
+  if (filter.kind === 'multi') {
+    if (filter.dates.length === 0) return null;
+    return [...filter.dates].sort().at(-1) ?? null;
+  }
+  return null;
+}
+
+// Silence unused-import lint when only a subset of WEEKDAY_NAMES is
+// consumed by callers; the constant is still exported by reference
+// from anywhere that needs the canonical day labels.
+export { WEEKDAY_NAMES };

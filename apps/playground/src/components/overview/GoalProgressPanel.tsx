@@ -28,14 +28,14 @@ export function GoalProgressPanel({ summary, settings }: GoalProgressPanelProps)
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.4fr]">
         <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             This month
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-serif text-[30px] tracking-tight">
               {Math.round(current).toLocaleString()}
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               / {Math.round(target).toLocaleString()} req
             </span>
           </div>
@@ -47,7 +47,7 @@ export function GoalProgressPanel({ summary, settings }: GoalProgressPanelProps)
           </div>
         </div>
         <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
-          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             Habit focus
           </div>
           <p className="mt-2 font-serif text-[18px] tracking-tight text-[var(--color-text)]">

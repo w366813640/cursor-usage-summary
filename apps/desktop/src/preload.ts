@@ -20,6 +20,12 @@ interface AppInfo {
   appName: string;
 }
 
+type NavRouteId = 'overview' | 'year' | 'anomalies' | 'models' | 'details' | 'day';
+interface NavigationPreference {
+  order: NavRouteId[];
+  hidden: NavRouteId[];
+}
+
 interface UserSettings {
   monthlyRequestBudget: number;
   currency: { code: string; symbol: string; multiplier: number };
@@ -29,6 +35,7 @@ interface UserSettings {
     monthlyRequestTarget: number | null;
     habitFocus: 'cache' | 'top-burn' | 'volume' | null;
   };
+  navigation: NavigationPreference;
 }
 
 interface ExportToFileResult {

@@ -92,7 +92,7 @@ export function ImportPreviewDrawer({
                   >
                     {fileName}
                   </span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                     review before saving to cursor-usage.db
                   </span>
                 </div>
@@ -182,7 +182,7 @@ function PreviewSummary({
         className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-3"
         title="The earliest and latest day among the rows that would be added."
       >
-        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           New date range
         </div>
         <div className="mt-1 font-mono text-[13px] text-[var(--color-text)]">
@@ -209,7 +209,7 @@ function PreviewSummary({
         <li>You can undo this batch from the Import history drawer afterwards.</li>
       </ul>
       <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3">
-        <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           Commit guarantee
         </div>
         <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
@@ -240,7 +240,7 @@ function DuplicateFileNotice({ fileName }: { fileName: string }) {
           You already imported this exact file.
         </span>
         <span className="font-mono text-[11px] text-[var(--color-text-muted)]">{fileName}</span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
           File SHA-256 matches a previous batch · nothing to do
         </span>
       </div>
@@ -269,7 +269,7 @@ function NoNewRowsNotice({ rowsSeen }: { rowsSeen: number }) {
         <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
           {rowsSeen.toLocaleString()} rows were parsed; all dedupe-collapsed to existing data.
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
           Re-exporting an overlapping window from cursor.com is the usual cause.
         </span>
       </div>
@@ -299,7 +299,7 @@ function PreviewKpi({
           : 'var(--color-surface-muted)',
       }}
     >
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {icon}
         {label}
       </div>

@@ -225,7 +225,7 @@ function YearCalendarHeatmap({
           />
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-[var(--color-border)] px-4 py-10 text-center font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <div className="rounded-md border border-dashed border-[var(--color-border)] px-4 py-10 text-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           no usage recorded in {year}
         </div>
       )}
@@ -425,7 +425,7 @@ function YearPicker({
             type="button"
             onClick={() => onSelect(y)}
             className={[
-              'rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em] transition-colors',
+              'rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors',
               active
                 ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
                 : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
@@ -463,7 +463,7 @@ function YearKpi({
           : undefined,
       }}
     >
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {icon}
         {label}
       </div>
@@ -479,7 +479,7 @@ function YearKpi({
       </div>
       {sub ? (
         <div
-          className="mt-1 font-mono text-[10px] text-[var(--color-text-subtle)] truncate"
+          className="mt-1 font-mono text-[11px] text-[var(--color-text-subtle)] truncate"
           title={sub}
         >
           {sub}
@@ -515,10 +515,10 @@ function YearMonthBars({ months }: { months: YearReview['byMonth'] }) {
                 title={`${m.month} · ${fmtUSD(m.cost)}`}
               />
             </div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.04em] text-[var(--color-text-subtle)]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--color-text-subtle)]">
               {monthShort}
             </div>
-            <div className="font-mono text-[9px] tabular-nums text-[var(--color-text-muted)]">
+            <div className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
               {m.cost > 0 ? fmtUSDCompact(m.cost) : '—'}
             </div>
           </div>
@@ -541,13 +541,13 @@ function QuarterStrip({ quarters }: { quarters: YearReview['quarters'] }) {
             key={q.label}
             className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-3"
           >
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               {q.label}
             </div>
             <div className="mt-1 font-serif text-[20px] leading-tight tabular-nums">
               {fmtUSDCompact(q.cost)}
             </div>
-            <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
+            <div className="mt-1 flex items-center justify-between font-mono text-[11px] text-[var(--color-text-muted)]">
               <span>{(share * 100).toFixed(0)}% of year</span>
               {i > 0 ? (
                 <span
@@ -619,7 +619,7 @@ function CrossMonthTrendsPanel({ rows }: CrossMonthTrendsPanelProps) {
                 showPeak
                 fillArea
               />
-              <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+              <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                 <span>{data.rolling30d[0]?.date ?? ''}</span>
                 <span>Latest 30d total · {fmtUSD(data.rolling30d.at(-1)?.value ?? 0)}</span>
                 <span>{data.rolling30d.at(-1)?.date ?? ''}</span>
@@ -630,7 +630,7 @@ function CrossMonthTrendsPanel({ rows }: CrossMonthTrendsPanelProps) {
               <SubTitle>Last-month overview</SubTitle>
               <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3.5 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
                     {data.lastMonth ?? '—'}
                   </span>
                   <DeltaPill delta={data.totalMoMDelta} />
@@ -638,7 +638,7 @@ function CrossMonthTrendsPanel({ rows }: CrossMonthTrendsPanelProps) {
                 <div className="mt-1 font-serif text-[24px] leading-tight tabular-nums">
                   {fmtUSD(data.lastMonthCost)}
                 </div>
-                <div className="mt-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+                <div className="mt-1 font-mono text-[11px] text-[var(--color-text-muted)]">
                   vs {data.prevMonth ?? '—'} · {fmtUSD(data.prevMonthCost)}
                 </div>
               </div>
@@ -851,7 +851,7 @@ function DeltaPill({ delta }: { delta: number }) {
   const negative = delta < -0.001;
   return (
     <span
-      className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] tabular-nums"
+      className="inline-flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.06em] tabular-nums"
       style={{
         color: positive
           ? 'var(--color-warning)'
@@ -889,7 +889,7 @@ function EmptyTrendsCopy() {
 
 function SubTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+    <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
       {children}
     </div>
   );
@@ -901,7 +901,7 @@ function Th({
 }: { children: React.ReactNode; align?: 'left' | 'right' }) {
   return (
     <th
-      className={`sticky top-0 z-10 px-3 py-2 text-${align} font-mono text-[10px] uppercase tracking-[0.08em] font-normal`}
+      className={`sticky top-0 z-10 px-3 py-2 text-${align} font-mono text-[11px] uppercase tracking-[0.08em] font-normal`}
     >
       {children}
     </th>

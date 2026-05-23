@@ -32,6 +32,21 @@ export interface CurrencyPreference {
   multiplier: number;
 }
 
+/**
+ * Persistent route identifier shared with the renderer's `AppRoute`
+ * union. Keeping the string list here avoids importing the renderer
+ * types into the main process; tests assert the two match.
+ */
+export const NAV_ROUTE_IDS = ['overview', 'year', 'anomalies', 'models', 'details', 'day'] as const;
+export type NavRouteId = (typeof NAV_ROUTE_IDS)[number];
+
+export interface NavigationPreference {
+  /** Routes in user-specified order. Always covers all known routes. */
+  order: NavRouteId[];
+  /** Subset of `order` the user wants hidden from the rail / palette. */
+  hidden: NavRouteId[];
+}
+
 export interface UserSettings {
   monthlyRequestBudget: number;
   currency: CurrencyPreference;
@@ -41,7 +56,18 @@ export interface UserSettings {
     monthlyRequestTarget: number | null;
     habitFocus: 'cache' | 'top-burn' | 'volume' | null;
   };
+  /**
+   * Side-nav layout preference. Optional in the persisted JSON so old
+   * settings files keep deserialising; the normalize() pass below back-
+   * fills the default order whenever it's missing.
+   */
+  navigation: NavigationPreference;
 }
+
+const DEFAULT_NAVIGATION: NavigationPreference = {
+  order: [...NAV_ROUTE_IDS],
+  hidden: [],
+};
 
 const DEFAULT_SETTINGS: UserSettings = {
   monthlyRequestBudget: 500,
@@ -49,6 +75,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   lastBackupAt: null,
   displayDensity: 'comfortable',
   personalGoals: { monthlyRequestTarget: null, habitFocus: null },
+  navigation: { ...DEFAULT_NAVIGATION, order: [...DEFAULT_NAVIGATION.order], hidden: [] },
 };
 
 const SETTINGS_FILENAME = 'cursor-usage-settings.json';
@@ -64,6 +91,41 @@ function clamp(n: unknown, min: number, max: number, fallback: number): number {
   if (value < min) return min;
   if (value > max) return max;
   return value;
+}
+
+function normalizeNavigation(raw: unknown): NavigationPreference {
+  const obj = (raw ?? {}) as Partial<NavigationPreference>;
+  const knownSet = new Set<NavRouteId>(NAV_ROUTE_IDS);
+  const orderRaw = Array.isArray(obj.order) ? obj.order : [];
+  const seen = new Set<NavRouteId>();
+  const order: NavRouteId[] = [];
+  for (const candidate of orderRaw) {
+    if (typeof candidate !== 'string') continue;
+    const id = candidate as NavRouteId;
+    if (!knownSet.has(id) || seen.has(id)) continue;
+    order.push(id);
+    seen.add(id);
+  }
+  // Backfill any new route we ship that the user's settings haven't
+  // seen yet so they don't silently disappear from the rail.
+  for (const id of NAV_ROUTE_IDS) {
+    if (!seen.has(id)) order.push(id);
+  }
+  const hiddenRaw = Array.isArray(obj.hidden) ? obj.hidden : [];
+  const hidden: NavRouteId[] = [];
+  const hiddenSeen = new Set<NavRouteId>();
+  for (const candidate of hiddenRaw) {
+    if (typeof candidate !== 'string') continue;
+    const id = candidate as NavRouteId;
+    if (!knownSet.has(id) || hiddenSeen.has(id)) continue;
+    hidden.push(id);
+    hiddenSeen.add(id);
+  }
+  // Never let the user hide *every* route — the dashboard would have
+  // nowhere to navigate to. Force-keep the first visible route from
+  // the order list.
+  if (hidden.length === order.length) hidden.pop();
+  return { order, hidden };
 }
 
 function normalize(raw: unknown): UserSettings {
@@ -95,6 +157,7 @@ function normalize(raw: unknown): UserSettings {
           : null,
       habitFocus,
     },
+    navigation: normalizeNavigation(obj.navigation),
   };
 }
 
@@ -125,6 +188,7 @@ export function writeSettings(partial: Partial<UserSettings>): UserSettings {
     ...partial,
     currency: { ...current.currency, ...(partial.currency ?? {}) },
     personalGoals: { ...current.personalGoals, ...(partial.personalGoals ?? {}) },
+    navigation: partial.navigation ?? current.navigation,
   });
   const p = settingsPath();
   const dir = path.dirname(p);

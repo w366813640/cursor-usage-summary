@@ -66,6 +66,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
       className="flex flex-col gap-4"
     >
       <SectionHeader
+        sticky
         title="All requests · details"
         subtitle={`${filtered.length} / ${rows.length} rows · page ${safePage + 1} / ${totalPages}`}
       />
@@ -102,7 +103,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
             </select>
           </FilterField>
           <FilterField label="sort">
-            <div className="flex gap-1 font-mono text-[10px] uppercase tracking-[0.08em]">
+            <div className="flex gap-1 font-mono text-[11px] uppercase tracking-[0.08em]">
               {(
                 [
                   ['cost-desc', 'cost ↓'],
@@ -148,7 +149,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
                 ).map((c) => (
                   <th
                     key={c.key}
-                    className={`px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${c.align}`}
+                    className={`px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${c.align}`}
                   >
                     {c.key}
                   </th>
@@ -225,14 +226,14 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
                         {r.model}
                         {r.costEstimated ? (
                           <span
-                            className="ml-1.5 rounded-sm border border-[var(--color-border)] px-1 py-0 font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
+                            className="ml-1.5 rounded-sm border border-[var(--color-border)] px-1 py-0 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
                             title="Cost estimated (model not in official table)"
                           >
                             est
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2 align-middle font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                      <td className="px-3 py-2 align-middle font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                         {r.kind}
                       </td>
                       <td
@@ -254,7 +255,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
                       <td className="px-3 py-2 text-center align-middle font-mono text-[11px] text-[var(--color-text-muted)]">
                         {r.maxMode ? (
                           <span
-                            className="rounded-sm px-1.5 py-0.5 text-[9px] uppercase tracking-[0.08em]"
+                            className="rounded-sm px-1.5 py-0.5 text-[11px] uppercase tracking-[0.08em]"
                             style={{
                               background:
                                 'color-mix(in oklab, var(--color-accent) 18%, transparent)',
@@ -278,7 +279,7 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         <span>
           showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}{' '}
           of {filtered.length}
@@ -308,7 +309,7 @@ function FilterField({ label, children }: { label: string; children: React.React
   // as a presentational stack instead.
   return (
     <div className="flex flex-col gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </span>
       {children}

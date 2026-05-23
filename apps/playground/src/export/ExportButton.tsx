@@ -76,7 +76,7 @@ export function ExportButton({
       disabled={state === 'busy'}
       className={[
         'inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 py-1',
-        'font-mono text-[10px] uppercase tracking-[0.08em] transition-colors duration-[160ms]',
+        'font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-[160ms]',
         state === 'busy'
           ? 'text-[var(--color-text-subtle)]'
           : state === 'ok'

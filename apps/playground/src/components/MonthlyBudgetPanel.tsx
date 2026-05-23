@@ -181,7 +181,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]"
+              className="pointer-events-none absolute left-3 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]"
               style={{ bottom: `calc(0.75rem + ${avgPercent}% * (100% - 1.5rem) / 100 + 3px)` }}
             >
               avg · {Math.round(stats.avgRequests)}
@@ -197,7 +197,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute right-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]"
+          className="pointer-events-none absolute right-3 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]"
           style={{ bottom: `calc(0.75rem + ${capPercent}% * (100% - 1.5rem) / 100 + 3px)` }}
         >
           cap · {planCap}
@@ -232,7 +232,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
                   style={{ background: barColor(tone), opacity: 0.92 }}
                 />
                 <span
-                  className="pointer-events-none mt-1 truncate font-mono text-[9px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]"
+                  className="pointer-events-none mt-1 truncate font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]"
                   style={{ maxWidth: '100%' }}
                 >
                   {m.label.split(' ')[0]?.slice(0, 3)}
@@ -246,7 +246,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
       {/* Cost-per-request trend sparkline — secondary insight strip. */}
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
         <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2">
-          <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <span>Cost / request · monthly</span>
             <span style={{ color: cprToneText(stats.cprDelta) }}>
               {describeCprTrend(stats.cprDelta)}{' '}
@@ -261,7 +261,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
                 ? `$${stats.currentMonth.costPerRequest.toFixed(3)}`
                 : '—'}
             </span>
-            <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+            <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
               {stats.currentMonth ? `now · ${stats.currentMonth.label}` : 'no data'}
             </span>
             <span className="ml-auto inline-block" style={{ width: 160, height: 28 }}>
@@ -273,7 +273,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
         </div>
 
         {/* Legend strip on the right (or stacked below on mobile). */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 self-center font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 self-center font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           <span>
             <LegendDot tone="default" /> under cap
           </span>
@@ -317,7 +317,7 @@ function AlertStrip({ alert }: { alert: BudgetAlert | null }) {
         >
           {alert.headline}
         </span>
-        <span className="mt-0.5 font-mono text-[10px] tracking-[0.04em] text-[var(--color-text-muted)]">
+        <span className="mt-0.5 font-mono text-[11px] tracking-[0.04em] text-[var(--color-text-muted)]">
           {alert.detail}
         </span>
       </div>
@@ -340,7 +340,7 @@ function BudgetStat({
 }) {
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 transition-colors hover:border-[var(--color-border-strong)]">
-      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -350,7 +350,7 @@ function BudgetStat({
         {value}
       </div>
       {meta ? (
-        <div className="mt-0.5 font-mono text-[10px] tracking-[0.06em] text-[var(--color-text-muted)]">
+        <div className="mt-0.5 font-mono text-[11px] tracking-[0.06em] text-[var(--color-text-muted)]">
           {meta}
         </div>
       ) : null}

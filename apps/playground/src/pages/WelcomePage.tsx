@@ -27,26 +27,26 @@ import { useSettings } from '../hooks/useSettings';
 /**
  * App shell + entry surface.
  *
- *   Boot         → hydrate from cursor-usage.db. If anything's there,
+ *   Boot         ? hydrate from cursor-usage.db. If anything's there,
  *                  go straight to the dashboard.
- *   Idle         → onboarding hero + dropzone. Drag a CSV (or click
+ *   Idle         ? onboarding hero + dropzone. Drag a CSV (or click
  *                  "Choose CSV") to enter the import flow.
- *   Preview      → right-side drawer over a faded dashboard, showing
- *                  "+N rows would land · M skipped · file SHA already
+ *   Preview      ? right-side drawer over a faded dashboard, showing
+ *                  "+N rows would land ? M skipped ? file SHA already
  *                  imported?" + a confirm button.
- *   Success      → handoff to `<DashboardShell>` with the loaded data.
+ *   Success      ? handoff to `<DashboardShell>` with the loaded data.
  *
- * Single-user product → if there's data on disk, we go straight to the
+ * Single-user product ? if there's data on disk, we go straight to the
  * dashboard. No "restore card" intermediate step. Wiping data still
  * happens from the FileToolbar's affordances (via the history drawer).
  *
- * Web mode (IndexedDB) was retired in PR20 — the desktop SQLite stack
+ * Web mode (IndexedDB) was retired in PR20 ? the desktop SQLite stack
  * is the only supported runtime now. Loading this bundle outside of
  * Electron shows a small "open in the desktop app" notice instead of
  * crashing.
  */
 export function WelcomePage() {
-  // We don't expect `isDesktop()` to change at runtime — the preload
+  // We don't expect `isDesktop()` to change at runtime ? the preload
   // bridge is mounted synchronously before any React code runs. Computing
   // it once at mount keeps the render shape stable.
   const isDesktop = useMemo(() => detectDesktop(), []);
@@ -70,7 +70,7 @@ function DesktopWelcomePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Keep the last `success` snapshot so the dashboard stays visible
   // underneath the preview / history drawers when state transitions
-  // through `parsing` → `preview` → `committing`. Without this, the
+  // through `parsing` ? `preview` ? `committing`. Without this, the
   // page would briefly collapse to the welcome hero behind the
   // drawer overlay.
   const [lastSuccess, setLastSuccess] = useState<Extract<
@@ -142,7 +142,7 @@ function DesktopWelcomePage() {
   //  1. live success state (just landed an import / hydrated)
   //  2. last-known success snapshot (so dashboard sticks during
   //     preview / committing transitions; the drawer overlays on top)
-  //  3. nothing → show the welcome hero
+  //  3. nothing ? show the welcome hero
   const liveSuccess = desktop.state.status === 'success' ? desktop.state : null;
   const success = liveSuccess ?? lastSuccess;
   const parsing = desktop.state.status === 'parsing' || desktop.state.status === 'committing';
@@ -202,7 +202,7 @@ function DesktopWelcomePage() {
         )}
       </main>
 
-      {/* Preview + history drawers — always mounted so AnimatePresence
+      {/* Preview + history drawers ? always mounted so AnimatePresence
           can choreograph open/close. */}
       {previewSnapshot ? (
         <ImportPreviewDrawer
@@ -240,6 +240,13 @@ function DesktopWelcomePage() {
         onAfterRestore={async () => {
           await desktop.hydrateFromDb();
         }}
+        dataset={
+          success
+            ? { summary: success.summary, rows: success.rows, fileName: success.fileName }
+            : null
+        }
+        onOpenImport={onPick}
+        onOpenHistory={() => setHistoryOpen(true)}
       />
     </PageChrome>
   );
@@ -247,15 +254,17 @@ function DesktopWelcomePage() {
 
 function pagePaddingForDensity(density: 'comfortable' | 'dense' | 'presentation') {
   if (density === 'dense') return { padding: '20px 20px' };
-  if (density === 'presentation') return { padding: '40px 32px' };
-  return { padding: '32px 24px' };
+  if (density === 'presentation') return { padding: '48px 36px' };
+  // Comfortable (default) gets a roomier vertical breath ? the
+  // pre-polish 32/24 felt cramped against the title bar overlay.
+  return { padding: '36px 28px' };
 }
 
 /**
  * Shown if the renderer bundle was loaded outside of Electron (e.g. by
  * running `pnpm --filter @cu/playground dev` directly in a browser). We
  * could ship a web-flavour fallback, but PR20 cut the IndexedDB path
- * to reduce maintenance — this notice points the user to the desktop
+ * to reduce maintenance ? this notice points the user to the desktop
  * binary instead of letting the empty bridge crash on first import.
  */
 function NonDesktopNotice() {
@@ -265,13 +274,13 @@ function NonDesktopNotice() {
         <AlertTriangle size={32} className="text-[var(--color-warning)]" aria-hidden="true" />
         <h1 className="font-serif text-[32px] tracking-tight">Open in the desktop app</h1>
         <p className="text-[14px] text-[var(--color-text-muted)] max-w-[480px]">
-          Cursor Usage v1.0 is desktop-only — the local SQLite database lives in the Electron main
+          Cursor Usage v1.0 is desktop-only ? the local SQLite database lives in the Electron main
           process, so the browser-only build no longer runs the dashboard. Launch{' '}
           <code className="font-mono text-[var(--color-accent)]">Cursor Usage.exe</code> (or build
           it with <code className="font-mono">pnpm desktop:dev</code>) to import your CSVs.
         </p>
         <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-          installer · apps/desktop/release/Cursor Usage-Setup-*.exe
+          installer ? apps/desktop/release/Cursor Usage-Setup-*.exe
         </p>
       </main>
     </PageChrome>
@@ -280,7 +289,7 @@ function NonDesktopNotice() {
 
 /**
  * Shared header / footer / background gradient. Desktop is now the
- * only supported runtime, so the variant prop is gone — the brand
+ * only supported runtime, so the variant prop is gone ? the brand
  * strip always shows the desktop / sqlite badge. When `onOpenSettings`
  * is provided the header renders a cog button next to the theme
  * toggle; the welcome hero omits it (no DB to configure yet). The titlebar
@@ -316,8 +325,8 @@ function PageChrome({
           <BrandMark size={22} motion="hover" />
           <div className="flex items-baseline gap-2">
             <span className="font-serif text-[17px] tracking-tight">{brand.name}</span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-              v1.0 · desktop · sqlite
+            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+              v1.0 ? desktop ? sqlite
             </span>
           </div>
         </div>
@@ -331,7 +340,7 @@ function PageChrome({
             </IconButton>
           </Tooltipped>
           {onOpenSettings ? (
-            <Tooltipped label="Settings · budget · backup" side="bottom">
+            <Tooltipped label="Settings ? budget ? backup" side="bottom">
               <IconButton label="Open settings" onClick={onOpenSettings} variant="ghost" size="sm">
                 <SettingsIcon size={16} />
               </IconButton>
@@ -346,7 +355,7 @@ function PageChrome({
       <footer className="mx-auto max-w-[1280px] px-6 pt-4 pb-10">
         <div className="flex items-center justify-between border-t border-[var(--color-border)] pt-4 text-[11px] text-[var(--color-text-subtle)]">
           <span className="font-mono uppercase tracking-[0.08em]">
-            cursor-usage-viz · desktop · sqlite persistence
+            cursor-usage-viz ? desktop ? sqlite persistence
           </span>
           <span>Pricing source: cursor.com/docs/models-and-pricing</span>
         </div>
@@ -356,7 +365,7 @@ function PageChrome({
 }
 
 /**
- * Empty-state hero — shown when there's no data in the DB yet. Same
+ * Empty-state hero ? shown when there's no data in the DB yet. Same
  * dropzone as in the desktop app, with a desktop-specific storage
  * badge so the user knows the import lands in `cursor-usage.db`.
  */
@@ -431,7 +440,7 @@ function WelcomeHero({
             aria-hidden="true"
           />
           <div className="font-serif text-[18px] mb-1">
-            {parsing ? 'Parsing…' : 'Drop CSV here or click to upload'}
+            {parsing ? 'Parsing?' : 'Drop CSV here or click to upload'}
           </div>
           <div className="text-[13px] text-[var(--color-text-muted)] mb-5 max-w-[420px]">
             Single <code className="font-mono">usage-events-YYYY-MM-DD.csv</code>. You will preview
@@ -443,10 +452,10 @@ function WelcomeHero({
             ) : (
               <Upload size={14} aria-hidden="true" />
             )}
-            {parsing ? 'Parsing…' : 'Choose CSV'}
+            {parsing ? 'Parsing?' : 'Choose CSV'}
           </Button>
           <div className="mt-4 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Storage · desktop · cursor-usage.db
+            Storage ? desktop ? cursor-usage.db
           </div>
           {errMsg && (
             <motion.div
@@ -476,7 +485,7 @@ function WelcomeHero({
                   </span>
                 </div>
               </div>
-              <ul className="ml-5 list-disc font-mono text-[10px] leading-relaxed text-[var(--color-text-subtle)]">
+              <ul className="ml-5 list-disc font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
                 <li>
                   Make sure you exported{' '}
                   <code className="rounded-sm bg-[var(--color-surface-raised)] px-1">
@@ -484,14 +493,14 @@ function WelcomeHero({
                   </code>{' '}
                   from cursor.com/dashboard/usage (not the monthly summary).
                 </li>
-                <li>Files larger than 16 MB are rejected — split them by month.</li>
+                <li>Files larger than 16 MB are rejected ? split them by month.</li>
                 <li>If you re-saved the file via Excel, re-export from Cursor instead.</li>
               </ul>
               <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={onReset}
-                  className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                  className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
                 >
                   <RefreshCw size={10} aria-hidden="true" />
                   try again
@@ -511,26 +520,26 @@ function WelcomeHero({
       >
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-[20px] tracking-tight">What you will learn first</h2>
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Local analysis · replaced with your data after upload
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            Local analysis ? replaced with your data after upload
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiPreviewCard
             label="Total spend"
             value="$1,247.83"
-            meta="What happened · total cost, requests, tokens"
+            meta="What happened ? total cost, requests, tokens"
             accent
           />
           <KpiPreviewCard
             label="Single most expensive"
             value="$139.37"
-            meta="Why it happened · model, day, max-mode context"
+            meta="Why it happened ? model, day, max-mode context"
           />
           <KpiPreviewCard
             label="Top model by spend"
             value="claude-4-sonnet-thinking"
-            meta="What to do next · switch, reduce, cache, or watch"
+            meta="What to do next ? switch, reduce, cache, or watch"
             valueClass="font-mono text-[18px] leading-[1.4] tracking-tight"
           />
         </div>
@@ -578,7 +587,7 @@ function ProofCard({
 }) {
   return (
     <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-      <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-accent)]">
+      <div className="mb-1.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-accent)]">
         {icon}
         {label}
       </div>
@@ -604,7 +613,7 @@ function BootGate() {
     >
       <Loader2 size={20} aria-hidden="true" className="animate-spin" />
       <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.1em]">
-        Restoring local session…
+        Restoring local session?
       </span>
     </motion.div>
   );

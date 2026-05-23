@@ -40,7 +40,7 @@ export function ScenarioPlannerPanel({
       title="Scenario planner"
       subtitle="Deterministic what-if model · no network · no LLM"
       action={
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {scenarios.length} levers
         </span>
       }
@@ -59,7 +59,7 @@ function ScenarioCard({ scenario }: { scenario: BudgetScenario }) {
   return (
     <article className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+        <div className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
           {saving ? (
             <ArrowDownRight size={12} className="text-[var(--color-success)]" aria-hidden="true" />
           ) : (
@@ -68,7 +68,7 @@ function ScenarioCard({ scenario }: { scenario: BudgetScenario }) {
           {scenario.confidence} confidence
         </div>
         {saving ? (
-          <span className="font-mono text-[10px] text-[var(--color-success)]">
+          <span className="font-mono text-[11px] text-[var(--color-success)]">
             {fmtUSD(Math.abs(scenario.costDelta))} saved
           </span>
         ) : null}
@@ -80,7 +80,7 @@ function ScenarioCard({ scenario }: { scenario: BudgetScenario }) {
         <span className="font-serif text-[24px] tracking-tight">
           {fmtUSD(scenario.projectedCost)}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {Math.round(scenario.projectedRequests).toLocaleString()} req
         </span>
       </div>
@@ -88,14 +88,14 @@ function ScenarioCard({ scenario }: { scenario: BudgetScenario }) {
         {scenario.detail}
       </p>
       <div className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2">
-        <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           Assumption
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
           {scenarioAssumption(scenario)}
         </p>
       </div>
-      <p className="mt-3 border-t border-[var(--color-border)] pt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+      <p className="mt-3 border-t border-[var(--color-border)] pt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
         {scenario.action}
       </p>
     </article>

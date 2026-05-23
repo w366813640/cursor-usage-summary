@@ -5,7 +5,7 @@ interface PanelProps {
   subtitle?: string;
   action?: ReactNode;
   children: ReactNode;
-  /** Optional className overrides — used by hero-styled panels. */
+  /** Optional className overrides ? used by hero-styled panels. */
   className?: string;
 }
 
@@ -15,33 +15,37 @@ interface PanelProps {
  * The visual treatment is intentionally restrained: a soft border, a faint
  * inner top highlight (so the card reads as a "raised slab" in dark mode),
  * and a small dot prefix before the title that picks up the active brand
- * accent. Hover bumps the border to the stronger token — a Bloomberg-style
+ * accent. Hover bumps the border to the stronger token ? a Bloomberg-style
  * "this is interactive" cue without going full glow.
  */
 export function Panel({ title, subtitle, action, children, className }: PanelProps) {
   return (
     <div
       className={[
-        'group relative rounded-[14px] border border-[var(--color-border)]',
-        'bg-[var(--color-surface)] p-5',
+        'group relative border border-[var(--color-border)]',
+        'bg-[var(--color-surface)]',
         'shadow-[0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent)_inset,0_8px_20px_-18px_rgba(0,0,0,0.45)]',
         'transition-colors duration-[180ms]',
         'hover:border-[var(--color-border-strong)]',
         className ?? '',
       ].join(' ')}
+      style={{
+        borderRadius: 'var(--cu-density-panel-radius)',
+        padding: 'var(--cu-density-panel-padding)',
+      }}
     >
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-baseline gap-2">
             <span
               aria-hidden="true"
-              className="inline-block h-[6px] w-[6px] translate-y-[-2px] rounded-full opacity-70"
+              className="inline-block h-[7px] w-[7px] translate-y-[-2px] rounded-full opacity-80"
               style={{ background: 'var(--color-accent)' }}
             />
-            <div className="font-serif text-[16px] tracking-tight">{title}</div>
+            <div className="font-serif text-[17px] tracking-tight">{title}</div>
           </div>
           {subtitle ? (
-            <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               {subtitle}
             </div>
           ) : null}
@@ -66,7 +70,7 @@ interface MetricToggleProps<T extends string> {
  */
 export function MetricToggle<T extends string>({ value, options, onChange }: MetricToggleProps<T>) {
   return (
-    <div className="flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 p-0.5 font-mono text-[10px] uppercase tracking-[0.08em]">
+    <div className="flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 p-0.5 font-mono text-[11px] uppercase tracking-[0.08em]">
       {options.map((m) => (
         <button
           key={m}

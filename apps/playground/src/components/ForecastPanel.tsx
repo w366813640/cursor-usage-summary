@@ -427,7 +427,7 @@ function Kpi({
           : undefined,
       }}
     >
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -437,7 +437,7 @@ function Kpi({
         {value}
       </div>
       {sub ? (
-        <div className="mt-0.5 font-mono text-[10px] text-[var(--color-text-subtle)]">{sub}</div>
+        <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-subtle)]">{sub}</div>
       ) : null}
     </div>
   );
@@ -459,7 +459,7 @@ function ForecastBadge({
   const confidenceText = confidence.toUpperCase();
   return (
     <div
-      className="flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.08em]"
+      className="flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.08em]"
       style={{
         borderColor: 'color-mix(in oklab, var(--color-accent) 35%, var(--color-border))',
       }}

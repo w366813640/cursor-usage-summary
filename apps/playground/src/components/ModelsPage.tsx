@@ -24,7 +24,26 @@ interface ModelStats {
   cacheHitRatio: number;
   avgCost: number;
   trend: { date: string; value: number }[];
+  /** YYYY-MM-DD of the most recent usage row for this model. */
+  lastSeenISO: string;
+  /** Days since `lastSeenISO`, using `Date.now()` as the clock. */
+  daysSinceLastSeen: number;
 }
+
+/**
+ * Rules that classify a model as "low activity" and hide it from the
+ * default table view. The user can flip them on with the "show all"
+ * toggle when they actually want to audit deprecated models.
+ *
+ *   - LOW_ROW_THRESHOLD  — fewer than N requests against this model
+ *     across the whole dataset
+ *   - STALE_DAYS         — last call was more than N days ago AND the
+ *     model isn't carrying material spend (>$1 keeps it visible even
+ *     when stale, so an expensive forgotten run doesn't disappear)
+ */
+const LOW_ROW_THRESHOLD = 10;
+const STALE_DAYS = 30;
+const STALE_KEEP_IF_COST_OVER = 1;
 
 /**
  * Per-model drill-down. Shows every model as a row with its cost share,
@@ -34,6 +53,12 @@ interface ModelStats {
 export function ModelsPage({ summary, rows }: ModelsPageProps) {
   const [sortKey, setSortKey] = useState<SortKey>('cost');
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Default-on filter that hides deprecated / barely-used models. Power
+  // users flip it off via the "show all" toggle below the section header
+  // when they want to audit the long tail (e.g. confirming a deprecated
+  // model is actually gone). Off-by-default would re-introduce the
+  // 30-row noisy table the user just asked us to clean up.
+  const [hideLowActivity, setHideLowActivity] = useState(true);
 
   // Per-model aggregates derived from RowWithCost — byModel only has totals,
   // not the per-row token detail or daily trend we need for the cards.
@@ -46,6 +71,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       byModelRows.set(r.model, list);
     }
 
+    const now = Date.now();
     const out: ModelStats[] = [];
     for (const m of summary.byModel) {
       const list = byModelRows.get(m.model) ?? [];
@@ -53,6 +79,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       let inputNoCache = 0;
       let inputWithCache = 0;
       let output = 0;
+      let lastSeenMs = 0;
       const dayMap = new Map<string, number>();
       for (const r of list) {
         if (r.requests.kind !== 'units') continue;
@@ -60,6 +87,8 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
         inputNoCache += r.tokens.inputWithoutCacheWrite;
         inputWithCache += r.tokens.inputWithCacheWrite;
         output += r.tokens.output;
+        const ts = r.date.getTime();
+        if (ts > lastSeenMs) lastSeenMs = ts;
         const ymd = r.date.toISOString().slice(0, 10);
         dayMap.set(ymd, (dayMap.get(ymd) ?? 0) + r.cost);
       }
@@ -68,6 +97,11 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       const trend = Array.from(dayMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, value]) => ({ date, value }));
+      const lastSeenISO = lastSeenMs > 0 ? new Date(lastSeenMs).toISOString().slice(0, 10) : '';
+      const daysSinceLastSeen =
+        lastSeenMs > 0
+          ? Math.floor((now - lastSeenMs) / (24 * 60 * 60 * 1000))
+          : Number.POSITIVE_INFINITY;
       out.push({
         model: m.model,
         cost: m.cost,
@@ -80,13 +114,33 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
         cacheHitRatio: totalInput > 0 ? cacheRead / totalInput : 0,
         avgCost: m.rows > 0 ? m.cost / m.rows : 0,
         trend,
+        lastSeenISO,
+        daysSinceLastSeen,
       });
     }
     return out;
   }, [rows, summary.byModel, summary.totalCost]);
 
+  // Partition into "active" and "hidden". A model lands in `hidden`
+  // when it's both rarely used AND has no recent activity — both
+  // conditions matter so a brand-new model with only 2 calls survives
+  // the cut. We never hide models that carry material recent spend,
+  // even if rows are low.
+  const partition = useMemo(() => {
+    const low: ModelStats[] = [];
+    const visible: ModelStats[] = [];
+    for (const s of stats) {
+      const isLowRows = s.rows < LOW_ROW_THRESHOLD;
+      const isStale = s.daysSinceLastSeen > STALE_DAYS && s.cost < STALE_KEEP_IF_COST_OVER;
+      if (isLowRows || isStale) low.push(s);
+      else visible.push(s);
+    }
+    return { visible, low };
+  }, [stats]);
+
   const sorted = useMemo(() => {
-    const arr = [...stats];
+    const base = hideLowActivity ? partition.visible : stats;
+    const arr = [...base];
     arr.sort((a, b) => {
       switch (sortKey) {
         case 'rows':
@@ -100,7 +154,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       }
     });
     return arr;
-  }, [stats, sortKey]);
+  }, [stats, partition.visible, sortKey, hideLowActivity]);
 
   return (
     <motion.div
@@ -110,10 +164,11 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       className="flex flex-col gap-4"
     >
       <SectionHeader
+        sticky
         title="Models"
-        subtitle={`${stats.length} models · click a row to expand token mix + daily-cost`}
+        subtitle={`${sorted.length} / ${stats.length} models · click a row to expand token mix + daily-cost`}
         action={
-          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <span>sort by</span>
             <div className="flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_2%,transparent)]">
               {(
@@ -143,6 +198,35 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
         }
       />
 
+      {partition.low.length > 0 ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-[var(--color-border)] bg-[var(--color-surface-muted)]/40 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]"
+          aria-live="polite"
+        >
+          <span>
+            {hideLowActivity ? (
+              <>
+                Hiding <span className="text-[var(--color-text)]">{partition.low.length}</span>{' '}
+                low-activity model{partition.low.length === 1 ? '' : 's'} (&lt; {LOW_ROW_THRESHOLD}{' '}
+                requests or stale &gt; {STALE_DAYS}d).
+              </>
+            ) : (
+              <>
+                Showing all <span className="text-[var(--color-text)]">{stats.length}</span> models
+                — including {partition.low.length} flagged as low-activity.
+              </>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => setHideLowActivity((v) => !v)}
+            className="rounded-md border border-[var(--color-border)] px-2 py-1 transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            {hideLowActivity ? 'show all' : 'hide low-activity'}
+          </button>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent),0_10px_28px_-22px_rgba(0,0,0,0.55)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left">
@@ -162,7 +246,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
                 ).map((h) => (
                   <th
                     key={h.key}
-                    className={`px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${h.align}`}
+                    className={`px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)] text-${h.align}`}
                   >
                     {h.key}
                   </th>
@@ -248,7 +332,7 @@ function ModelRow({ stats: s, isOpen, rowIndex, onToggle }: ModelRowProps) {
             </span>
             {s.costEstimated ? (
               <span
-                className="rounded-sm border border-[var(--color-border)] px-1 py-px font-mono text-[8px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
+                className="rounded-sm border border-[var(--color-border)] px-1 py-px font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
                 title="Not in the official pricing table — estimated against the Auto pool rate"
               >
                 est
@@ -313,7 +397,7 @@ function ModelRow({ stats: s, isOpen, rowIndex, onToggle }: ModelRowProps) {
               fillArea
             />
           ) : (
-            <span className="font-mono text-[10px] text-[var(--color-text-subtle)]">—</span>
+            <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">—</span>
           )}
         </td>
       </tr>
@@ -353,10 +437,10 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
         >
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
                 Token mix
               </span>
-              <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+              <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
                 {fmtTokens(tokenTotal)} total
               </span>
             </div>
@@ -376,7 +460,7 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
                 );
               })}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] text-[var(--color-text-muted)]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-[var(--color-text-muted)]">
               {tokenSegments.map((seg) => {
                 const pct = tokenTotal > 0 ? seg.value / tokenTotal : 0;
                 return (
@@ -400,10 +484,10 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
           <div className="flex flex-1 items-stretch">
             <div className="flex w-full flex-col gap-1">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
                   Daily cost
                 </span>
-                <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
                   {s.trend.length} {s.trend.length === 1 ? 'day' : 'days'}
                 </span>
               </div>

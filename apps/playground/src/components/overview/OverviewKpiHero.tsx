@@ -82,7 +82,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
           </>
         }
         insetSlot={
-          <div className="flex flex-col gap-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="flex flex-col gap-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <div className="flex items-baseline justify-between">
               <span>past 30 days</span>
               <span className="text-[var(--color-text)]">{fmtUSD(past30dCost)}</span>
@@ -121,7 +121,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         }
         insetSlot={
           hottest ? (
-            <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               <span>tokens</span>
               <span className="text-[var(--color-text)]">{fmtTokens(hottest.tokens.total)}</span>
             </div>
@@ -147,7 +147,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         }
         insetSlot={
           topModel ? (
-            <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               <span>avg per request</span>
               <span className="text-[var(--color-text)]">
                 {fmtUSDCompact(topModel.cost / Math.max(1, topModel.rows))}
@@ -166,7 +166,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         copyText={fmtUSD(cacheSavings.savings)}
         badge={
           <span
-            className="rounded-sm border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
+            className="rounded-sm border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
             title="cache-read tokens repriced at the model's normal input rate"
           >
             est.
@@ -182,7 +182,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
           </>
         }
         insetSlot={
-          <div className="flex flex-col gap-0.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="flex flex-col gap-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <div className="flex items-baseline justify-between">
               <span>tokens reused</span>
               <span className="text-[var(--color-text)]">

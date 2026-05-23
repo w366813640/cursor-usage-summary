@@ -16,6 +16,10 @@ const FALLBACK: UserSettings = {
   lastBackupAt: null,
   displayDensity: 'comfortable',
   personalGoals: { monthlyRequestTarget: null, habitFocus: null },
+  navigation: {
+    order: ['overview', 'year', 'anomalies', 'models', 'details', 'day'],
+    hidden: [],
+  },
 };
 
 const SETTINGS_EVENT = 'cu:settings-change';

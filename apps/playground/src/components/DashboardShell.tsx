@@ -1,7 +1,8 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { Suspense, lazy, useMemo, useState } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useFocusMode } from '../hooks/useFocusMode';
+import { useSettings } from '../hooks/useSettings';
 import { useRoute } from '../router/useRoute';
 import { useExtraPaletteActions } from './CommandPalette';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
@@ -61,8 +62,27 @@ export function DashboardShell({
   onOpenSettings,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
-  const [navExpanded, setNavExpanded] = useState(false);
   const [focusMode, setFocusMode] = useFocusMode();
+  const { settings } = useSettings();
+  // Resolve the user's saved nav layout (Settings → Navigation). When the
+  // hidden list is empty and the order matches the static default, fall
+  // through to `undefined` so SideNav can render the curated Analyze /
+  // Investigate group split instead of one flat "Sections" list.
+  const navLayout = useMemo(() => {
+    const order = settings.navigation.order;
+    const hidden = new Set(settings.navigation.hidden);
+    const visible = order.filter((r) => !hidden.has(r));
+    const isDefault =
+      hidden.size === 0 &&
+      visible.length === 6 &&
+      visible[0] === 'overview' &&
+      visible[1] === 'year' &&
+      visible[2] === 'anomalies' &&
+      visible[3] === 'models' &&
+      visible[4] === 'details' &&
+      visible[5] === 'day';
+    return isDefault ? undefined : visible;
+  }, [settings.navigation]);
   const desktopPaletteActions = useMemo(
     () => [
       {
@@ -115,12 +135,7 @@ export function DashboardShell({
 
   return (
     <div className="flex gap-5">
-      <SideNav
-        current={route}
-        onNavigate={navigate}
-        expanded={navExpanded}
-        onSetExpanded={setNavExpanded}
-      />
+      <SideNav current={route} onNavigate={navigate} routeLayout={navLayout} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <FileToolbar
@@ -133,6 +148,7 @@ export function DashboardShell({
           summary={summary}
           rows={rows}
           desktopActions={desktopActions}
+          onOpenSettings={onOpenSettings}
         />
 
         <Suspense fallback={<RouteLoadingSkeleton />}>

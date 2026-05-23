@@ -169,13 +169,13 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       >
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               Token mix
             </div>
             <StatGrid items={tokenStats} formatValue={fmtTokens} columns={2} />
           </div>
           <div className="flex flex-col gap-2">
-            <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
               Spend by provider
             </div>
             <StatGrid items={providerStats} formatValue={fmtUSD} columns={2} />

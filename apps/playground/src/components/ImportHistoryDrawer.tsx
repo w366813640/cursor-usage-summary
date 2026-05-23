@@ -116,7 +116,7 @@ export function ImportHistoryDrawer({
                       ? 'Need at least two imports to compare'
                       : 'Compare any two import batches'
                   }
-                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Sliders size={11} aria-hidden="true" />
                   compare
@@ -180,11 +180,11 @@ export function ImportHistoryDrawer({
                           />
                           {b.sourceFilename}
                         </span>
-                        <span className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                        <span className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                           <Clock size={10} aria-hidden="true" />
                           {describeLastUpdate(b.importedAt) ?? 'just now'}
                         </span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                           {b.dateMin ?? '—'} → {b.dateMax ?? '—'}
                         </span>
                       </div>
@@ -193,7 +193,7 @@ export function ImportHistoryDrawer({
                           +{b.rowCountAdded.toLocaleString()} rows
                         </span>
                         {b.rowCountSkipped > 0 ? (
-                          <span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
+                          <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
                             {b.rowCountSkipped.toLocaleString()} skipped
                           </span>
                         ) : null}
@@ -202,7 +202,7 @@ export function ImportHistoryDrawer({
 
                     {pendingUndoId === b.id ? (
                       <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-2">
-                        <span className="mr-auto font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+                        <span className="mr-auto font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
                           Undo will delete{' '}
                           <span className="text-[var(--color-text)]">
                             {b.rowCountAdded.toLocaleString()}
@@ -213,7 +213,7 @@ export function ImportHistoryDrawer({
                           type="button"
                           onClick={() => setPendingUndoId(null)}
                           disabled={busyId === b.id}
-                          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Cancel
                         </button>
@@ -221,7 +221,7 @@ export function ImportHistoryDrawer({
                           type="button"
                           onClick={() => void handleConfirmUndo(b.id)}
                           disabled={busyId === b.id}
-                          className="flex items-center gap-1 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex items-center gap-1 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
                           style={{
                             background: 'var(--color-destructive)',
                             color: 'white',
@@ -241,7 +241,7 @@ export function ImportHistoryDrawer({
                         <button
                           type="button"
                           onClick={() => setPendingUndoId(b.id)}
-                          className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
+                          className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
                         >
                           <Trash2 size={10} aria-hidden="true" />
                           Undo
@@ -253,7 +253,7 @@ export function ImportHistoryDrawer({
               </ul>
             )}
 
-            <p className="mt-auto border-t border-[var(--color-border)] pt-3 font-mono text-[10px] leading-relaxed text-[var(--color-text-subtle)]">
+            <p className="mt-auto border-t border-[var(--color-border)] pt-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
               Undo only removes rows this batch actually wrote. Rows that dedup-collapsed onto an
               earlier import stay with their original batch.
             </p>

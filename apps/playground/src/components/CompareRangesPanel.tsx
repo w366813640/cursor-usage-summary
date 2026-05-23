@@ -63,7 +63,7 @@ export function CompareRangesPanel({ rows, defaultWindow = 7 }: CompareRangesPan
       title="Compare ranges"
       subtitle={`${recent.label} (${recent.start} → ${recent.end}) vs ${prior.label} (${prior.start} → ${prior.end})`}
       action={
-        <div className="flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 font-mono text-[10px] uppercase tracking-[0.08em] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_2%,transparent)]">
+        <div className="flex items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 font-mono text-[11px] uppercase tracking-[0.08em] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_2%,transparent)]">
           {(
             [
               ['7d', 'last 7d'],
@@ -123,7 +123,7 @@ export function CompareRangesPanel({ rows, defaultWindow = 7 }: CompareRangesPan
         <DailyMiniBars range={prior} tone="muted" maxValue={maxValueAcross(recent, prior)} />
       </div>
 
-      <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+      <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
         Tip · arrows show change relative to the prior window. Spend going up while request-count
         holds flat means a more expensive model mix.
       </div>
@@ -147,11 +147,11 @@ function DeltaStat({ label, recentValue, priorValue, delta, isMoneyMetric }: Del
   const pct = Math.abs(delta);
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3">
-      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div className="mt-1 font-serif text-[20px] leading-tight tabular-nums">{recentValue}</div>
-      <div className="mt-1 flex items-center gap-2 font-mono text-[10px] tabular-nums">
+      <div className="mt-1 flex items-center gap-2 font-mono text-[11px] tabular-nums">
         <span
           className="inline-flex items-center gap-1"
           style={{ color: toneColor(tone) }}
@@ -185,10 +185,10 @@ function DailyMiniBars({ range, tone, maxValue }: DailyMiniBarsProps) {
   return (
     <div className="flex flex-col gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5">
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {range.label}
         </span>
-        <span className="font-mono text-[10px] text-[var(--color-text-muted)] tabular-nums">
+        <span className="font-mono text-[11px] text-[var(--color-text-muted)] tabular-nums">
           {totalLabel}
         </span>
       </div>
@@ -230,7 +230,7 @@ function DailyMiniBars({ range, tone, maxValue }: DailyMiniBarsProps) {
           );
         })}
       </div>
-      <div className="flex justify-between font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="flex justify-between font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         <span>{range.start}</span>
         <span>{range.end}</span>
       </div>

@@ -77,6 +77,8 @@ export {
   Moon,
   MoreHorizontal,
   MoreVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   PieChart,

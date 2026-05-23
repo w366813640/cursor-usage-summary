@@ -8,10 +8,57 @@
 
 /* Make sure body inherits theme bg painted by the pre-React inline script. */
 html,
-body {
+body,
+#root {
+  min-height: 100%;
+  width: 100%;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
+
+/* ----------------------------------------------------------------
+ * Density presets — driven by `<html data-density="...">` set by the
+ * Settings drawer. The renderer reads these tokens through `var(...)`
+ * inline styles on Panel / SectionHeader / Sidebar so a density flip
+ * needs no React re-render of the visible tree.
+ *
+ * `comfortable` is the default and is intentionally roomier post-UI
+ * polish — Bloomberg ≠ a wall of 9px mono. `dense` keeps the original
+ * tight workbench tuning for power users; `presentation` opens up
+ * even further for screenshots / demos.
+ *
+ * Floor every visible text size at `--text-meta-min` (11px). Anything
+ * smaller hits the legibility floor first and the eye later.
+ * ---------------------------------------------------------------- */
+:root {
+  --cu-density-section-gap: 28px;
+  --cu-density-panel-padding: 22px;
+  --cu-density-panel-radius: 14px;
+  --cu-density-stack-gap: 14px;
+  --cu-density-line-height: 1.55;
+  --text-meta-min: 11px;
+}
+
+[data-density="dense"] {
+  --cu-density-section-gap: 18px;
+  --cu-density-panel-padding: 16px;
+  --cu-density-panel-radius: 12px;
+  --cu-density-stack-gap: 10px;
+  --cu-density-line-height: 1.45;
+}
+
+[data-density="presentation"] {
+  --cu-density-section-gap: 36px;
+  --cu-density-panel-padding: 28px;
+  --cu-density-panel-radius: 16px;
+  --cu-density-stack-gap: 18px;
+  --cu-density-line-height: 1.65;
 }

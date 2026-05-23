@@ -36,7 +36,7 @@ export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
         title="Efficiency"
         subtitle="Where can I trim?"
         action={
-          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <ThermometerSun className="h-3.5 w-3.5" aria-hidden="true" />
             <span>{report.byModel.length} models scanned</span>
           </span>
@@ -102,7 +102,7 @@ function ScenarioStat({
 }) {
   return (
     <div className="flex flex-col gap-1 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 p-3">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -157,7 +157,7 @@ function RecCard({ rec }: { rec: EfficiencyRecommendation }) {
           <span className="font-serif text-[14px] leading-snug">{rec.title}</span>
           {rec.priority !== 'low' && rec.kind !== 'good-news' ? (
             <span
-              className="inline-flex items-center rounded-sm border border-[var(--color-border)] px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em]"
+              className="inline-flex items-center rounded-sm border border-[var(--color-border)] px-1.5 py-[1px] font-mono text-[11px] uppercase tracking-[0.1em]"
               style={{
                 background:
                   rec.priority === 'high' ? 'var(--color-accent)' : 'var(--color-surface)',

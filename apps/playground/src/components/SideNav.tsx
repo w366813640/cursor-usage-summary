@@ -1,4 +1,15 @@
-import { AlertTriangle, Calendar, Clock, Cpu, type IconProps, Layout, Table2 } from '@cu/icons';
+import {
+  AlertTriangle,
+  Calendar,
+  Clock,
+  Cpu,
+  type IconProps,
+  Layout,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Table2,
+} from '@cu/icons';
+import { useSidebarState } from '@cu/ui';
 import type { ComponentType } from 'react';
 import type { AppRoute } from '../router/useRoute';
 
@@ -40,33 +51,38 @@ const ROUTE_GROUPS: ReadonlyArray<{
 interface SideNavProps {
   current: AppRoute;
   onNavigate: (route: AppRoute) => void;
-  /** Externally controlled expanded state; SideNav is uncontrolled-by-default. */
-  expanded: boolean;
-  onSetExpanded: (next: boolean) => void;
+  /**
+   * Optional per-user nav layout — order + visibility. Sourced from
+   * settings.navigation when present; SideNav falls back to the static
+   * ROUTE_GROUPS when undefined so unconfigured installs still get the
+   * curated Analyze / Investigate split.
+   */
+  routeLayout?: ReadonlyArray<AppRoute>;
 }
 
 /**
- * Left-rail vertical nav with collapsible labels.
+ * Left-rail vertical nav with a sticky collapse toggle.
  *
- * Collapsed state shows icon-only at 56px wide; expanded state pushes to
- * 196px and reveals the route label + the Cmd+K shortcut hint. The user
- * has two ways to expand:
- *
- *   - Click the chevron at the bottom (sticky toggle, persisted via prop)
- *   - Hover the rail (transient — collapses again on mouse leave)
- *
- * We deliberately keep the rail in the document flow (no `position: fixed`)
- * so the page never has to know about its width. The rail uses a cheap CSS
- * width transition instead of layout animation; expanding it should never
- * compete with the dense charts on the Year page.
+ * Behaviour notes (post UI polish pass):
+ *   - No hover-expand any more. The rail used to slide open when the
+ *     mouse entered, which made dragging across the page feel skittish
+ *     and stole horizontal space at random. Now the only way to open
+ *     it is the chevron button at the bottom; the choice is persisted
+ *     via `SidebarStateProvider`.
+ *   - Collapsed group labels are removed from the layout (height 0)
+ *     instead of just fading to opacity 0 — keeps the rail tight.
+ *   - The rail still uses a cheap CSS width transition; we deliberately
+ *     don't animate layout for the surrounding page (would compete
+ *     with the dense charts on Year / Day).
  */
-export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNavProps) {
+export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
+  const { expanded, toggle } = useSidebarState();
+  const orderedRoutes = useNavRouteLayout(routeLayout);
+
   return (
     <nav
       aria-label="Sections"
-      onMouseEnter={() => onSetExpanded(true)}
-      onMouseLeave={() => onSetExpanded(false)}
-      className="sticky top-4 flex shrink-0 flex-col justify-between gap-1 self-start overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
+      className="sticky top-[88px] flex shrink-0 flex-col justify-between gap-1 self-start overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
       style={{
         minHeight: 56 * 8,
         width: expanded ? 196 : 56,
@@ -75,12 +91,15 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
       }}
     >
       <ul className="flex flex-col gap-2">
-        {ROUTE_GROUPS.map((group) => (
+        {orderedRoutes.map((group) => (
           <li key={group.label} className="flex flex-col gap-1">
             <div
               className={[
-                'px-2 pt-1 font-mono text-[8px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)] transition-opacity duration-150',
-                expanded ? 'opacity-100' : 'opacity-0',
+                'overflow-hidden font-mono uppercase tracking-[0.12em] text-[var(--color-text-subtle)]',
+                'transition-[max-height,opacity,padding] duration-150',
+                expanded
+                  ? 'max-h-[18px] px-2 pt-1 text-[11px] opacity-100'
+                  : 'max-h-0 px-2 pt-0 text-[11px] opacity-0',
               ].join(' ')}
               aria-hidden={!expanded}
             >
@@ -97,6 +116,7 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
                       onClick={() => onNavigate(route)}
                       aria-current={isActive ? 'page' : undefined}
                       aria-label={`Navigate to ${LABELS[route]}`}
+                      title={!expanded ? LABELS[route] : undefined}
                       className={[
                         'group flex h-10 w-full items-center gap-3 rounded-[10px] px-2.5 transition-colors',
                         isActive
@@ -118,7 +138,7 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
                         {LABELS[route]}
                       </span>
                       {expanded ? (
-                        <span className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+                        <span className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-[1px] font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
                           {SHORTCUTS[route]}
                         </span>
                       ) : null}
@@ -136,6 +156,51 @@ export function SideNav({ current, onNavigate, expanded, onSetExpanded }: SideNa
           </li>
         ))}
       </ul>
+
+      <div className="mt-3 border-t border-[var(--color-border)] pt-2">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={expanded}
+          aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          className={[
+            'flex h-9 w-full items-center gap-2 rounded-[10px] px-2.5 transition-colors',
+            'text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)]/60 hover:text-[var(--color-text)]',
+          ].join(' ')}
+        >
+          {expanded ? (
+            <PanelLeftClose className="h-4 w-4 shrink-0" aria-hidden="true" />
+          ) : (
+            <PanelLeftOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+          )}
+          <span
+            className={[
+              'flex-1 text-left font-mono text-[11px] uppercase tracking-[0.08em] transition-opacity duration-150',
+              expanded ? 'opacity-100' : 'opacity-0',
+            ].join(' ')}
+            style={{ pointerEvents: expanded ? 'auto' : 'none' }}
+          >
+            collapse
+          </span>
+        </button>
+      </div>
     </nav>
   );
+}
+
+/**
+ * Build the group layout SideNav should render.
+ *
+ * When the user provides a custom `routeLayout` (drag-reorder + hide
+ * from Settings), the rail collapses the curated Analyze / Investigate
+ * split into a single "Pinned" group. The static groups still drive
+ * the default install so the rail keeps its narrative shape when no
+ * preference exists yet.
+ */
+function useNavRouteLayout(
+  layout: ReadonlyArray<AppRoute> | undefined,
+): ReadonlyArray<{ label: string; routes: ReadonlyArray<AppRoute> }> {
+  if (!layout || layout.length === 0) return ROUTE_GROUPS;
+  return [{ label: 'Sections', routes: layout }];
 }

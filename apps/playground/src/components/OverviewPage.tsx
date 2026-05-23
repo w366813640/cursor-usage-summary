@@ -57,7 +57,7 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
   const [focusMode] = useFocusMode();
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col" style={{ gap: 'var(--cu-density-section-gap)' }}>
       {/* Budget urgency banner (PR6) — auto-hides for safe months and
           when the user dismisses; sits above everything because urgency
           should win the first eye-second on the page. */}

@@ -22,18 +22,37 @@ interface DiagnosticsExportResult {
   bytesWritten?: number;
 }
 
+// Tokens consumed by both the BrowserWindow constructor and the
+// `setTitleBarOverlay` calls that fire on theme changes. Keeping them in
+// one map prevents the right-edge "dark seam" the user reported: the
+// overlay used to only refresh on system theme changes, so toggling the
+// in-app theme (light → dark while OS stays light) left the title-bar
+// strip on the old color and produced a jarring vertical mismatch
+// against the body background.
+const TITLEBAR_COLORS = {
+  light: { bg: '#F7F3EA', symbol: '#2B2926' },
+  dark: { bg: '#1F1E1B', symbol: '#F1ECE2' },
+} as const;
+
+function applyTitleBarOverlay(window: BrowserWindow, dark: boolean) {
+  const tone = dark ? TITLEBAR_COLORS.dark : TITLEBAR_COLORS.light;
+  window.setTitleBarOverlay({ color: tone.bg, symbolColor: tone.symbol, height: 36 });
+}
+
 function createWindow() {
+  const initialDark = nativeTheme.shouldUseDarkColors;
+  const initialTone = initialDark ? TITLEBAR_COLORS.dark : TITLEBAR_COLORS.light;
   mainWindow = new BrowserWindow({
     width: 1320,
     height: 880,
     minWidth: 960,
     minHeight: 600,
     show: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1F1E1B' : '#F7F3EA',
+    backgroundColor: initialTone.bg,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: nativeTheme.shouldUseDarkColors ? '#1F1E1B' : '#F7F3EA',
-      symbolColor: nativeTheme.shouldUseDarkColors ? '#F1ECE2' : '#2B2926',
+      color: initialTone.bg,
+      symbolColor: initialTone.symbol,
       height: 36,
     },
     webPreferences: {
@@ -86,11 +105,7 @@ function createWindow() {
   nativeTheme.on('updated', () => {
     if (!mainWindow) return;
     const dark = nativeTheme.shouldUseDarkColors;
-    mainWindow.setTitleBarOverlay({
-      color: dark ? '#1F1E1B' : '#F7F3EA',
-      symbolColor: dark ? '#F1ECE2' : '#2B2926',
-      height: 36,
-    });
+    applyTitleBarOverlay(mainWindow, dark);
     mainWindow.webContents.send('theme:system-changed', dark ? 'dark' : 'light');
   });
 }
@@ -107,7 +122,13 @@ function registerIpc() {
 
   ipcMain.handle('theme:get-system', () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light'));
   ipcMain.handle('theme:set', (_event, mode: 'light' | 'dark' | 'system') => {
+    // Re-paint the title-bar overlay synchronously instead of waiting on
+    // `nativeTheme.on('updated')` — that event only reliably fires on
+    // OS-level theme changes, so an in-app toggle (light → dark while
+    // the OS stays light) would otherwise leave the Windows control
+    // strip on the previous tone and produce the right-edge dark seam.
     nativeTheme.themeSource = mode;
+    if (mainWindow) applyTitleBarOverlay(mainWindow, nativeTheme.shouldUseDarkColors);
   });
 
   // Tells the renderer whether the desktop bridge is wired up. The

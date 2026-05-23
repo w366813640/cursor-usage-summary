@@ -22,7 +22,10 @@ export function App() {
             <ToastProvider>
               <ModalStackProvider>
                 <KeyboardShortcutsProvider>
-                  <SidebarStateProvider defaultExpanded>
+                  {/* Sidebar starts collapsed by default — the user opts into
+                      the expanded rail with the chevron toggle (persisted via
+                      SidebarStateProvider's localStorage backing). */}
+                  <SidebarStateProvider>
                     {/* The palette wraps everything below so Cmd/Ctrl+K
                         works on both the welcome screen and the dashboard. */}
                     <CommandPaletteProvider>

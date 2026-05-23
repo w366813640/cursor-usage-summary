@@ -170,7 +170,7 @@ function Metric({
           : undefined;
   return (
     <div className="flex flex-col">
-      <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </div>
       <div
@@ -211,7 +211,7 @@ function DetectorSection({
       title={title}
       subtitle={subtitle}
       action={
-        <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {icon}
           <span>{count} flagged</span>
         </span>
@@ -304,7 +304,7 @@ function AnomalyCardShell({
       <button
         type="button"
         onClick={() => openDay(anomaly.date)}
-        className="flex items-center gap-1 self-center rounded-md border border-transparent px-2 py-1 font-mono text-[10px] text-[var(--color-text-subtle)] uppercase tracking-[0.08em] transition-colors hover:border-[var(--color-border)] hover:text-[var(--color-text)]"
+        className="flex items-center gap-1 self-center rounded-md border border-transparent px-2 py-1 font-mono text-[11px] text-[var(--color-text-subtle)] uppercase tracking-[0.08em] transition-colors hover:border-[var(--color-border)] hover:text-[var(--color-text)]"
       >
         Open day
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
@@ -322,7 +322,7 @@ function SeverityBadge({ severity }: { severity: Severity }) {
   const s = styles[severity];
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-1.5 py-[1px] font-mono text-[9px] uppercase tracking-[0.1em]"
+      className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-1.5 py-[1px] font-mono text-[11px] uppercase tracking-[0.1em]"
       style={{ background: s.bg, color: s.fg }}
     >
       <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
@@ -344,7 +344,7 @@ function Stat({
 }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         {label}
       </span>
       <span

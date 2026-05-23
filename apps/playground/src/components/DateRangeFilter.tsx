@@ -142,7 +142,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
             style={{ background: 'var(--color-accent)' }}
           />
           <div className="flex flex-col">
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
               Date filter
             </span>
             <span className="font-serif text-[16px] leading-tight text-[var(--color-text)]">
@@ -150,7 +150,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 font-mono text-[10px] uppercase tracking-[0.08em] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_2%,transparent)]">
+        <div className="flex flex-wrap items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 font-mono text-[11px] uppercase tracking-[0.08em] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_2%,transparent)]">
           <PresetButton active={value.kind === 'all'} onClick={() => applyPreset('all')}>
             All
           </PresetButton>
@@ -181,7 +181,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
               <span className="font-serif text-[14px] text-[var(--color-text)]">{monthLabel}</span>
               {visibleDataDays > 0 ? (
                 <span
-                  className="rounded-sm px-1 py-px font-mono text-[8px] uppercase tracking-[0.1em]"
+                  className="rounded-sm px-1 py-px font-mono text-[11px] uppercase tracking-[0.1em]"
                   style={{
                     background: 'color-mix(in oklab, var(--color-accent) 14%, transparent)',
                     color: 'var(--color-accent)',
@@ -207,7 +207,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
             </button>
           </div>
 
-          <div className="mt-2 grid grid-cols-7 gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          <div className="mt-2 grid grid-cols-7 gap-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             {/* Fixed Sun→Sat header — using slot identifiers so keys stay stable across re-renders. */}
             {(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const).map((slot, idx) => (
               <span key={slot} className="text-center">
@@ -281,7 +281,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        <div className="flex flex-1 flex-col gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
           <p className="text-[11px] normal-case tracking-normal text-[var(--color-text-muted)]">
             Click a day to focus on it. Click a second day to form a range. ⌘ / Ctrl-click to toggle
             multiple days.
