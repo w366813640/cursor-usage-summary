@@ -9,7 +9,7 @@ import {
   PanelLeftOpen,
   Table2,
 } from '@cu/icons';
-import { useSidebarState } from '@cu/ui';
+import { useSidebarState, useT } from '@cu/ui';
 import type { ComponentType } from 'react';
 import type { AppRoute } from '../router/useRoute';
 
@@ -22,13 +22,13 @@ const ICONS: Record<AppRoute, ComponentType<IconProps>> = {
   day: Clock,
 };
 
-const LABELS: Record<AppRoute, string> = {
-  overview: 'Overview',
-  year: 'Year',
-  anomalies: 'Anomalies',
-  models: 'Models',
-  details: 'Requests',
-  day: 'Day audit',
+const LABEL_KEYS: Record<AppRoute, string> = {
+  overview: 'nav.overview',
+  year: 'nav.year',
+  anomalies: 'nav.anomalies',
+  models: 'nav.models',
+  details: 'nav.details',
+  day: 'nav.day',
 };
 
 const SHORTCUTS: Record<AppRoute, string> = {
@@ -40,6 +40,10 @@ const SHORTCUTS: Record<AppRoute, string> = {
   day: 'g d',
 };
 
+// Group labels intentionally left untranslated for now — they're
+// internal scaffolding strings ("Analyze" / "Investigate") that are
+// only visible when the sidebar is expanded. Add to the dictionary
+// later if a translator asks for them.
 const ROUTE_GROUPS: ReadonlyArray<{
   label: string;
   routes: ReadonlyArray<AppRoute>;
@@ -78,6 +82,7 @@ interface SideNavProps {
 export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
   const { expanded, toggle } = useSidebarState();
   const orderedRoutes = useNavRouteLayout(routeLayout);
+  const t = useT();
 
   return (
     <nav
@@ -109,14 +114,15 @@ export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
               {group.routes.map((route) => {
                 const Icon = ICONS[route];
                 const isActive = route === current;
+                const label = t(LABEL_KEYS[route]);
                 return (
                   <li key={route} className="relative">
                     <button
                       type="button"
                       onClick={() => onNavigate(route)}
                       aria-current={isActive ? 'page' : undefined}
-                      aria-label={`Navigate to ${LABELS[route]}`}
-                      title={!expanded ? LABELS[route] : undefined}
+                      aria-label={label}
+                      title={!expanded ? label : undefined}
                       className={[
                         'group flex h-10 w-full items-center gap-3 rounded-[10px] px-2.5 transition-colors',
                         isActive
@@ -135,7 +141,7 @@ export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
                         ].join(' ')}
                         style={{ pointerEvents: expanded ? 'auto' : 'none' }}
                       >
-                        {LABELS[route]}
+                        {label}
                       </span>
                       {expanded ? (
                         <span className="rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-[1px] font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
@@ -162,8 +168,8 @@ export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
           type="button"
           onClick={toggle}
           aria-pressed={expanded}
-          aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-          title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          aria-label={expanded ? t('nav.collapse') : t('nav.expand')}
+          title={expanded ? t('nav.collapse') : t('nav.expand')}
           className={[
             'flex h-9 w-full items-center gap-2 rounded-[10px] px-2.5 transition-colors',
             'text-[var(--color-text-subtle)] hover:bg-[var(--color-surface-muted)]/60 hover:text-[var(--color-text)]',
@@ -181,7 +187,7 @@ export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
             ].join(' ')}
             style={{ pointerEvents: expanded ? 'auto' : 'none' }}
           >
-            collapse
+            {t('nav.collapse')}
           </span>
         </button>
       </div>

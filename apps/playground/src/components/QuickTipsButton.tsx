@@ -1,5 +1,5 @@
 import { HelpCircle, Keyboard, Sparkles } from '@cu/icons';
-import { useShortcutRegistry } from '@cu/ui';
+import { useShortcutRegistry, useT } from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState } from 'react';
 import { useUnreadChangelog } from '../hooks/useUnreadChangelog';
@@ -28,6 +28,7 @@ export function QuickTipsButton({ onOpenSettings }: QuickTipsButtonProps) {
   const registry = useShortcutRegistry();
   const { hasUnread, markAllSeen } = useUnreadChangelog();
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   if (registry.cheatsheetOpen) return null;
 
@@ -44,7 +45,7 @@ export function QuickTipsButton({ onOpenSettings }: QuickTipsButtonProps) {
           >
             <QuickAction
               icon={<Keyboard size={13} aria-hidden="true" />}
-              label="Keyboard shortcuts"
+              label={t('quickTips.keyboard')}
               hint="?"
               onClick={() => {
                 registry.setCheatsheetOpen(true);
@@ -53,8 +54,8 @@ export function QuickTipsButton({ onOpenSettings }: QuickTipsButtonProps) {
             />
             <QuickAction
               icon={<Sparkles size={13} aria-hidden="true" />}
-              label="What's new"
-              hint={hasUnread ? 'new' : undefined}
+              label={t('quickTips.whatsNew')}
+              hint={hasUnread ? t('common.new') : undefined}
               onClick={() => {
                 markAllSeen();
                 onOpenSettings();
@@ -67,9 +68,9 @@ export function QuickTipsButton({ onOpenSettings }: QuickTipsButtonProps) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Quick tips and shortcuts"
+        aria-label={t('quickTips.aria')}
         aria-expanded={open}
-        title="Quick tips · press ? for shortcuts"
+        title={t('quickTips.title')}
         className="pointer-events-auto relative flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] shadow-[0_18px_44px_-22px_rgba(0,0,0,0.6)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
       >
         <HelpCircle size={18} aria-hidden="true" />

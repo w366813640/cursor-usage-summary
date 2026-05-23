@@ -1,5 +1,5 @@
 import { X } from '@cu/icons';
-import { type ShortcutDef, formatCombo, useShortcut, useShortcutRegistry } from '@cu/ui';
+import { type ShortcutDef, formatCombo, useShortcut, useShortcutRegistry, useT } from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
@@ -21,6 +21,7 @@ import { useDrawerA11y } from '../hooks/useDrawerA11y';
 export function KeyboardCheatsheet() {
   const registry = useShortcutRegistry();
   const dialogRef = useDrawerA11y(registry.cheatsheetOpen, () => registry.setCheatsheetOpen(false));
+  const t = useT();
 
   // `?` opens the cheatsheet. The provider already swallows the
   // keypress so it doesn't reach text inputs unless explicitly opted
@@ -30,11 +31,11 @@ export function KeyboardCheatsheet() {
     {
       id: 'cheatsheet-open',
       combo: { key: '?' },
-      description: 'Open keyboard shortcuts cheatsheet',
+      description: t('cheatsheet.title'),
       group: 'global',
       handler: () => registry.setCheatsheetOpen(true),
     },
-    [registry.setCheatsheetOpen],
+    [registry.setCheatsheetOpen, t],
   );
 
   const grouped = useMemo(() => groupShortcuts(registry.list()), [registry]);
@@ -61,22 +62,22 @@ export function KeyboardCheatsheet() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Keyboard shortcuts"
+            aria-label={t('cheatsheet.title')}
             className="flex max-h-[80vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_80px_-24px_rgba(0,0,0,0.65)]"
           >
             <header className="flex items-start justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
               <div className="flex flex-col gap-0.5">
                 <span className="font-serif text-[18px] leading-tight tracking-tight">
-                  Keyboard shortcuts
+                  {t('cheatsheet.title')}
                 </span>
                 <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                  press ? anywhere to open · esc to close
+                  ? · esc
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => registry.setCheatsheetOpen(false)}
-                aria-label="Close shortcuts cheatsheet"
+                aria-label={t('common.close')}
                 className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
               >
                 <X size={14} aria-hidden="true" />
@@ -85,13 +86,15 @@ export function KeyboardCheatsheet() {
             <div className="flex flex-col gap-5 overflow-y-auto px-5 py-5">
               {grouped.length === 0 ? (
                 <p className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-                  No shortcuts registered yet — open the dashboard to see the navigation shortcuts.
+                  {t('cheatsheet.empty')}
                 </p>
               ) : (
                 grouped.map((g) => (
                   <section key={g.group} className="flex flex-col gap-2">
                     <h3 className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-                      {GROUP_LABEL[g.group] ?? g.group}
+                      {t(`cheatsheet.group.${g.group}`) === `cheatsheet.group.${g.group}`
+                        ? (GROUP_LABEL[g.group] ?? g.group)
+                        : t(`cheatsheet.group.${g.group}`)}
                     </h3>
                     <ul className="flex flex-col divide-y divide-[var(--color-border)]/60">
                       {g.entries.map((s) => (

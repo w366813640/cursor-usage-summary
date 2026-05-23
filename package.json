@@ -2,7 +2,7 @@
   "name": "cursor-usage-viz",
   "version": "0.1.0",
   "private": true,
-  "description": "A Bloomberg Terminal-style data visualization for Cursor usage events. Drop in a usage-events-*.csv exported from cursor.com/dashboard/usage and explore your model usage, costs, hottest requests, and 60-day heatmap — all locally in the browser.",
+  "description": "A local-first Bloomberg-Terminal-style desktop app (Electron + SQLite) for Cursor usage. Drop in a usage-events-*.csv exported from cursor.com/dashboard/usage and get model breakdowns, a Day Audit narrative, anomaly detection, forecast bands, and a Year-in-review — all computed locally, no telemetry.",
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20"

@@ -21,6 +21,7 @@
 | [react-pitfalls.md](./react-pitfalls.md)                                       | Critical React patterns and common mistakes     | **Must Read** |
 | [state-management.md](./state-management.md)                                   | Auth context, layout, navigation patterns       | Reference     |
 | [components.md](./components.md)                                               | Semantic HTML, empty states, scrollbar patterns | Reference     |
+| [i18n.md](./i18n.md)                                                           | en/zh chrome translations + naming + scope      | Reference     |
 | [hooks.md](./hooks.md)                                                         | Query and mutation hook patterns                | Reference     |
 | [type-safety.md](./type-safety.md)                                             | Types, import paths, module constants           | Reference     |
 | [directory-structure.md](./directory-structure.md)                             | Project structure conventions                   | Reference     |

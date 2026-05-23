@@ -13,7 +13,7 @@ import {
   Sun,
   Upload,
 } from '@cu/icons';
-import { BrandMark, Button, IconButton, Tooltipped, useTheme } from '@cu/ui';
+import { BrandMark, Button, IconButton, Tooltipped, useT, useTheme } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
@@ -394,6 +394,13 @@ function WelcomeHero({
   errMsg: string | null;
   onReset: () => void;
 }) {
+  const t = useT();
+  // The hero CSV code-snippet placeholder. Both languages refer to the
+  // literal filename glob ? translating it would just be confusing.
+  const csvCode = (
+    <code className="font-mono text-[13px] text-[var(--color-accent)]">usage-events-*.csv</code>
+  );
+  // Pre-split title so each language can pick its own line break.
   return (
     <>
       <motion.section
@@ -406,18 +413,24 @@ function WelcomeHero({
           <CuMark size={64} />
         </div>
         <h1 className="font-serif text-[44px] leading-[1.05] tracking-[-0.01em] mb-3">
-          Know what Cursor cost,
+          {t('welcome.title1')}
           <br />
-          and what to do next.
+          {t('welcome.title2')}
         </h1>
         <p className="text-[15px] text-[var(--color-text-muted)] max-w-[560px]">
-          Drop in a{' '}
-          <code className="font-mono text-[13px] text-[var(--color-accent)]">
-            usage-events-*.csv
-          </code>{' '}
-          exported from cursor.com/dashboard/usage. Cursor Usage turns it into a local cost coach:
-          what happened, why it happened, and which habit saves the next dollar. Everything is
-          computed on your device.
+          {/* Subtitle has a {code} placeholder; split-render around it to
+              inject the JSX <code> chip instead of plain interpolation. */}
+          {(() => {
+            const tpl = t('welcome.subtitle', { code: '<<CODE>>' });
+            const [pre, post] = tpl.split('<<CODE>>');
+            return (
+              <>
+                {pre}
+                {csvCode}
+                {post}
+              </>
+            );
+          })()}
         </p>
       </motion.section>
 
@@ -448,11 +461,20 @@ function WelcomeHero({
             aria-hidden="true"
           />
           <div className="font-serif text-[18px] mb-1">
-            {parsing ? 'Parsing?' : 'Drop CSV here or click to upload'}
+            {parsing ? t('welcome.parsing') : t('welcome.drop')}
           </div>
           <div className="text-[13px] text-[var(--color-text-muted)] mb-5 max-w-[420px]">
-            Single <code className="font-mono">usage-events-YYYY-MM-DD.csv</code>. You will preview
-            new rows, skipped duplicates, and the covered date range before anything is saved.
+            {(() => {
+              const tpl = t('welcome.dropHint', { code: '<<CODE>>' });
+              const [pre, post] = tpl.split('<<CODE>>');
+              return (
+                <>
+                  {pre}
+                  <code className="font-mono">usage-events-YYYY-MM-DD.csv</code>
+                  {post}
+                </>
+              );
+            })()}
           </div>
           <Button variant="primary" size="md" onClick={onPick} disabled={parsing}>
             {parsing ? (
@@ -460,21 +482,21 @@ function WelcomeHero({
             ) : (
               <Upload size={14} aria-hidden="true" />
             )}
-            {parsing ? 'Parsing?' : 'Choose CSV'}
+            {parsing ? t('welcome.parsing') : t('welcome.chooseCsv')}
           </Button>
           <div className="mt-4 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Storage ? desktop ? cursor-usage.db
+            {t('welcome.storageHint')}
           </div>
 
           <ul
             className="mt-6 flex flex-col gap-2 text-left text-[12px] text-[var(--color-text-muted)]"
-            aria-label="What you'll see after import"
+            aria-label={t('welcome.previewListHeader')}
           >
             {[
-              'A week-in-a-sentence summary above every metric',
-              'Day Audit with an auto-narrative + biggest-spend jumper',
-              'Local anomaly detector flags days that look unusual',
-              'Models view with cache-hit + cost-per-request hygiene',
+              t('welcome.previewLine1'),
+              t('welcome.previewLine2'),
+              t('welcome.previewLine3'),
+              t('welcome.previewLine4'),
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
                 <span
@@ -550,25 +572,25 @@ function WelcomeHero({
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-[20px] tracking-tight">What you will learn first</h2>
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Local analysis · replaced with your data after upload
+            Local analysis ? replaced with your data after upload
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiPreviewCard
             label="Total spend"
             value="$1,247.83"
-            meta="What happened · total cost, requests, tokens"
+            meta="What happened ? total cost, requests, tokens"
             accent
           />
           <KpiPreviewCard
             label="Single most expensive"
             value="$139.37"
-            meta="Why it happened · model, day, max-mode context"
+            meta="Why it happened ? model, day, max-mode context"
           />
           <KpiPreviewCard
             label="Top model by spend"
             value="claude-4-sonnet-thinking"
-            meta="What to do next · switch, reduce, cache, or watch"
+            meta="What to do next ? switch, reduce, cache, or watch"
             valueClass="font-mono text-[18px] leading-[1.4] tracking-tight"
           />
         </div>

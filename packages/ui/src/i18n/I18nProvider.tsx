@@ -12,7 +12,10 @@ import type { Dictionary, I18nValue, Locale, TranslateVars } from './types';
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-const STORAGE_KEY = 'scribe-locale';
+// Local-storage key for the persisted locale. `cu:` prefix matches the
+// rest of the app (see `useAuditedRows`, `useSavedDetailsFilters`,
+// `useUnreadChangelog`).
+const STORAGE_KEY = 'cu:locale';
 
 function interpolate(template: string, vars?: TranslateVars): string {
   if (!vars) return template;

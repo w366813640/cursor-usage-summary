@@ -1,276 +1,276 @@
-# Cursor Usage Viz
+# Cursor Usage
 
-> 一个本地运行的 Cursor 用量数据可视化产品。Bloomberg Terminal 风格的密集仪表盘 + Top 5 烧钱请求的「这一天发生了什么」叙事卡片。
+> A local-first **Bloomberg-Terminal-style desktop app** for understanding what Cursor cost you and what to do next.
+> 一个**本地运行**、密集仪表盘 + 自动叙事的 Cursor 用量分析桌面应用。
 
-把从 [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage) 导出的 `usage-events-*.csv` 拖进来，按 [Cursor 官方公布的模型定价](https://cursor.com/docs/models-and-pricing) 算出每条请求的真实成本，画出 60 天热力图、模型分布、工作节奏热图，还能下钻到任意一行明细。
+Drop in the `usage-events-*.csv` exported from [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage) and the app turns it into:
 
-![Overview screenshot](./_temp/pr5-screenshots/01-overview-dark.png)
+- a one-line **week summary** ("$1,742 across 380 requests — $4.58/req, down 12% vs last week"),
+- a **Day Audit** that auto-narrates the biggest spend and jumps you straight to the offending row,
+- a **local anomaly detector** that flags days off your usual rhythm,
+- a **30-day forecast** with a 95% confidence band,
+- a **Year-in-review** with quarter-over-quarter deltas + per-model trends,
+- a **Models** view with cache-hit + cost-per-request hygiene scores,
+- a fully filterable **All requests** table with saved filters,
+- and a **scenario planner** so you can ask "what if I always used Sonnet?"
 
-## 它解决了什么问题
+Every number is computed on your machine. No network, no telemetry, no upload step.
 
-Cursor 的 dashboard 给你一个 monthly bill 数字，但不会告诉你：
+---
 
-- 这 393 天里钱具体烧在哪些 model 上（claude-opus-4-7 拿走了多少？code-supernova 多少？）
-- 哪一个单笔请求最贵（$51 的那次 max-mode 是什么时候发生的？）
-- cache reuse 给你省了多少钱（≈ $15K，比你实际花的还多 4×）
-- 你的 burn 集中在哪个时段（UTC 凌晨 3-6 点 → 中午 11-2 点 UTC+8）
-- 是否在月度速率上加速 / 减速（30d run-rate projection）
+## Status
 
-这个 viz 就是回答上面这些问题的。
+- **Desktop app (Electron + SQLite)** — primary surface. Windows NSIS installer ships; macOS DMG and Linux AppImage build from the same `pnpm package:*` scripts.
+- **`apps/playground`** — the same React UI Electron loads. You can also run it in a browser via `pnpm playground` for component work, but the welcome screen will tell non-Electron visitors to switch to the desktop build (no SQLite outside Electron).
+- **Web mode was retired in PR20.** All IndexedDB / `idb-keyval` plumbing was removed; the canonical persistence is the SQLite file at `app.getPath('userData')/cursor-usage.db`.
 
-## 4 个路由
+---
 
-| 路由 | 内容 |
+## What's in the app
+
+### 6 routes (default order, configurable in `Settings → Navigation`)
+
+| Route | Purpose |
 |---|---|
-| **Overview** | 4 张 KPI 卡（总花费 / hottest request / top model / cache savings · hover 加 accent rail）+ **月度请求预算面板 v2**（500-req/月 plan vs 实际，含 4 KPI strip + 月度柱图 + cap 线 + 历史均值线 + linear projection + alert strip + cost-per-request 趋势 sparkline）+ **Compare ranges 面板**（last 7d / 14d / 30d / mtd vs 之前一个等长窗口，4 项 delta + 并排日柱）+ 60 天 calendar heatmap + week-hour heat（responsive · 不再 overflow · 一键 PNG 导出）+ token & provider breakdown + model treemap + small-multiples + Top 5 burn stories（一键 PNG 导出整组卡片） |
-| **Models** | 全部 34 个模型的表格，按 cost / rows / avg / tokens 排序 · sticky thead · 每行 chevron + mini sparkline + cache hit % + share-of-cost mini-bar · 点击展开 token mix bar + daily-cost 大图（带 accent 渐变 inset rail） |
-| **Details** | 全部 row 表格（2300+ 条），含 search / model filter / 3 种排序 / 分页 · sticky thead · cost ≥ $1 自动放大 + accent 着色 · 鼠标悬停整行带 accent rail + raised bg · tabular-nums 对齐 |
-| **Hours** | 24 小时 bar / 7 weekday bar（peak slot 用 accent 高亮 + "peak" 角标 / 周末 cool tone）/ 7×24 大热点图 / Top 5 hot slots leaderboard（#1 hero 化 · 每张卡底部 magnitude rail）· **顶部小日历**：rounded-[14px] panel · presets toolbar · today 用 ring 标注 · range edge 加大圆点 · 当月数据天数 badge · **底部明细表**：单日 / 多日选择时按 cost 倒序 + sticky thead + 4 张 summary stat（Requests / Total cost / Tokens / Avg / req）+ accent rail row hover |
+| **Overview** (`g o`) | Headline cost · this-week summary · action feed · 60-day calendar · week×hour heat · token / provider breakdown · model treemap · Top 5 burn stories · monthly budget panel · compare-ranges · 30-day forecast with confidence band |
+| **Year review** (`g y`) | GitHub-style 365-day heatmap + per-year KPIs · 12-month bar · quarter-over-quarter deltas · cross-month trends · top-5 model MoM table with sparklines |
+| **Anomalies** (`g a`) | Rule-based flags for days that look off (e.g. costlier than the local 7-day mean by 2σ) — each card jumps to the affected day's audit |
+| **Models** (`g m`) | All models you've used: cost share, rows, avg, tokens, cache-hit %, mini-sparkline trend. Low-activity models (<10 requests **and** stale > 30 days **and** lifetime cost < $1) are auto-hidden with a "show all" escape hatch. Row→action jumps to the All-requests table pre-filtered by that model. |
+| **All requests** (`g r`) | Every row (paginated): search, model filter, 3 sorts. cost ≥ $1 auto-amplifies in the type scale. **Saved filters** persist in `localStorage`. Row→action jumps to that day's Day Audit. |
+| **Day audit** (`g h`) | The most-used view. One hero card combines total cost, share of week, biggest single request, day-over-day + same-weekday-week-ago comparisons, an auto-narrative paragraph, and a "mark as audited" affordance per row. |
 
-## 数据隐私
+### Discoverability
 
-- CSV **100% 在浏览器内处理**，绝不上传到任何后端
-- 不向 Cursor / OpenAI / Anthropic 等任何接口发送请求
-- 没有 backend，没有数据库，没有 cookie
-- 一键 「导出脱敏 CSV」：Cloud Agent ID / Automation ID 被替换成 deterministic short alias (`agent-xxxxxx` / `auto-xxxxxx`)，cost / tokens / model / date 保留 — 适合分享给社区或截屏前去脱敏
+- **Sidebar** starts collapsed; click the bottom chevron to expand. Order + visibility are user-configurable from `Settings → Navigation` (drag to reorder, eye icon to hide).
+- **Keyboard cheatsheet** — press `?` anywhere. Lists every registered shortcut by group.
+- **Command palette** — `Cmd/Ctrl+K` for fuzzy-search actions.
+- **Quick Tips** floating button (bottom-right) → cheatsheet + What's new with an unread dot.
+- **Onboarding tour** — runs once on first post-import load (3 short steps; gated by `localStorage` `cu:onboardingV1Done`).
+- **Trust hints** — small `i` icon next to any cost figure explains the pricing snapshot date and warns when a row was costed via the Auto-pool fallback.
 
-## 多 CSV 合并
+### Data management (in `Settings → Data management`)
 
-Cursor 一次只能导出最近 N 天。攒了多个月的 CSV？
+- Import another CSV (preview new rows + skipped duplicates before commit)
+- Import history (every batch, two-step undo)
+- Export redacted CSV (Cloud Agent / Automation IDs replaced with deterministic hash aliases)
+- Export local report (Markdown summary with insights + planning scenarios)
+- Compare two batches (modal: KPIs + cache-hit + max-mode + estimated stats side by side + daily sparkline)
 
-- 上传第一份 CSV
-- FileToolbar 上点 「+ 合并 CSV」 选下一份
-- 重复 dedupe key 是 `dateISO + model + cloudAgentId + automationId + tokens + maxMode + requests`（重叠时间窗口不会重复计算）
-- toolbar 显示 `N 份 CSV 已合并`，hover 看完整文件列表
-- 合并后顶部短暂出现 diff 卡片：`+N 行 · 距上次 X 天 · 新增花费 $Y`
+### Bilingual UI (en / 简体中文)
 
-## 本地持久化（PR8 + PR10.2）
+The chrome — sidebar, settings drawer, welcome hero, onboarding, keyboard cheatsheet, Quick Tips, Trust hint, error boundary — speaks both English (default) and Simplified Chinese. Switch in `Settings → Language`; the choice persists via `localStorage` (`cu:locale`) and `<html lang>` updates automatically.
 
-打开过的数据自动存进浏览器的 IndexedDB（用 `idb-keyval`，结构化克隆 → Date 等类型零损耗），再次进入直接进入 dashboard，**不需要重新上传也不需要点 「恢复」按钮**。
+**What's still English-only:**
+data narratives (the auto-paragraphs in Day Audit, week summary, anomaly explanations, scenario captions). They build sentences from row data and need a locale-aware sentence builder to translate cleanly — that's a separate undertaking, currently tracked in the i18n round-2 backlog.
 
-- 首次访问 → dropzone + 设计系统预览
-- 之后访问 → 一段短暂的 「Restoring local session…」 占位 → 直接落到 dashboard，顶部 diff banner 提示是从本地恢复（"Restored your previous session"）
-- 上传新 CSV 时自动算出 diff（新增多少 / 距上次多久 / 新增花费），banner 在 6s 后自动消失
-- toolbar 上常驻 「clear local」 按钮 → 二次确认对话框 → 完整删除（再下次进入就回到 dropzone）
+Adding a third locale is mechanical: copy `packages/ui/src/i18n/dictionaries.ts`, translate the values, register the new key in `Locale`.
 
-## 日期筛选器（Hours 页 · PR10.4）
+---
 
-`Hours` 路由顶部内置一个 mini-calendar：
-
-- **预设**：All / Last 7d / Last 30d / This month（按 CSV 中最近一天算）
-- **单击某天** → 单日聚焦
-- **再点另一天** → 形成日期 range（自动按 ISO 排序）
-- **Cmd / Ctrl + 点击** → 切换多日多选
-- 有数据的天底部有一个小圆点；没数据的天可见但灰
-- Selection 摘要显示在卡片标题旁（"2026-05-06 → 2026-05-11"），筛选后所有图表（24h bar / weekday bar / 7×24 heatmap / Top 5 hot slots）即时重算
-- **当选择非 All 时**，页面底部多出一个 `Requests in selection` 表格 — 按 cost ↓ 罗列所选时段的每一条请求（时间 / 模型 / kind / cost / tokens / cache 命中率 / max 标志），单日聚焦时这正好是 "这一天我花在哪儿了" 的清单
-
-任何选择状态都可以一键 `Clear selection` 回到 "All days"。
-
-## 快速开始
+## Quick start
 
 ```bash
 # Node 20+, pnpm 9+
 pnpm install
 
-# 启动浏览器开发版 → http://localhost:5173
+# Run the desktop app (Electron + Vite dev server + SQLite ABI ensure)
+pnpm desktop:dev
+
+# Or browser-only component work (no DB, welcome screen redirects)
 pnpm playground
 
-# 全 workspace typecheck
-pnpm -r typecheck
-
-# Lint / 格式化（Biome 1.9）
+# Workspace-wide gates
+pnpm typecheck
 pnpm lint
-pnpm format
+pnpm test
 ```
 
-## 项目结构
-
-```
-cursor_usage/
-├── apps/
-│   └── playground/                  Vite + React 19 入口（4 路由）
-│       └── src/
-│           ├── components/
-│           │   ├── DashboardShell   FileToolbar + NavTabs + AnimatePresence
-│           │   ├── OverviewPage     Act 1/2/3 总览
-│           │   ├── ModelsPage       模型表格 + 行展开
-│           │   ├── DetailsPage      全 row 表格 + 过滤分页
-│           │   ├── HoursPage        时段画像
-│           │   ├── FileToolbar      数据上下文条 + 合并 / 脱敏 / 重选
-│           │   ├── NavTabs          4 tabs + framer layoutId underline
-│           │   ├── SectionHeader    通用 section 头
-│           │   └── Panel            通用 card + MetricToggle
-│           ├── pages/
-│           │   └── WelcomePage      Boot 时 hydrate cursor-usage.db（有数据 → 看板；没有 → hero + dropzone）
-│           ├── hooks/
-│           │   └── useDesktopIngest preview/confirm/undo 状态机（IPC → better-sqlite3）
-│           ├── electron/
-│           │   ├── bridge           contextBridge（window.bridge.db / paths）
-│           │   └── desktopStorage   渲染端 thin wrapper（importRows / preview / undo / counts）
-│           ├── utils/
-│           │   └── relativeTime     describeLastUpdate（just now / 1 hour ago / yesterday …）
-│           └── router/
-│               └── useRoute         30 行 hash-based router（0 依赖）
-│           └── components/
-│               └── DateRangeFilter  Hours 页用的小日历（preset · 单日 · 多日 · range）
-├── packages/
-│   ├── tokens/                      Tailwind v4 preset + chart 色板 + warm-restrained 调色
-│   ├── motion/                      Framer Motion springs / variants
-│   ├── icons/                       Lucide 子集 + CuMark brand glyph
-│   ├── brand/                       BrandProvider + 3 个 built-in（cu-warm / cu-bloomberg / cu-mono）
-│   ├── ui/                          Button / IconButton / Badge / Tooltipped / ThemeProvider …
-│   ├── data/                        CSV 解析 + Aggregator + redact
-│   ├── pricing/                     Cursor 32+ 模型定价表 + costRows() + calcCacheSavings()
-│   └── charts/                      Heatmap / WeekHourHeatmap / Sparkline / Treemap / KpiCard / StackBar / StatGrid / SmallMultiples / BurnStoryCard
-│       apps/playground/src/
-│           └── export/              html-to-image 包装 + ExportButton 复用组件（PNG 截图）
-│           └── components/
-│               └── CompareRangesPanel  Overview 的「last Nd vs prior Nd」对比卡片
-├── input/                           把你的 usage-events-*.csv 放这里（不入 git）
-└── scripts/
-    ├── _archive/                    PR2–PR14 web-mode e2e（PR20 退役 IDB 后失效，仅作历史参考）
-    ├── desktop-smoke.mjs            Playwright._electron · 启动桌面 app + 截 splash + 截主窗口
-    ├── desktop-ui-smoke.mjs         Playwright._electron · boot + IPC bridge call
-    ├── desktop-db-smoke.mjs         Playwright._electron · better-sqlite3 round-trip
-    ├── desktop-year-smoke.mjs       Playwright._electron · Year-in-review + 跨月趋势
-    └── desktop-installer-smoke.mjs  Playwright._electron · 打包后 .exe 启动 + IPC 持久化验证
-```
-
-## v1.0 Desktop（Electron 40，开发中）
-
-从 v0.9 web app 升级成 Claude-Desktop-同代的 Windows / macOS / Linux 桌面应用。
-脚手架（PR15）+ SQLite 持久化（PR16）+ 拖入式导入 UI（PR17）
-+ Year-in-review / 跨月趋势（PR18）+ Windows NSIS installer（PR19）全部着陆。
+### Packaging
 
 ```bash
-# 开发
-pnpm desktop:dev               # 起 vite + 编译 main + 启动 Electron（带 splash + DB）
-                               # ↑ 自动 ensure better-sqlite3 native = electron ABI（PR21 起）
-pnpm desktop:build             # 编译 main + 构建 renderer dist
-pnpm -w test                   # 跑全部 vitest（@cu/storage pretest 自动 ensure node ABI）
-# 手动切（罕用 · ensure 模式失败时的逃生通道）：
-pnpm desktop:install-natives        # 强制装 electron flavor
-pnpm storage:restore-node-natives   # 强制装 node flavor
+# Single-platform installers
+pnpm --filter @cu/desktop package:win     # NSIS .exe
+pnpm --filter @cu/desktop package:mac     # .dmg (x64 + arm64)
+pnpm --filter @cu/desktop package:linux   # AppImage (x64)
 
-# 出包
-pnpm --filter @cu/desktop package:dir   # 出 win-unpacked/ 文件夹（快速 smoke，不打 installer）
-pnpm --filter @cu/desktop package       # 出 NSIS .exe / .dmg / .AppImage（取决于当前 OS）
-pnpm --filter @cu/desktop package:win   # 强制 Windows target
+# All three (only viable on macOS in practice)
+pnpm --filter @cu/desktop package:all
 
-# 烟测
-node scripts/desktop-smoke.mjs            # Playwright._electron 启动 + 截图烟测
-node scripts/desktop-db-smoke.mjs         # PR16 · 数据库 IPC e2e（import / dedupe / undo / 重启）
-node scripts/desktop-ui-smoke.mjs         # PR17 · 桌面 UI 流程（dashboard / 历史抽屉 / 预览抽屉）
-node scripts/desktop-year-smoke.mjs       # PR18 · Year route（当年 / 切年 / 跨月趋势 / 全页）
-node scripts/desktop-installer-smoke.mjs  # PR19 · 跑打包出来的 .exe + 验证 IPC + DB 落地
+# Quick smoke build (skips installer step)
+pnpm --filter @cu/desktop package:dir
 ```
 
-- Electron 40.10.0 + electron-builder 25 + electron-updater 6.3
-- Branded splash 窗（五条 bar mark · 软脉冲动画 · dark/light 自适应）
-- 隐藏标题栏 + `titleBarOverlay`（与 Claude Desktop 同款 Windows 体验）
-- `AppUserModelID` 设在第一个窗口之前，Windows 任务栏识别 `com.cursorusage.desktop`
-  而不是 `electron.exe`
-- preload bridge：`window.bridge.{window, theme, app, platform, db}`，
-  `contextIsolation: true` + `sandbox: true` + `nodeIntegration: false`
-- 默认入口 = 渲染 `apps/playground` 当前的 React 应用（v0.9 全部 4 个路由、动画、
-  Compare ranges、Export PNG 不破坏）
-- 数据库：`better-sqlite3 12.10` 跑在主进程，DB 文件落在
-  `app.getPath('userData')/cursor-usage.db`，关闭 app 数据持久；卸载默认保留
-- 两级去重：导入批次按文件 SHA-256 唯一约束，行级用 12 列复合主键 + `INSERT OR IGNORE`
-- Undo：每次导入是一个 `import_batches` 记录，`ON DELETE CASCADE` 一键回滚
-- 详细的设计决策与 PR 路线图见
-  [.trellis/tasks/05-15-brainstorm-desktop-app/prd.md](./.trellis/tasks/05-15-brainstorm-desktop-app/prd.md)
+### Smoke tests (Playwright._electron)
 
-## 数据流
+```bash
+node scripts/desktop-smoke.mjs            # boot + splash + main window screenshots
+node scripts/desktop-db-smoke.mjs         # import → dedupe → restart → undo (25 assertions)
+node scripts/desktop-ui-smoke.mjs         # dashboard / history / preview drawer (8 screenshots)
+node scripts/desktop-year-smoke.mjs       # Year route / 365 heatmap / Agents page
+node scripts/desktop-installer-smoke.mjs  # packaged .exe boot + IPC + DB hydration
+```
+
+---
+
+## Privacy
+
+- Nothing leaves the machine. The desktop app talks to zero external endpoints — no Cursor API, no telemetry pings, no auto-update fetch unless you opt in by exporting `CU_AUTO_UPDATE=1` and `CU_UPDATE_FEED_URL`.
+- Local SQLite lives at `app.getPath('userData')/cursor-usage.db`. Settings JSON lives at the same folder under `cursor-usage-settings.json`.
+- "Export redacted CSV" produces a share-safe file: every `cloudAgentId` / `automationId` is replaced with a deterministic short alias (`agent-xxxxxx` / `auto-xxxxxx`) while cost / tokens / model / date are preserved. Pair this with a screenshot redact pass and you can ask the community for help without leaking IDs.
+
+---
+
+## Architecture
+
+```
+cursor-usage-viz/
+├── apps/
+│   ├── desktop/                      Electron main process
+│   │   └── src/
+│   │       ├── main.ts               window + IPC bootstrap, titleBarOverlay theme sync
+│   │       ├── preload.ts            contextBridge — exposes window.cursorUsage / window.bridge
+│   │       ├── splash.ts             branded boot window
+│   │       ├── db.ts                 thin wrapper over @cu/storage UsageDb
+│   │       ├── settingsStore.ts      cursor-usage-settings.json read/write/normalize
+│   │       ├── notifications.ts      budget toast dispatcher (respects budgetNotificationsMuted)
+│   │       ├── budgetNotifier.ts     pure decision function (80% / 100% thresholds, per-month dedupe)
+│   │       ├── trayIcon.ts           pure-zlib PNG encoder for a 5-bar mark (no PNG library dep)
+│   │       ├── tray.ts               tray menu wiring + dynamic label updates
+│   │       └── updater.ts            optional electron-updater event → IPC bridge
+│   └── playground/                   React 19 renderer
+│       └── src/
+│           ├── App.tsx               provider tree (Theme, I18n, Brand, Tooltip, Toast, ModalStack,
+│           │                         KeyboardShortcuts, SidebarState, CommandPalette, MotionConfig,
+│           │                         ErrorBoundary)
+│           ├── pages/WelcomePage.tsx Desktop boot · dropzone · Onboarding mount · QuickTips mount
+│           ├── components/
+│           │   ├── DashboardShell    chrome + route switch + budget reporter
+│           │   ├── SideNav           collapsible rail (Analyze / Investigate groups)
+│           │   ├── FileToolbar       Focus + Manage data (tiny strip; everything else moved to Settings)
+│           │   ├── SettingsDrawer    Theme / Language / Density / Budget / Backup / Data Mgmt /
+│           │   │                     Navigation / What's new / About
+│           │   ├── KeyboardCheatsheet `?` overlay
+│           │   ├── QuickTipsButton   bottom-right discoverability button
+│           │   ├── OnboardingTour    first-run modal (3 steps, gated)
+│           │   ├── TrustHint         `i`-tip explaining pricing source
+│           │   ├── OverviewPage      composed from overview/* subpanels
+│           │   ├── YearReviewPage    365-day heatmap + cross-month trends
+│           │   ├── AnomaliesPage     local flag detector
+│           │   ├── ModelsPage        sortable model table with auto-hide low-activity
+│           │   ├── DetailsPage       all requests · SavedFiltersBar · cross-page pivots
+│           │   ├── HoursPage         exports `DayPage`; the route is `#day` ("Day audit")
+│           │   ├── ImportPreviewDrawer / ImportHistoryDrawer / CompareBatchesModal
+│           │   ├── ForecastPanel / MonthlyBudgetPanel / CompareRangesPanel
+│           │   └── overview/* (ActionFeed, BudgetUrgencyBanner, EfficiencyCard, GoalProgressPanel,
+│           │                  OverviewKpiHero, OverviewActivity, OverviewBurns, ScenarioPlannerPanel,
+│           │                  WeekSummaryCard)
+│           ├── hooks/                useSettings, useFocusMode, useSidebarState (in @cu/ui),
+│           │                         useAuditedRows, useDrawerA11y, useUnreadChangelog,
+│           │                         useSavedDetailsFilters, useBudgetReporter
+│           └── electron/             bridge wrapper + types mirror
+├── packages/
+│   ├── tokens/                       Tailwind v4 preset + chart palette
+│   ├── motion/                       Framer Motion springs / variants
+│   ├── icons/                        Lucide subset + CuMark brand glyph
+│   ├── brand/                        BrandProvider + cu-warm / cu-bloomberg / cu-mono themes
+│   ├── ui/                           Button / IconButton / Tooltipped / ThemeProvider /
+│   │                                 I18nProvider / KeyboardShortcutsProvider / SidebarStateProvider /
+│   │                                 ModalStackProvider / ToastProvider …
+│   ├── data/                         CSV parsing · aggregator · redact · forecast · day audit helpers
+│   ├── pricing/                      Model price table + matchModel + cost calculator + cache savings
+│   ├── storage/                      better-sqlite3 schema · UsageDb · snapshot import/export
+│   └── charts/                       Heatmap / WeekHourHeatmap / Sparkline / Treemap / KpiCard /
+│                                     StackBar / StatGrid / SmallMultiples / BurnStoryCard
+├── scripts/                          desktop-*-smoke.mjs (Playwright._electron) + bundle-report.mjs
+└── .trellis/                         task PRDs, specs, journals (development-time only)
+```
+
+### Data flow
 
 ```
 File (CSV)
-  │
-  │  PapaParse + safe number/date coercion
+  │ PapaParse + safe number/date coercion
   ▼
 parseUsageCsv()      → ReadonlyArray<UsageRow>
-  │
-  │  per-row pricing lookup (matchModel + calcCost)
+  │ per-row pricing lookup (matchModel + calcCost)
   ▼
 costRows()           → ReadonlyArray<RowWithCost>
-  │
-  │  group by model / day / hour-weekday / provider, sort topBurns
+  │ group by model / day / hour-weekday / provider, sort topBurns
   ▼
 aggregate()          → UsageSummary
-  │
+  │ persist (desktop only): UsageDb.importRows(SHA256-deduped batch)
   ▼
-React state → KpiCard / Heatmap / Treemap / ...
+React state          → KpiCard / Heatmap / Day Audit / Forecast …
 ```
 
-每个步骤都是纯函数 + 充分单测覆盖，没有副作用。
+Every step is a pure function with unit tests; UsageDb is the only side-effect-having layer and lives behind a typed contextBridge.
 
-## 定价数据
+### Pricing data
 
-定价表 100% 来自 Cursor 官方：[cursor.com/docs/models-and-pricing](https://cursor.com/docs/models-and-pricing)
+- 32+ models covered (Claude 4 / 3 family, GPT-5 family, Gemini, Grok, Composer, Code Supernova, Auto pool).
+- Each row carries `input / output / cacheRead / cacheWrite` per-million-token prices.
+- Max-mode rows are billed via a separate multiplier table.
+- Snapshot date is exported as `PRICING_TABLE_AS_OF` and surfaced in every TrustHint tooltip so you can correlate cost shifts to table updates.
+- Source: [cursor.com/docs/models-and-pricing](https://cursor.com/docs/models-and-pricing).
 
-- 涵盖 32+ 个模型（Claude 4/3 系列、GPT-5 系列、Gemini、Grok、Composer、Code Supernova、Auto pool）
-- 每模型分 `input / output / cacheRead / cacheWrite` 四种单价
-- max-mode 单独定价（部分模型可触发 ×5 ~ ×10 倍率）
-- 旧模型（claude-3.7-sonnet 等）退化按 Auto pool 兜底 + UI 上标记 `est.` badge
-- 数据校验通过 86 个单测，含 68 个 real-CSV sweep（用真实导出回放计算）
+---
 
-## 设计哲学
+## Design philosophy
 
-- **方向 D · Bloomberg/Tufte 信息密集主体 + Top 5 烧钱请求叙事化**
-- 默认暗色（power tool / Bloomberg 气质），亮色可切换
-- 字体：Source Serif 4（标题 / 大数字）+ Inter（UI body）+ JetBrains Mono（数据 / token / cost）
-- accent：暖橙 `#db8460`（暗色）/ 赤土橙 `#c96f4a`（亮色）
-- 反 AI slop：不用紫色渐变 / 不用 emoji bullet / 不用圆角卡片+左 border accent / 不画 SVG 装饰
+- **Information density first.** Bloomberg / Tufte rather than card-grid SaaS. Default dark, light is one click away.
+- **Cost coach, not chart toy.** Every panel answers a question ("what to do next?"), not just shows numbers.
+- **Anti-AI-slop.** No purple gradients. No emoji bullets. No rounded-card-with-left-border-accent. No decorative SVGs.
+- **Type scale**
+  - Headlines & big numbers: Source Serif 4
+  - UI body: Inter
+  - Data / tokens / cost: JetBrains Mono (with `tabular-nums` everywhere it matters)
+- **Accent**: warm orange `#db8460` (dark) / terracotta `#c96f4a` (light) — easy on the eyes for hours-long sessions.
+- **Density tiers**: Comfortable (default) / Dense / Presentation. Tuned via CSS variables, never inline styles.
+- **Motion respects `prefers-reduced-motion`** — the shimmer skeleton and Framer Motion transitions both opt out gracefully.
 
-## 开发进度
+---
 
-| PR | 内容 | 状态 |
-|---|---|---|
-| **PR1** | 工程脚手架 + 设计令牌 + 占位欢迎页 | ✅ |
-| **PR2** | 数据层（CSV 解析 + 定价引擎 + cost 计算 + 86 单测） | ✅ |
-| **PR3** | charts 库（Heatmap / WeekHour / Sparkline / Treemap / StackBar / Multiples / StatGrid） | ✅ |
-| **PR4** | 概览页（4 KPI + 6 charts + Top 5 burn 叙事 + 30d projection + cache savings） | ✅ |
-| **PR5** | 4 路由（Overview / Models / Details / Hours） | ✅ |
-| **PR6** | 隐私脱敏 + 多 CSV 合并 + README 收尾 | ✅ |
-| **PR7** | KPI count-up + 卡片错位进场 + Sparkline draw-on + Heatmap stagger + Treemap grow + 浅色主题修复 | ✅ |
-| **PR8** | IndexedDB 持久化（idb-keyval）+ 上次更新提示 + diff banner + 清空对话框 | ✅ |
-| **PR10** | 默认英文（移除所有 UI 中文）+ 自动恢复 dashboard（去 restore 卡）+ Hour×Weekday responsive 修复 overflow + Hours 日期筛选器（presets · 日历 · 单日 · 多日 · range）+ 单日 / 多日聚焦时底部加 `Requests in selection` 明细表 | ✅ |
-| **PR11** | 月度请求预算面板（500-req plan · 月柱图 · cap 线 · linear projection）+ UI 美化（SectionHeader 加 accent dot + 渐变 hairline / Panel 加 inset highlight + hover border / 页面背景 radial gradient ambience / 顶部 header backdrop-blur） | ✅ |
-| **PR12** | MonthlyBudgetPanel v2（historical avg 点线 + alert strip 智能提示 + cost-per-request 趋势 sparkline）+ KpiCard 强化（hover 时 accent rail 横扫 / inset shadow / 平滑过渡） + Details 表格美化（sticky thead + cost hero font + tabular-nums + 行 hover accent rail）+ FileToolbar 重设计（icon + 分组 + danger 样式 clear） | ✅ |
-| **PR13** | Models 页深度美化（chevron drilldown + share-of-cost mini-bar + sort chip group + 展开 inset rail）+ Hours 页深度美化（DateRangeFilter rounded-[14px] panel + today ring + range edge 大圆点 + 当月数据 badge / 小时和星期 bar 加 peak 高亮 + weekend tone / Top 5 hot slots #1 hero 化 + magnitude rail / SelectionDetailPanel 加 4 张 summary stat + sticky thead + accent rail） | ✅ |
-| **PR14** | UX 三件套：H. CSV 解析错误升级（warn-tone alert card + tips + retry）+ Details/Hours 空状态加 'Clear filters / selection' 按钮；G. **CompareRangesPanel**（last 7d/14d/30d/mtd vs 之前一个等长窗口，4 张 KPI delta + 并排日 bar）；I. **ExportButton**（html-to-image，Hour×Weekday 和 Top 5 burns 一键 PNG 下载，自动用 theme 背景） | ✅ |
-| **PR15** | **v1.0 Desktop · Electron 脚手架**：`apps/desktop` 整套（main.ts / preload.ts / splash.ts / updater.ts / dev orchestrator / electron-builder.yml）· Electron 40.10 + electron-builder 25 · 隐藏标题栏 + Windows titleBarOverlay · AppUserModelID `com.cursorusage.desktop` · branded 五条 bar splash window · preload bridge（window / theme / app）· `pnpm desktop:dev` 端到端能跑 · `scripts/desktop-smoke.mjs` Playwright._electron 烟测 | ✅ |
-| **PR16** | **v1.0 Desktop · SQLite 持久化**：新包 `@cu/storage`（schema + `UsageDb` + 11 个 vitest 单测，全部 `:memory:` SQLite）· `better-sqlite3 12.10` 主进程驻留 · 双层去重（`import_batches.file_sha256` UNIQUE + `rows` 12 列复合主键 + `INSERT OR IGNORE`）· `ON DELETE CASCADE` 撤销单次导入 · 6 个 prepared query（counts / byDay / byMonth / byModel / byHourWeekday / topBurns）· IPC `bridge.db.{counts, importRows, listBatches, undoBatch, query}`（contextBridge + 白名单）· `install-natives` 脚本一键切 Electron / Node prebuild · `scripts/desktop-db-smoke.mjs` Playwright._electron e2e（import → dedupe → 重启 → 数据还在 → undo → 都没了，18 条断言全绿） | ✅ |
-| **PR17** | **v1.0 Desktop · 拖入式导入 + 合并预览 + 历史 / undo UI**：渲染器侧 `electron/{bridge,types,desktopStorage}` 三件套（typed bridge accessor + Web Crypto SHA-256 + Date 自动 rehydrate）· 新 hook `useDesktopIngest`（idle → parsing → preview → committing → success 状态机 · 全程不写 IDB）· 桌面模式自动检测（`isDesktop()`）下分别走 `useDesktopIngest`（DB）与原 `useCsvIngest`（IDB）· `ImportPreviewDrawer` 右滑抽屉（三态：duplicate file / no new rows / would-add KPI + new date range，commit 前可 cancel）· `ImportHistoryDrawer` 列出全部 batch + per-batch 两步 undo 确认 + cascade 删除文案 · `FileToolbar` 注入 `desktopActions` 后切换为 IMPORT / HISTORY / REDACTED 三按钮 · 全局窗口 drop 监听（拖到 dashboard 任意位置都能开预览）· 渲染器永不直接 import @cu/storage（避开 better-sqlite3 在 browser bundler 里炸）· `UsageDb.previewImport`（SAVEPOINT + ROLLBACK 干跑）+ `UsageDb.allRowsCosted`（重建 RowWithCost 给 renderer 用）· 14/14 vitest 单测全绿（+3）· `scripts/desktop-db-smoke.mjs` 扩到 25 条断言全绿（+7）· `scripts/desktop-ui-smoke.mjs` 5 张截图全过（dashboard / 历史 / undo 确认 / 预览抽屉 / 导入后 dashboard） | ✅ |
-| **PR18** | **v1.0 Desktop · Year-in-review + 跨月趋势**：新增第五个路由 `#year`（`useRoute`/`NavTabs` 都加进去）· `YearReviewPage` 组合两个面板：① **YearReviewPanel**——年选择 chip（自动列出所有有数据的年份）+ 6 张年级 KPI（YEAR SPEND / REQUESTS / TOP MODEL + share-of-year / CACHE SAVINGS + 全局 hit ratio / MOST EXPENSIVE DAY / LONGEST STREAK + 日期范围）+ 12-month 成本 bar chart（current month 高亮 accent · framer-motion height 进场）+ Quarter-over-quarter 4 卡（QoQ delta 三态着色）· ② **CrossMonthTrendsPanel**——last-90d 的 rolling-30d cost Sparkline（peak / latest 标注）+ last-month overview 卡（MoM delta pill）+ top-5 model MoM table（按 |Δ$| 排序 · this/prev cost · Δ$ tabular-nums · Δ% pill · 12-month per-model sparkline）+ empty-state 文案（不足两月时）· `computeYearReview` / `computeCrossMonth` 纯函数（O(n) 单次遍历 + Map 聚合，10k 行 <5ms）· `install-natives` 增加 canonical-version 检测（pnpm 留下的 orphan 版本只 warn 不 fail）· `scripts/desktop-year-smoke.mjs`（14 月跨年 seed → Year tab → 4 截图：当年 / 切年 / 跨月趋势 / fullPage）4 张截图全过 · biome + 125/125 tests + 全 typecheck 全绿 | ✅ |
-| **PR19** | **v1.0 Desktop · Windows NSIS installer**：新 `apps/desktop/scripts/package.mts` 5 步打包流（clean → build → `pnpm deploy --prod` → 把 dist + renderer 拷进 deploy dir + 注入 electronVersion → 跑 electron-builder + 把 artifact 拷回 `apps/desktop/release/`）· 解决 pnpm isolated linker × electron-builder 的根本症结——之前 `node_modules/@cu/storage` 的 junction 指向 `packages/storage`，asar packer 走到 turbo / 源码后崩溃；现在 deploy 在 `_temp/desktop-pack/` 做一份自包含 prod 树，所有 junction 都指回 deploy 内部 · electron-builder 自动调 `@electron/rebuild` 跑 install-app-deps（不再需要手动 `install-natives` for 打包），better-sqlite3 自动按 Electron 40 ABI 重建并 unpack 到 `app.asar.unpacked/` · `electron-builder.yml` 增加 noise exclusions（`.turbo` / `src` / 测试 / 配置）· 新 scripts `package:dir` / `package:win` · `scripts/desktop-installer-smoke.mjs` 跑打出来的 `Cursor Usage.exe` 验证 IPC + SQLite + 渲染 + 重启后 hydrate（2 张截图：onboarding / 重启后 dashboard）· biome 忽略 `release/` + `_temp/` · 产物：`Cursor Usage-Setup-1.0.0-x64.exe`（96 MB · NSIS · 可选安装路径 · 桌面 / 开始菜单快捷方式） | ✅ |
-| **PR25** | **v1.0 Desktop · Cross-platform packaging + auto-update channel + tray + budget toast（P7 + P8）**：`electron-builder.yml` 把 mac target 升级到 `dmg`（x64 + arm64，含 `/Applications` 拖拽布局）、linux target 拓展到 `AppImage`（x64，注册 `.desktop` entry），保留 win NSIS；`publish: null` 顶部留下 generic / github provider 的注释模板 + 解释 `CU_AUTO_UPDATE=1` + `CU_UPDATE_FEED_URL` 启用流程 · `apps/desktop/scripts/package.mts` 新增 `--mac` / `--linux` 标志，`package.json` 配套 `package:mac` / `package:linux` / `package:all` 脚本 · `apps/desktop/src/updater.ts` 重写为事件转 IPC 桥：监听 `checking-for-update` / `update-available` / `download-progress` / `update-downloaded` / `error`，统一打成 `UpdateStatus` discriminated union 推给渲染端的 `update:status` 频道，主进程同时挂 `update:status` / `update:check` / `update:install` IPC（dev 模式或缺 env 时返回 `{ok:false, reason}` 而不是崩） · 新模块 `apps/desktop/src/trayIcon.ts`：纯 zlib PNG encoder（手写 IHDR/IDAT/IEND + CRC32 表）+ 五竖条 mark 生成器（任意 size、任意 RGB，~3KB 输出），不依赖任何外部 PNG 库、没有提交 binary asset · `apps/desktop/src/tray.ts` 把生成的 PNG 喂给 `nativeImage.createFromBuffer`，darwin 自动 `setTemplateImage(true)`；菜单包含 Show / Hide / 当前月 `$X 已花 · N / cap req (P%)` 占位行 / Projected EOM / Open DB folder / Quit · `apps/desktop/src/budgetNotifier.ts` 是纯函数：`decideBudgetNotification(state, report)` 在 80% / 100% 两档触发，per-month + per-threshold 去重，`prune()` 自动清理两个月前的记录 · `apps/desktop/src/notifications.ts` 把 decision 绑到 Electron Notification + tray label + `settingsStore` 新增的 `cursor-usage-budget-state.json` 持久化（防止重启后重弹） · 新渲染端 hook `useBudgetReporter`：watch summary + settings，构造 `BudgetReportPayload` 并 IPC 推送，本地 ref diff 避免无谓 IPC · `DashboardShell` 顶层挂这个 hook · `bridge.budget.{report, resetGuard, getGuardState}` + `bridge.update.{status, check, install, onStatus}` 全部上 preload + `DesktopBridge` 类型 + `desktopStorage` wrapper · `apps/desktop` 首次接入 vitest：22 个新单测（15 个 budgetNotifier 覆盖阈值 / 去重 / 跨月 / prune 年跨越 / 排序，7 个 trayIcon 覆盖 PNG magic / IHDR / IDAT zlib 往返 / 自定义 size 与颜色） · `desktop-ui-smoke` 末尾追加 PR25 IPC 探针：连续两次 `budget:report` 验证「先 fired 后 deduped」 + `update:status` 应返回 `kind:'disabled'` + `update:check` 应返回 `{ok:false}`（dev 模式） · typecheck + biome + 175 vitest（153 老 + 22 新）+ 3 smoke 全绿 | ✅ |
-| **PR24** | **v1.0 Desktop · Compare-two-batches modal + 30-day Forecast 面板（P5 + P12）**：`@cu/storage` 新增 `UsageDb.batchStats(id)` 方法（单次扫描 `rows WHERE batch_id = ?` · 聚合出 cost/req/tokens/cache-hit/max-mode/estimated 总数 + top 8 模型 share + per-day cost timeline + top 5 agent 列表 · 不存在的 batch 返回 `null`） · 新增 `BatchStats` 类型并导出 · 主进程多一个 IPC `db:batchStats` · 渲染端 `bridge.db.batchStats`、`desktopStorage.loadBatchStats`、`types.ts` 都同步更新 · 新组件 `CompareBatchesModal.tsx`（1080px 居中模态 · 双 select 选 batch · 三栏布局：BatchCard (A) | DeltaCard | BatchCard (B) · KPI 4-pane + cache-hit/max-mode/estimated mini-stats + top 4 model 水平 bar + daily cost sparkline + top 3 agents · Delta 列彩色 ±箭头 + 5 行差异 + common-top-models 交集 + "A is older/newer" 时间提示） · `ImportHistoryDrawer` 顶部新增 `compare` 按钮（≥2 batch 时启用，否则灰掉并 tooltip 提示） · 新组件 `ForecastPanel.tsx` 收录于 Overview 第三幕：`@cu/data` 新增 `forecastDailyCost()` + `fillMissingDays()` 工具（OLS 线性回归 · 90d lookback · 30d horizon · 95% prediction band · n<7 自动 degenerate · floor 0 防负预测 · 输出 slope/intercept/R²/stdError 加 `trend` (rising/falling/flat) 与 `confidence` (high/medium/low) 标签） · ForecastPanel 显示自绘 SVG 图（历史实线 + 投影虚线 + 半透明 confidence band + "today" 竖虚线分隔 + Y 轴 niceTicks 3 档 + framer-motion pathLength 入场） · 右侧 4 个 KPI（30d 总额范围 / 日均 + drift / 近 7d avg + Δ% vs forecast / R² + 拟合质量） · 底部一句话 caption 把数字翻译成自然语言 · 11 个 forecast vitest + 2 个 batchStats vitest（共 22 个数据/19 个 storage 测试） · 3 个 smoke 脚本（ui/year/db）启动前都 spawn `install-natives:ensure` + 新增的 `build:main` 保证 dist/main 总是反映 src/ · `desktop-ui-smoke` 拓展到 8 张截图（新增 07-forecast-panel + 08-compare-batches） · `@cu/icons` 已含 Sliders / Minus 等所需图标 · typecheck + biome + 153 vitest + 3 smoke 全绿 | ✅ |
-| **PR23** | **v1.0 Desktop · Year heatmap · Burn caption upgrade · Cost-per-agent route（P3 + P6 + P13）**：Year route 新增 GitHub-style 365 天活动日历 heatmap（复用 `<Heatmap>` 组件 · 显式 `startDate`/`endDate` 钉满全年 · 11px cell + 2px gap 比 Overview 更紧凑 · `cost` / `requests` / `tokens` 三选一 metric 切换 · hover tooltip 同时展示另外两个指标 + 行数 · 12 个月 column header + Mon/Wed/Fri row label · 空年份 fallback dashed banner） · `computeYearReview` 多导出 `byDay`（per-day cost/requests/tokens/rows，filter 后 single-walk O(n)） · 重写 `burnCaption()` 五分类：Max-mode 2× billing · output-heavy · warm-cache rerun · cold-cache build · fresh input-heavy（Max-mode 始终前缀 · share 阈值 50/50/40/40，落空降级到 balanced mix） · 新增 `Agents` 路由（NavTabs 第 4 顺位）`apps/playground/src/components/AgentsPage.tsx`：scope toggle（all / cloud-agent / automation） · KPI 4-pane（Cloud Agents · Automations · Top agent · Interactive） · 可排序 table（cost↓ 默认 · requests / rows / last active 可切换） · 行展开看 Full identifier + Token 总量 + 活跃日期范围 + Avg/request + Top 5 model mix 水平 bar） · `Interactive (you)` 虚拟 bucket 兜底无 agent ID 的行，让总和闭环 · ID 长字符串中间省略 8…6 · 三类彩色 KindBadge（cat-2 cloud / cat-3 automation / cat-6 interactive） · 新 `Cog` icon · `desktop-year-smoke` 拓展到 8 张截图（新增 01b heatmap + 05 agents-table + 06 agents-expanded）· seed 30% 行染 cloudAgentId/automationId 让 Agents 页有真数据 · typecheck + biome + 128 vitest + 3 smoke 全绿 | ✅ |
-| **PR22** | **v1.0 Desktop · Settings 面板 + DB backup/restore（P2 + P4）**：主进程新增 `settingsStore.ts`（JSON 文件 `userData/cursor-usage-settings.json` · 默认 `{ monthlyRequestBudget: 500, currency: USD/$/×1, lastBackupAt: null }` · 读写都 clamp + normalize 防脏数据 corruption） · `UsageDb` 增加 `exportSnapshot()` / `importSnapshot()` 一对（v1 JSON 格式 · 保留每个 batch 的 imported_at + fileSha256 + 所有 PersistableRow · 原子事务，restore 失败完整回滚） · IPC 扩展：`bridge.settings.{get,set,getPath}` + `bridge.db.{exportToFile,importFromFile,getDbPath,revealDbInFolder}`（main process 拥有 dialog.showSave/Open + shell.showItemInFolder） · 渲染端新增 `hooks/useSettings.ts`（fallback 立即可渲染 · IPC ready 后覆写 · save 同步本地 state） · 新组件 `components/SettingsDrawer.tsx`（右滑 560px · 5 个 section：Theme 三选一 + Monthly budget 数字输入 + Currency 代码/符号/multiplier + Local database 路径+reveal 按钮 + Backup & restore 两按钮 + 两步 confirm 覆盖警告 · 顶部 StatusBanner busy/ok/error 三色统一反馈） · `MonthlyBudgetPanel.planCap` 现在从 `useSettings()` 注入（默认 500 → 用户可改） · 新增 cog icon 入口 · `PageChrome` 增加 `onOpenSettings` 可选 prop · 桌面 smoke 脚本（ui/year/db）启动前都 spawn `install-natives:ensure` · 新增 3 个 storage vitest（snapshot 往返 · replace 原子性 · 版本 reject）·  17/17 storage 全绿 · `desktop-ui-smoke` 6 张截图全过（新增 06-settings-drawer.png） | ✅ |
-| **PR21** | **v1.0 Desktop · better-sqlite3 native 自动切换（P1）**：`install-natives.mts` 增加 `--ensure` 幂等模式 + marker 文件 `build/Release/.cu-runtime.json`（记录当前 runtime + target + ts）· `dev.mts` 启动时跑 pre-flight `install-natives --runtime=electron --ensure`（marker 匹配则 ~200ms 退出，不匹配再调 prebuild-install）· 新 script `packages/storage/scripts/ensure-node-natives.mjs`（spawn `pnpm --filter @cu/desktop install-natives:ensure-node`），通过 `pretest` 钩子在 vitest 前自动 ensure Node ABI · 新 pnpm scripts `install-natives:ensure` / `install-natives:ensure-node` · 验证流程：dev → test → dev 来回切，binary 自动重装，第二次跑同方向直接 marker hit「already on … — skip」· 文档：README 同步更新，原 `desktop:install-natives` / `storage:restore-node-natives` 保留为「ensure 失败时的逃生通道」· biome + typecheck + 125/125 tests 全绿 | ✅ |
-| **PR20** | **v1.0 Desktop · 全功能审计 + 精简（P9 / P10 / P11 + dev fix）**：① **P11 · YearReview 缓存节省正确性**——`computeYearReview` 现在 filter rows by year 后调 `calcCacheSavings(yearRows)`（之前是 `cacheReadTokens / 750 * $1.5` 粗算 + 借用全局 `cacheHitStats.hitRatio`，跨年统计会偏高），新增 `cacheHitRatio` 字段、KPI 文案换成年限定的 hit ratio · ② **P9 · OverviewPage 拆三**——单文件 ~700 行的 `OverviewPage` 拆成 `overview/OverviewKpiHero`（4 张顶部 KPI + 30d projection 计算）+ `overview/OverviewActivity`（heatmap / week×hour / token mix / treemap / small multiples）+ `overview/OverviewBurns`（Top 5 burn + sonnet equivalence + burnCaption 辅助函数），`OverviewPage` 收敛成纯 layout shell（~50 行）· ③ **P10 · 退役 web mode**——删除 `hooks/useCsvIngest.ts`（341 行 IDB 状态机）/ `storage/persistence.ts`（idb-keyval session store）/ `components/IngestDiffBanner.tsx`（IDB 差异 banner），抽出 `utils/relativeTime.ts` 保留 `describeLastUpdate` · `WelcomePage` 简化为 `Desktop / NonDesktopNotice` 二分（非 Electron 环境弹"请在桌面 app 中打开"提示）· `FileToolbar` 删掉 web 分支（合并 / re-upload / clear button + 确认弹窗），`desktopActions` 变必填 · `DashboardShell` 砍掉 `diff` / `IngestDiffBanner` / `onReupload` / `onMergeAnother` / `onClearStorage` props · 删除 `idb-keyval` 依赖 · `scripts/_archive/` 归档 PR2–PR14 web e2e（7 个文件） · ④ **dev fix · 端口冲突**——`apps/desktop/scripts/dev.mts` 用 `node:net.createServer` 双探 IPv4 + IPv6（Windows 上 vite 监听 `::1`，旧版只探 `127.0.0.1` 会漏检），busy 时自动选随机空闲端口并通过 `PORT` env + `RENDERER_DEV_URL` 传给 vite / Electron · 全 typecheck + 125/125 tests + biome 全绿 | ✅ |
+## Tech stack
 
-## 技术栈
+| Concern | Choice |
+|---|---|
+| Package manager | pnpm 9 + workspaces + Turbo 2 |
+| Build | Vite 6 + React 19 + TypeScript 5.6 (strict) |
+| Styling | Tailwind v4 (CSS Variables) |
+| Animation | Framer Motion 11 (+ a tiny zero-dep shimmer keyframe) |
+| Charts | D3 modules (scale / array / time / format / hierarchy / shape) + ~12 React wrappers |
+| CSV parsing | PapaParse |
+| Desktop | Electron 40 + electron-builder 25 + electron-updater 6.3 |
+| Local DB | better-sqlite3 12.10 (WAL / WITHOUT ROWID / 12-col composite PK) via `@cu/storage` |
+| Tests | Vitest (unit) + Playwright._electron (e2e + screenshot regression) |
+| Lint / Format | Biome 1.9 |
+| i18n | In-house: `@cu/ui` `I18nProvider` + dictionary JSON, ~150 LOC, zero deps |
 
-- **包管理**：pnpm 9 + workspace + turbo
-- **构建**：Vite 6 + React 19 + TypeScript 5.6（严格模式）
-- **样式**：Tailwind v4（CSS Variables 驱动）
-- **动画**：Framer Motion 11
-- **图表**：D3 modules（scale / array / time / format / hierarchy / shape）+ 自封装 React wrapper（约 12 个 chart 组件）
-- **CSV 解析**：PapaParse
-- **桌面**：Electron 40 + electron-builder 25 + electron-updater 6.3（PR15+）
-- **本地数据库**：better-sqlite3 12.10（WAL / WITHOUT ROWID / 复合 PK）+ `@cu/storage` 封装（PR16+）
-- **测试**：Vitest（单元）+ Playwright（截图回归 + `_electron` e2e）
-- **Lint / Format**：Biome 1.9
+---
 
-## 致谢
+## Release notes
 
-- 设计语言基于 `oh-my-open-ui` 和 `writing_aassist` 两个 base 项目
-- 定价数据 100% 来自 Cursor 官方文档：https://cursor.com/docs/models-and-pricing
-- 灵感参考：Bloomberg Terminal、Edward Tufte《The Visual Display of Quantitative Information》、GitHub contribution graph
+The most recent build's highlights live in `apps/playground/src/utils/changelog.ts` and render inside `Settings → What's new` (with a red dot if you haven't seen them yet). For deeper history, browse the per-PR notes under `.trellis/tasks/` — they capture the design decisions in detail.
+
+Highlight reel (recent):
+
+- **30-day commercial polish** — sticky drawer headers, focus traps, Esc to close, drawer overlays now sit above the app header so titles are never clipped.
+- **Keyboard discoverability** — `?` cheatsheet, `g + letter` navigation, `Cmd/Ctrl+,` for Settings.
+- **Day Audit rewrite** — single hero card with auto-narrative, biggest-spend highlight, Jump-to-row.
+- **Trust layer** — `i`-icon tooltips wherever a cost or ratio is shown, with the pricing snapshot date.
+- **Cross-page pivots** — Anomalies cards → Day Audit, Models rows → filtered Details.
+- **Saved filters** on the Details page (persisted in `localStorage`).
+- **Budget notifications** can be muted from Settings (tray label keeps updating regardless).
+- **Bilingual chrome** — English (default) + 简体中文 toggle in Settings.
+
+---
 
 ## License
 
-Private project. Not for distribution.
+MIT. The codebase is a personal project; no warranties, no support contract. Use it, fork it, share it.
+
+## Credits
+
+- Pricing data sourced verbatim from [cursor.com/docs/models-and-pricing](https://cursor.com/docs/models-and-pricing).
+- Inspiration: Bloomberg Terminal, Edward Tufte's *The Visual Display of Quantitative Information*, GitHub's contribution graph.
+- Design tokens evolved from the `oh-my-open-ui` and `writing-aassist` base projects.

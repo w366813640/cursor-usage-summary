@@ -1,5 +1,6 @@
 import { type RowWithCost, type UsageSummary, redactedFileName } from '@cu/data';
 import { Eye, EyeOff, Settings2 } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useFocusMode } from '../hooks/useFocusMode';
 
@@ -67,6 +68,7 @@ export function FileToolbar({
   onOpenSettings,
 }: FileToolbarProps) {
   const [focusMode, setFocusMode] = useFocusMode();
+  const t = useT();
   // Compose a one-line context hint that lives in the button's tooltip
   // - keeps the surface clean while still letting power users verify
   // what data is loaded without opening any drawer.
@@ -107,20 +109,16 @@ export function FileToolbar({
         icon={
           focusMode ? <EyeOff size={12} aria-hidden="true" /> : <Eye size={12} aria-hidden="true" />
         }
-        label={focusMode ? 'focused' : 'focus'}
+        label={focusMode ? t('toolbar.focusExit') : t('toolbar.focus')}
         onClick={() => setFocusMode(!focusMode)}
-        title={
-          focusMode
-            ? 'Focus mode on - context panels hidden. Click to show everything.'
-            : 'Focus mode - hide forecast / budget / activity panels and show only week summary + KPIs + efficiency.'
-        }
+        title={t('toolbar.focusTooltip')}
         active={focusMode}
       />
       <ToolbarButton
         icon={<Settings2 size={12} aria-hidden="true" />}
-        label="manage data"
+        label={t('toolbar.manageData')}
         onClick={onOpenSettings}
-        title={`Open Settings -> Data management (import, history, exports). Current dataset: ${tooltip}`}
+        title={`${t('toolbar.manageDataTooltip')} · ${tooltip}`}
       />
     </motion.div>
   );

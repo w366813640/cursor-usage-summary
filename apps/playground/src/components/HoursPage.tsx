@@ -27,6 +27,12 @@ const DETAIL_CAP = 500;
 /**
  * Day audit page — post UI polish rewrite.
  *
+ * Note on the file/export name mismatch: the file is `HoursPage.tsx`
+ * for git-history continuity (was a 24h+weekday breakdown), the export
+ * is `DayPage` because the product surface is now the single-day audit.
+ * Renaming the file would lose blame; the cost is one moment of
+ * confusion. If you're new here: this file owns route `#day`.
+ *
  * Layout (single column, top-to-bottom):
  *
  *   1. SectionHeader + DateRangeFilter

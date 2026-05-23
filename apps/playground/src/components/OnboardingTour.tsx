@@ -1,4 +1,5 @@
 import { ArrowRight, ChevronLeft, X } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
@@ -6,25 +7,18 @@ import { useDrawerA11y } from '../hooks/useDrawerA11y';
 const STORAGE_KEY = 'cu:onboardingV1Done';
 
 interface Step {
-  title: string;
-  body: string;
-  cta?: string;
+  titleKey: string;
+  bodyKey: string;
+  ctaKey?: string;
 }
 
+// Step content lives in the dictionary (tour.step1.* / step2.* / step3.*).
+// Keep this list short — 3 steps was the user-tested max before
+// people started skipping.
 const STEPS: Step[] = [
-  {
-    title: 'Your usage dashboard',
-    body: 'The headline cost, this-week summary, and the action feed live at the top of Overview. Anything urgent (budget breaches, anomalies) bubbles to the top of the same screen.',
-  },
-  {
-    title: 'Navigate fast',
-    body: 'The left rail starts collapsed — click the bottom chevron to expand it. Press `?` anywhere to see every keyboard shortcut, or jump straight: g + o for Overview, g + h for Day audit, g + m for Models.',
-  },
-  {
-    title: 'Manage your data',
-    body: 'Imports, history, redacted exports, the local report, and the navigation order all live in Settings → Data management. Open it any time with the "Manage data" button at the top-right or Cmd/Ctrl+, .',
-    cta: 'Got it',
-  },
+  { titleKey: 'tour.step1.title', bodyKey: 'tour.step1.body' },
+  { titleKey: 'tour.step2.title', bodyKey: 'tour.step2.body' },
+  { titleKey: 'tour.step3.title', bodyKey: 'tour.step3.body', ctaKey: 'tour.step3.cta' },
 ];
 
 /**
@@ -40,6 +34,7 @@ export function OnboardingTour() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const dialogRef = useDrawerA11y(open, () => finish());
+  const t = useT();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -48,9 +43,10 @@ export function OnboardingTour() {
       if (seen !== '1') {
         // Defer one tick so we land *after* the dashboard's own
         // mount animation — popping a modal during the route's
-        // fade-in feels jarring.
-        const t = window.setTimeout(() => setOpen(true), 600);
-        return () => window.clearTimeout(t);
+        // fade-in feels jarring. Local `timerId` (not `t`) avoids
+        // shadowing the outer translator binding.
+        const timerId = window.setTimeout(() => setOpen(true), 600);
+        return () => window.clearTimeout(timerId);
       }
     } catch {
       // localStorage unavailable (private mode) — just don't show
@@ -92,17 +88,17 @@ export function OnboardingTour() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Quick tour"
+            aria-label={t('quickTips.title')}
             className="flex w-full max-w-[420px] flex-col gap-4 rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.65)]"
           >
             <div className="flex items-center justify-between">
               <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-                step {step + 1} / {STEPS.length}
+                {t('tour.stepIndicator', { current: step + 1, total: STEPS.length })}
               </span>
               <button
                 type="button"
                 onClick={finish}
-                aria-label="Skip tour"
+                aria-label={t('tour.skipAria')}
                 className="rounded-md border border-[var(--color-border)] p-1 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
               >
                 <X size={12} aria-hidden="true" />
@@ -110,10 +106,10 @@ export function OnboardingTour() {
             </div>
             <div className="flex flex-col gap-2">
               <h2 className="font-serif text-[20px] leading-tight tracking-tight">
-                {current.title}
+                {t(current.titleKey)}
               </h2>
               <p className="text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-                {current.body}
+                {t(current.bodyKey)}
               </p>
             </div>
             <div className="mt-2 flex items-center justify-between">
@@ -124,7 +120,7 @@ export function OnboardingTour() {
                 className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-30"
               >
                 <ChevronLeft size={11} aria-hidden="true" />
-                back
+                {t('common.back')}
               </button>
               <div className="flex items-center gap-1.5">
                 {STEPS.map((_, i) => (
@@ -150,7 +146,7 @@ export function OnboardingTour() {
                     borderColor: 'var(--color-accent)',
                   }}
                 >
-                  {current.cta ?? 'done'}
+                  {current.ctaKey ? t(current.ctaKey) : t('common.done')}
                 </button>
               ) : (
                 <button
@@ -158,7 +154,7 @@ export function OnboardingTour() {
                   onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
                   className="flex items-center gap-1 rounded-md border border-[var(--color-accent)] bg-transparent px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent-soft)]"
                 >
-                  next
+                  {t('common.next')}
                   <ArrowRight size={11} aria-hidden="true" />
                 </button>
               )}

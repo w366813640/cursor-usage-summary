@@ -25,7 +25,7 @@ import {
   Upload,
   X,
 } from '@cu/icons';
-import { type ThemeMode, useTheme } from '@cu/ui';
+import { type Locale, type ThemeMode, useI18n, useT, useTheme } from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
@@ -111,6 +111,8 @@ export function SettingsDrawer({
   const dialogRef = useDrawerA11y(open, onClose);
   const { settings, loading, save } = useSettings();
   const { mode: themeMode, setMode: setThemeMode, resolved } = useTheme();
+  const { locale, setLocale } = useI18n();
+  const t = useT();
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [dbPath, setDbPath] = useState<string | null>(null);
   const [settingsPath, setSettingsPathState] = useState<string | null>(null);
@@ -392,7 +394,7 @@ export function SettingsDrawer({
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Settings"
+            aria-label={t('settings.title')}
             className="flex h-full w-[560px] max-w-full flex-col overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
           >
             {/* Sticky drawer-internal header — stays anchored at the
@@ -405,17 +407,17 @@ export function SettingsDrawer({
                 <Settings size={16} className="text-[var(--color-accent)]" aria-hidden="true" />
                 <div className="flex flex-col gap-0.5">
                   <span className="font-serif text-[18px] leading-tight tracking-tight">
-                    Settings
+                    {t('settings.title')}
                   </span>
                   <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                    preferences · backup & restore
+                    {t('settings.subtitle')}
                   </span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close settings"
+                aria-label={t('settings.closeAria')}
                 className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
               >
                 <X size={14} aria-hidden="true" />
@@ -483,19 +485,27 @@ export function SettingsDrawer({
                     <Sun size={12} aria-hidden="true" />
                   )
                 }
-                title="Theme"
-                hint="System follows your OS — light / dark force the choice."
+                title={t('settings.theme')}
+                hint={t('settings.themeHint')}
               >
                 <div className="flex gap-2">
                   {(
                     [
                       {
                         id: 'system',
-                        label: 'System',
+                        label: t('settings.theme.system'),
                         icon: <Monitor size={12} aria-hidden="true" />,
                       },
-                      { id: 'light', label: 'Light', icon: <Sun size={12} aria-hidden="true" /> },
-                      { id: 'dark', label: 'Dark', icon: <Moon size={12} aria-hidden="true" /> },
+                      {
+                        id: 'light',
+                        label: t('settings.theme.light'),
+                        icon: <Sun size={12} aria-hidden="true" />,
+                      },
+                      {
+                        id: 'dark',
+                        label: t('settings.theme.dark'),
+                        icon: <Moon size={12} aria-hidden="true" />,
+                      },
                     ] satisfies Array<{ id: ThemeMode; label: string; icon: ReactNode }>
                   ).map((opt) => {
                     const active = themeMode === opt.id;
@@ -522,19 +532,63 @@ export function SettingsDrawer({
                 </p>
               </Section>
 
+              {/* Language picker. Two languages for now (en / zh).
+                  The dictionary is intentionally narrow — chrome only —
+                  so the picker hint warns power users that data
+                  narratives stay in English. */}
+              <Section
+                icon={<Settings size={12} aria-hidden="true" />}
+                title={t('settings.language')}
+                hint={t('settings.languageHint')}
+              >
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: 'en', label: t('settings.language.en') },
+                      { id: 'zh', label: t('settings.language.zh') },
+                    ] satisfies Array<{ id: Locale; label: string }>
+                  ).map((opt) => {
+                    const active = locale === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setLocale(opt.id)}
+                        className={[
+                          'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] transition-colors',
+                          active
+                            ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+                        ].join(' ')}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+
               <Section
                 icon={<Monitor size={12} aria-hidden="true" />}
-                title="Display density"
-                hint="Comfortable is the default. Dense tightens the workbench; Presentation gives screenshots more air."
+                title={t('settings.density')}
+                hint={t('settings.densityHint')}
               >
                 <div className="grid grid-cols-3 gap-2">
                   {(
                     [
-                      ['comfortable', 'Comfortable', 'Balanced spacing for daily review.'],
-                      ['dense', 'Dense', 'Tighter rows and chrome for power scanning.'],
+                      [
+                        'comfortable',
+                        t('settings.density.comfortable'),
+                        'Balanced spacing for daily review.',
+                      ],
+                      [
+                        'dense',
+                        t('settings.density.dense'),
+                        'Tighter rows and chrome for power scanning.',
+                      ],
                       [
                         'presentation',
-                        'Presentation',
+                        t('settings.density.presentation'),
                         'More breathing room for exports and demos.',
                       ],
                     ] as const
@@ -566,8 +620,8 @@ export function SettingsDrawer({
 
               <Section
                 icon={<HardDrive size={12} aria-hidden="true" />}
-                title="Monthly request budget"
-                hint="Drives the plan cap displayed on the Overview — Monthly panel."
+                title={t('settings.budget')}
+                hint={t('settings.budgetHint')}
               >
                 <div className="flex items-center gap-2">
                   <input
@@ -579,14 +633,16 @@ export function SettingsDrawer({
                     className="w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
                   />
                   <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-                    requests / month
+                    {t('settings.budget.unit')}
                   </span>
                   <div className="ml-auto">
                     <SaveButton onClick={onSaveBudget} disabled={loading} />
                   </div>
                 </div>
                 <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                  current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
+                  {t('settings.budget.current', {
+                    value: settings.monthlyRequestBudget.toLocaleString(),
+                  })}
                 </p>
 
                 <label className="mt-3 flex items-start gap-2 text-[12px] text-[var(--color-text-muted)]">
@@ -617,9 +673,10 @@ export function SettingsDrawer({
                     className="mt-1 h-3.5 w-3.5 cursor-pointer accent-[var(--color-accent)]"
                   />
                   <span className="leading-snug">
-                    Mute OS toasts for the 80% / 100% budget thresholds. The tray label keeps
-                    updating either way — this just silences the popup so it stops nagging once
-                    you've acknowledged it.
+                    <strong className="text-[var(--color-text)]">
+                      {t('settings.budget.muteLabel')}.
+                    </strong>{' '}
+                    {t('settings.budget.muteBody')}
                   </span>
                 </label>
               </Section>
@@ -768,8 +825,8 @@ export function SettingsDrawer({
 
               <Section
                 icon={<Download size={12} aria-hidden="true" />}
-                title="Backup & restore"
-                hint="JSON export bundles every batch + row so you can replay on another machine."
+                title={t('settings.backup')}
+                hint={t('settings.backup.hint')}
               >
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
@@ -779,7 +836,7 @@ export function SettingsDrawer({
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                     >
                       <Download size={12} aria-hidden="true" />
-                      Export to .json
+                      {t('settings.backup.export')}
                     </button>
                     <button
                       type="button"
@@ -787,7 +844,7 @@ export function SettingsDrawer({
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
                     >
                       <Upload size={12} aria-hidden="true" />
-                      Restore from .json
+                      {t('settings.backup.restore')}
                     </button>
                   </div>
                   {confirmRestore ? (
@@ -799,8 +856,7 @@ export function SettingsDrawer({
                           aria-hidden="true"
                         />
                         <span className="font-mono text-[11px] text-[var(--color-text)]">
-                          Restoring will <strong>replace</strong> every batch + row currently in the
-                          database. Export a backup first if you're unsure.
+                          {t('settings.backup.confirmWarning')}
                         </span>
                       </div>
                       <div className="mt-2 flex items-center justify-end gap-2">
@@ -809,25 +865,27 @@ export function SettingsDrawer({
                           onClick={() => setConfirmRestore(false)}
                           className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
                         >
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                         <button
                           type="button"
                           onClick={() => void onRestoreConfirmed()}
                           className="rounded-md border border-[var(--color-destructive)] bg-[var(--color-destructive)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-white transition-opacity hover:opacity-90"
                         >
-                          Replace + restore
+                          {t('settings.backup.confirmReplace')}
                         </button>
                       </div>
                     </div>
                   ) : null}
                   {settings.lastBackupAt ? (
                     <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                      last export: {new Date(settings.lastBackupAt).toLocaleString()}
+                      {t('settings.backup.lastExport', {
+                        when: new Date(settings.lastBackupAt).toLocaleString(),
+                      })}
                     </p>
                   ) : (
                     <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                      no backup taken yet
+                      {t('settings.backup.noBackup')}
                     </p>
                   )}
                 </div>
@@ -1051,35 +1109,36 @@ function DataManagementSection({
     onStatus({ kind: 'ok', message: 'Local report download started.' });
   };
 
+  const t = useT();
   return (
     <Section
       icon={<FileSpreadsheet size={12} aria-hidden="true" />}
-      title="Data management"
+      title={t('settings.dataManagement')}
       hint="Import another CSV, review past imports, or export a privacy-safe snapshot."
     >
       <div className="grid grid-cols-2 gap-2">
         <DataActionButton
           icon={<Upload size={12} aria-hidden="true" />}
-          label="Import CSV"
+          label={t('settings.dataManagement.import')}
           description="Preview new rows + skipped duplicates before the merge."
           onClick={onOpenImport}
         />
         <DataActionButton
           icon={<History size={12} aria-hidden="true" />}
-          label="Import history"
+          label={t('settings.dataManagement.history')}
           description="Every CSV you've imported · undo any batch."
           onClick={onOpenHistory}
         />
         <DataActionButton
           icon={<Download size={12} aria-hidden="true" />}
-          label="Export redacted CSV"
+          label={t('settings.dataManagement.redacted')}
           description="Cloud Agent / Automation IDs replaced with hash aliases."
           onClick={onExportRedacted}
           disabled={!hasData}
         />
         <DataActionButton
           icon={<Download size={12} aria-hidden="true" />}
-          label="Export local report"
+          label={t('settings.dataManagement.report')}
           description="Markdown summary with insights and planning scenarios."
           onClick={onExportReport}
           disabled={!hasData}
@@ -1201,11 +1260,12 @@ function NavigationSection({ order, hidden, onChange, onReset }: NavigationSecti
     void onChange({ order: next, hidden });
   };
 
+  const t = useT();
   return (
     <Section
       icon={<Layout size={12} aria-hidden="true" />}
-      title="Navigation"
-      hint="Drag to reorder. Toggle the eye to hide a section from the side rail and command palette."
+      title={t('settings.navigation')}
+      hint={t('settings.navigation.hint')}
     >
       <ul className="flex flex-col gap-1.5">
         {order.map((id, idx) => {
@@ -1343,6 +1403,7 @@ function NavIconButton({
  */
 function WhatsNewSection() {
   const { markAllSeen, hasUnread } = useUnreadChangelog();
+  const t = useT();
   useEffect(() => {
     // Fire only when the drawer is open AND there's something new —
     // avoids touching localStorage on every render.
@@ -1352,8 +1413,8 @@ function WhatsNewSection() {
   return (
     <Section
       icon={<Sparkles size={12} aria-hidden="true" />}
-      title="What's new"
-      hint="Release highlights for this build."
+      title={t('settings.whatsNew')}
+      hint={t('settings.whatsNew.hint')}
     >
       <div className="flex flex-col gap-4">
         {CHANGELOG_ENTRIES.map((entry) => (
@@ -1386,6 +1447,7 @@ const APP_VERSION = CHANGELOG_ENTRIES[0]?.version ?? '0.0.0-dev';
  */
 function AboutSection() {
   const [dbPath, setDbPath] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     // Best-effort: the desktop bridge exposes the path via a tiny
@@ -1410,26 +1472,26 @@ function AboutSection() {
   return (
     <Section
       icon={<Info size={12} aria-hidden="true" />}
-      title="About"
-      hint="No network, no telemetry. Everything stays on this machine."
+      title={t('settings.about')}
+      hint={t('settings.about.hint')}
     >
       <dl className="flex flex-col gap-2 text-[12px]">
-        <Row label="Version">
+        <Row label={t('settings.about.version')}>
           <span className="font-mono">{APP_VERSION}</span>
         </Row>
-        <Row label="Data">
+        <Row label={t('settings.about.data')}>
           {dbPath ? (
             <span className="break-all font-mono text-[11px] text-[var(--color-text-muted)]">
               {dbPath}
             </span>
           ) : (
             <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-              browser storage (web preview)
+              {t('settings.about.dataWeb')}
             </span>
           )}
         </Row>
-        <Row label="License">
-          <span className="font-mono">MIT · local-first</span>
+        <Row label={t('settings.about.license')}>
+          <span className="font-mono">{t('settings.about.licenseValue')}</span>
         </Row>
       </dl>
     </Section>

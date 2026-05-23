@@ -1,5 +1,5 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { useShortcut } from '@cu/ui';
+import { useShortcut, useT } from '@cu/ui';
 import { Suspense, lazy, useMemo } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useFocusMode } from '../hooks/useFocusMode';
@@ -140,15 +140,16 @@ export function DashboardShell({
   // Cmd/Ctrl+K stays owned by the command palette.
   useNavigationShortcuts(navigate);
   // Cmd/Ctrl+, opens Settings — convention shared with VS Code / Cursor.
+  const t = useT();
   useShortcut(
     {
       id: 'open-settings',
       combo: { mod: true, key: ',' },
-      description: 'Open Settings drawer',
+      description: t('settings.title'),
       group: 'global',
       handler: () => onOpenSettings(),
     },
-    [onOpenSettings],
+    [onOpenSettings, t],
   );
 
   return (
@@ -197,13 +198,14 @@ export function DashboardShell({
  * machine — out of scope.
  */
 function useNavigationShortcuts(navigate: (r: AppRoute) => void) {
+  const t = useT();
   const mappings: Array<{ key: string; route: AppRoute; description: string }> = [
-    { key: 'o', route: 'overview', description: 'Go to Overview' },
-    { key: 'y', route: 'year', description: 'Go to Year review' },
-    { key: 'a', route: 'anomalies', description: 'Go to Anomalies' },
-    { key: 'm', route: 'models', description: 'Go to Models' },
-    { key: 'r', route: 'details', description: 'Go to All requests (details)' },
-    { key: 'h', route: 'day', description: 'Go to Day audit' },
+    { key: 'o', route: 'overview', description: t('nav.overview') },
+    { key: 'y', route: 'year', description: t('nav.year') },
+    { key: 'a', route: 'anomalies', description: t('nav.anomalies') },
+    { key: 'm', route: 'models', description: t('nav.models') },
+    { key: 'r', route: 'details', description: t('nav.details') },
+    { key: 'h', route: 'day', description: t('nav.day') },
   ];
   for (const m of mappings) {
     // The mappings array is a stable module-level constant, so this

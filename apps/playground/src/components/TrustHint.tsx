@@ -1,6 +1,6 @@
 import { Info } from '@cu/icons';
 import { PRICING_TABLE_AS_OF } from '@cu/pricing';
-import { Tooltipped } from '@cu/ui';
+import { Tooltipped, useT } from '@cu/ui';
 import type { ReactNode } from 'react';
 
 interface TrustHintProps {
@@ -11,8 +11,6 @@ interface TrustHintProps {
   /** "top" / "bottom" / "left" / "right" — defaults to "top". */
   side?: 'top' | 'right' | 'bottom' | 'left';
 }
-
-const BASE_LINE = `Prices from Cursor docs · table snapshot ${PRICING_TABLE_AS_OF}. All numbers computed locally from your CSV.`;
 
 /**
  * Tiny info-dot that explains where a number came from. Wrap any
@@ -26,18 +24,25 @@ const BASE_LINE = `Prices from Cursor docs · table snapshot ${PRICING_TABLE_AS_
  *     `children` slot only when meaningfully different.
  *   - The icon is `aria-hidden` because the Tooltipped wrapper
  *     handles the screen-reader label.
+ *   - Translated via `trust.*` keys (en/zh). The Auto-pool warning
+ *     wraps a JSX badge so we split the template around `{badge}`
+ *     rather than letting the interpolator stringify it.
  */
 export function TrustHint({ children, partiallyEstimated, side = 'top' }: TrustHintProps) {
+  const t = useT();
+  const estimatedTpl = t('trust.estimated', { badge: '<<BADGE>>' });
+  const [estPre, estPost] = estimatedTpl.split('<<BADGE>>');
+
   const content = (
     <div className="max-w-[260px] space-y-1 text-left text-[11px] leading-relaxed">
-      <p>{BASE_LINE}</p>
+      <p>{t('trust.base', { date: PRICING_TABLE_AS_OF })}</p>
       {partiallyEstimated ? (
         <p className="text-[var(--color-accent)]">
-          Some rows used the Auto-pool fallback (model not in the table). Marked with
+          {estPre}
           <span className="mx-1 rounded-sm border border-current px-0.5 font-mono text-[10px]">
-            est
+            {t('trust.estimatedBadge')}
           </span>
-          on the Details page.
+          {estPost}
         </p>
       ) : null}
       {children}
@@ -48,7 +53,7 @@ export function TrustHint({ children, partiallyEstimated, side = 'top' }: TrustH
     <Tooltipped label={content} side={side}>
       <button
         type="button"
-        aria-label="How is this computed?"
+        aria-label={t('trust.aria')}
         className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-accent)]"
       >
         <Info size={11} aria-hidden="true" />
