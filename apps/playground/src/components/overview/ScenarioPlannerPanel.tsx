@@ -87,9 +87,30 @@ function ScenarioCard({ scenario }: { scenario: BudgetScenario }) {
       <p className="mt-2 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
         {scenario.detail}
       </p>
+      <div className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-2">
+        <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+          Assumption
+        </div>
+        <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          {scenarioAssumption(scenario)}
+        </p>
+      </div>
       <p className="mt-3 border-t border-[var(--color-border)] pt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
         {scenario.action}
       </p>
     </article>
   );
+}
+
+function scenarioAssumption(scenario: BudgetScenario): string {
+  switch (scenario.kind) {
+    case 'baseline':
+      return 'Current-month request and cost pace is projected linearly to the end of the month.';
+    case 'cache':
+      return 'Savings are capped from cache hit-rate room to improve; request volume is unchanged.';
+    case 'top-burn':
+      return 'Savings model trims 15% from the five highest-cost recent requests, capped at 18% of projected cost.';
+    case 'volume':
+      return 'Savings model reduces request units and matching cost by 10% for exploratory work.';
+  }
 }
