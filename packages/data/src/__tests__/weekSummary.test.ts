@@ -127,6 +127,51 @@ describe('composeWeekSummary', () => {
     expect(r.suggestion?.toLowerCase()).toContain('max-mode');
   });
 
+  it('routes every visible string through the translator when one is provided', () => {
+    // Spy translator: records every (key, vars) it sees and returns a
+    // synthetic stamped value so we can verify the renderer-side
+    // contract end-to-end without depending on a real dictionary.
+    const seen: string[] = [];
+    const t = (key: string, vars?: Record<string, string | number>) => {
+      seen.push(key);
+      // Round-trip the placeholders so we can also assert variables
+      // are being plumbed through (not just key names).
+      const parts = Object.entries(vars ?? {})
+        .map(([k, v]) => `${k}=${v}`)
+        .join(',');
+      return parts ? `[${key} ${parts}]` : `[${key}]`;
+    };
+
+    const rows: RowWithCost[] = [
+      makeRow({
+        date: '2026-05-08',
+        model: 'claude-4.6-sonnet',
+        cost: 5,
+        inputW: 200,
+        cacheRead: 800,
+      }),
+      makeRow({
+        date: '2026-05-15',
+        model: 'claude-4.6-opus',
+        cost: 100,
+        maxMode: true,
+        inputW: 800,
+        cacheRead: 200,
+      }),
+    ];
+    const s = aggregate(rows);
+    const r = composeWeekSummary(s, rows, { asOfISO: '2026-05-18', t });
+
+    // Headline + every bullet + the suggestion should be a translator
+    // output, never a leaked English literal.
+    expect(r.headline.startsWith('[narrative.weekSummary.headline.')).toBe(true);
+    for (const b of r.bullets) expect(b.startsWith('[narrative.')).toBe(true);
+    if (r.suggestion !== null) expect(r.suggestion.startsWith('[narrative.')).toBe(true);
+
+    // Spot-check that we actually looked up the namespaces we expect.
+    expect(seen.some((k) => k.startsWith('narrative.weekSummary.headline'))).toBe(true);
+  });
+
   it('caps bullets at 4 items', () => {
     const rows: RowWithCost[] = [
       // 3-model mix, big delta, hot day, max-mode → triggers all categories

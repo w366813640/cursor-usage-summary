@@ -1,4 +1,5 @@
 import type { RowWithCost, UsageSummary } from './aggregators';
+import { type Translator, translate } from './i18n';
 
 /**
  * A short "what's going on this week" narrative, generated locally from
@@ -13,6 +14,11 @@ import type { RowWithCost, UsageSummary } from './aggregators';
  *   - headline    one sentence with the dominant number
  *   - bullets     2-4 noteworthy observations
  *   - suggestion  one actionable next step (or null if everything is normal)
+ *
+ * Locale-aware: pass `opts.t` (any `Translator`) to render the output in
+ * the user's chosen language. Without `t`, the function returns the
+ * built-in English literals — which is what the test suite asserts
+ * against and what every pre-i18n caller already produces.
  */
 export interface WeekSummary {
   /** "$123.45 across 3 models · top driver claude-4.6-opus (54%)." */
@@ -30,6 +36,13 @@ export interface WeekSummary {
 interface ComposeOptions {
   /** Last date in the dataset. Defaults to the latest `summary.byDay`. */
   asOfISO?: string;
+  /**
+   * Optional translator. When omitted, the function falls back to the
+   * English literals embedded below — keeps the test suite (which
+   * matches on "No usage", "spend is up", "cache hit", etc.) and every
+   * legacy caller working without modification.
+   */
+  t?: Translator;
 }
 
 /**
@@ -44,10 +57,12 @@ export function composeWeekSummary(
   rows: ReadonlyArray<RowWithCost>,
   opts: ComposeOptions = {},
 ): WeekSummary {
+  const t = opts.t;
+
   // Defensive: empty dataset.
   if (summary.byDay.length === 0 || rows.length === 0) {
     return {
-      headline: 'No usage data yet.',
+      headline: translate(t, 'narrative.weekSummary.noUsage', 'No usage data yet.'),
       bullets: [],
       suggestion: null,
       degraded: true,
@@ -59,7 +74,7 @@ export function composeWeekSummary(
   const asOf = opts.asOfISO ?? summary.byDay.at(-1)?.date ?? '';
   if (!asOf) {
     return {
-      headline: 'No usage data yet.',
+      headline: translate(t, 'narrative.weekSummary.noUsage', 'No usage data yet.'),
       bullets: [],
       suggestion: null,
       degraded: true,
@@ -93,9 +108,13 @@ export function composeWeekSummary(
   const thisWeekRows = rows.filter((r) => inThisWeek(r.date));
   if (thisWeekRows.length === 0) {
     return {
-      headline: 'No usage in the past 7 days.',
+      headline: translate(t, 'narrative.weekSummary.noUsageRecent', 'No usage in the past 7 days.'),
       bullets: [],
-      suggestion: 'Import a more recent CSV or check that this dataset is current.',
+      suggestion: translate(
+        t,
+        'narrative.weekSummary.noUsageRecentSuggestion',
+        'Import a more recent CSV or check that this dataset is current.',
+      ),
       degraded: true,
       windowDays: 0,
     };
@@ -146,9 +165,20 @@ export function composeWeekSummary(
   );
 
   // Headline.
-  const headline = `${fmtUSDInline(thisWeekCost)} this week across ${distinctModels} ${
-    distinctModels === 1 ? 'model' : 'models'
-  } · top driver ${topModelName} (${(topModelShare * 100).toFixed(0)}%).`;
+  const headlineKey =
+    distinctModels === 1
+      ? 'narrative.weekSummary.headline.single'
+      : 'narrative.weekSummary.headline.multi';
+  const headlineFallback =
+    distinctModels === 1
+      ? '{cost} this week across {models} model · top driver {topModel} ({sharePct}%).'
+      : '{cost} this week across {models} models · top driver {topModel} ({sharePct}%).';
+  const headline = translate(t, headlineKey, headlineFallback, {
+    cost: fmtUSDInline(thisWeekCost),
+    models: distinctModels,
+    topModel: topModelName,
+    sharePct: (topModelShare * 100).toFixed(0),
+  });
 
   // Bullets — pick the 2-4 most interesting.
   const bullets: string[] = [];
@@ -156,22 +186,58 @@ export function composeWeekSummary(
   if (costDeltaPct !== null && Math.abs(costDeltaPct) >= 0.1) {
     const dir = costDeltaPct > 0 ? '↗' : '↘';
     bullets.push(
-      `Spend ${dir} ${(Math.abs(costDeltaPct) * 100).toFixed(0)}% vs prior 7 days (${fmtUSDInline(priorWeekCost)} → ${fmtUSDInline(thisWeekCost)}).`,
+      translate(
+        t,
+        'narrative.weekSummary.bullet.spendDelta',
+        'Spend {dir} {pct}% vs prior 7 days ({prior} → {curr}).',
+        {
+          dir,
+          pct: (Math.abs(costDeltaPct) * 100).toFixed(0),
+          prior: fmtUSDInline(priorWeekCost),
+          curr: fmtUSDInline(thisWeekCost),
+        },
+      ),
     );
   }
 
   if (thisInput > 0 && priorInput > 0 && Math.abs(hitRatioDeltaPp) >= 5) {
     const dir = hitRatioDeltaPp > 0 ? '↗' : '↘';
     bullets.push(
-      `Cache hit ratio ${(thisHitRatio * 100).toFixed(0)}% ${dir} ${Math.abs(hitRatioDeltaPp).toFixed(0)}pp vs prior week.`,
+      translate(
+        t,
+        'narrative.weekSummary.bullet.cacheHitDelta',
+        'Cache hit ratio {pct}% {dir} {deltaPp}pp vs prior week.',
+        {
+          pct: (thisHitRatio * 100).toFixed(0),
+          dir,
+          deltaPp: Math.abs(hitRatioDeltaPp).toFixed(0),
+        },
+      ),
     );
   } else if (thisInput > 0) {
-    bullets.push(`Cache hit ratio ${(thisHitRatio * 100).toFixed(0)}% (stable).`);
+    bullets.push(
+      translate(
+        t,
+        'narrative.weekSummary.bullet.cacheHitStable',
+        'Cache hit ratio {pct}% (stable).',
+        {
+          pct: (thisHitRatio * 100).toFixed(0),
+        },
+      ),
+    );
   }
 
   if (maxModeShare >= 0.1) {
     bullets.push(
-      `Max-mode is ${(maxModeShare * 100).toFixed(0)}% of this week's spend (${fmtUSDInline(maxModeCost)}).`,
+      translate(
+        t,
+        'narrative.weekSummary.bullet.maxMode',
+        "Max-mode is {pct}% of this week's spend ({cost}).",
+        {
+          pct: (maxModeShare * 100).toFixed(0),
+          cost: fmtUSDInline(maxModeCost),
+        },
+      ),
     );
   }
 
@@ -179,7 +245,16 @@ export function composeWeekSummary(
     const sharePct = (hottestDay.cost / Math.max(0.0001, thisWeekCost)) * 100;
     if (sharePct >= 30) {
       bullets.push(
-        `${hottestDay.date} alone was ${fmtUSDInline(hottestDay.cost)} — ${sharePct.toFixed(0)}% of the week.`,
+        translate(
+          t,
+          'narrative.weekSummary.bullet.hottestDay',
+          '{date} alone was {cost} — {sharePct}% of the week.',
+          {
+            date: hottestDay.date,
+            cost: fmtUSDInline(hottestDay.cost),
+            sharePct: sharePct.toFixed(0),
+          },
+        ),
       );
     }
   }
@@ -187,13 +262,36 @@ export function composeWeekSummary(
   // Suggestion — only when something actionable stands out.
   let suggestion: string | null = null;
   if (costDeltaPct !== null && costDeltaPct >= 0.5) {
-    suggestion = `Spend is up ${(costDeltaPct * 100).toFixed(0)}% — open the Anomalies tab to see what changed.`;
+    suggestion = translate(
+      t,
+      'narrative.weekSummary.suggestion.spendUp',
+      'Spend is up {pct}% — open the Anomalies tab to see what changed.',
+      { pct: (costDeltaPct * 100).toFixed(0) },
+    );
   } else if (maxModeShare >= 0.4) {
-    suggestion = `Max-mode is driving ${(maxModeShare * 100).toFixed(0)}% of this week — review whether every max request was necessary.`;
+    suggestion = translate(
+      t,
+      'narrative.weekSummary.suggestion.maxModeHeavy',
+      'Max-mode is driving {pct}% of this week — review whether every max request was necessary.',
+      { pct: (maxModeShare * 100).toFixed(0) },
+    );
   } else if (hitRatioDeltaPp <= -10) {
-    suggestion = `Cache hit ratio dropped ${Math.abs(hitRatioDeltaPp).toFixed(0)}pp — new conversation patterns are bypassing cache.`;
+    suggestion = translate(
+      t,
+      'narrative.weekSummary.suggestion.cacheDrop',
+      'Cache hit ratio dropped {deltaPp}pp — new conversation patterns are bypassing cache.',
+      { deltaPp: Math.abs(hitRatioDeltaPp).toFixed(0) },
+    );
   } else if (topModelShare >= 0.7 && distinctModels >= 3) {
-    suggestion = `${topModelName} dominates ${(topModelShare * 100).toFixed(0)}% — check the Models page to see if a cheaper alternative fits.`;
+    suggestion = translate(
+      t,
+      'narrative.weekSummary.suggestion.topModelDominant',
+      '{topModel} dominates {pct}% — check the Models page to see if a cheaper alternative fits.',
+      {
+        topModel: topModelName,
+        pct: (topModelShare * 100).toFixed(0),
+      },
+    );
   }
 
   return {

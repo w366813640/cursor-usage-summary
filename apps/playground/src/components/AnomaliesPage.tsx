@@ -10,6 +10,7 @@ import {
   detectAllAnomalies,
 } from '@cu/data';
 import { AlertTriangle, ChevronRight, Database, Flame, Layers } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { Panel } from './Panel';
@@ -35,8 +36,9 @@ interface AnomaliesPageProps {
  * overview heatmap drill).
  */
 export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
+  const t = useT();
   const { all, bySeverity, costSpikes, cprShifts, cacheDrops } = useMemo(() => {
-    const detection = detectAllAnomalies(summary, rows);
+    const detection = detectAllAnomalies(summary, rows, { t });
     const costSpikes = detection.all.filter((a): a is CostSpikeAnomaly => a.kind === 'cost-spike');
     const cprShifts = detection.all.filter(
       (a): a is CostPerReqShiftAnomaly => a.kind === 'costperreq-shift',
@@ -51,7 +53,7 @@ export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
       cprShifts,
       cacheDrops,
     };
-  }, [summary, rows]);
+  }, [summary, rows, t]);
 
   const hasAny = all.length > 0;
 
@@ -66,18 +68,16 @@ export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
       />
 
       {!hasAny ? (
-        <Panel title="No anomalies detected" subtitle="Last 14-day baseline">
+        <Panel title={t('anomalies.none.title')} subtitle={t('anomalies.none.subtitle')}>
           <div className="font-mono text-[12px] text-[var(--color-text-subtle)] leading-relaxed">
-            Everything in the loaded data falls within your usual envelope. We need at least 7 days
-            of history to start scoring; load more data and try again, or adjust the look-back
-            window in a future build.
+            {t('anomalies.none.body')}
           </div>
         </Panel>
       ) : (
         <>
           <DetectorSection
-            title="Cost spikes"
-            subtitle="Daily spend > 2.5 robust-Z or 5x median"
+            title={t('anomalies.section.costSpikes.title')}
+            subtitle={t('anomalies.section.costSpikes.subtitle')}
             icon={<Flame className="h-3.5 w-3.5" aria-hidden="true" />}
             count={costSpikes.length}
           >
@@ -88,8 +88,8 @@ export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
           </DetectorSection>
 
           <DetectorSection
-            title="Cost-per-request shifts"
-            subtitle="$/req > 3x your personal baseline (catches model switches)"
+            title={t('anomalies.section.cpr.title')}
+            subtitle={t('anomalies.section.cpr.subtitle')}
             icon={<Layers className="h-3.5 w-3.5" aria-hidden="true" />}
             count={cprShifts.length}
           >
@@ -100,8 +100,8 @@ export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
           </DetectorSection>
 
           <DetectorSection
-            title="Cache hit drops"
-            subtitle="Hit ratio fell >= 10pp below baseline"
+            title={t('anomalies.section.cache.title')}
+            subtitle={t('anomalies.section.cache.subtitle')}
             icon={<Database className="h-3.5 w-3.5" aria-hidden="true" />}
             count={cacheDrops.length}
           >
@@ -131,6 +131,7 @@ interface SummaryBarProps {
 }
 
 function SummaryBar({ totalDays, anomalies, high, medium, low }: SummaryBarProps) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -138,13 +139,17 @@ function SummaryBar({ totalDays, anomalies, high, medium, low }: SummaryBarProps
       transition={{ duration: 0.18 }}
       className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
     >
-      <Metric label="Days scanned" value={String(totalDays)} />
+      <Metric label={t('anomalies.summary.daysScanned')} value={String(totalDays)} />
       <Divider />
-      <Metric label="Anomalies" value={String(anomalies)} emphasis={anomalies > 0} />
+      <Metric
+        label={t('anomalies.summary.anomalies')}
+        value={String(anomalies)}
+        emphasis={anomalies > 0}
+      />
       <Divider />
-      <Metric label="High" value={String(high)} tone="high" />
-      <Metric label="Medium" value={String(medium)} tone="medium" />
-      <Metric label="Low" value={String(low)} tone="low" />
+      <Metric label={t('severity.high')} value={String(high)} tone="high" />
+      <Metric label={t('severity.medium')} value={String(medium)} tone="medium" />
+      <Metric label={t('severity.low')} value={String(low)} tone="low" />
     </motion.div>
   );
 }
@@ -206,6 +211,7 @@ function DetectorSection({
   count: number;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <Panel
       title={title}
@@ -213,7 +219,7 @@ function DetectorSection({
       action={
         <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {icon}
-          <span>{count} flagged</span>
+          <span>{t('anomalies.section.flagged', { n: count })}</span>
         </span>
       }
     >
@@ -223,9 +229,10 @@ function DetectorSection({
 }
 
 function EmptyDetector() {
+  const t = useT();
   return (
     <div className="font-mono text-[12px] text-[var(--color-text-subtle)]">
-      Nothing flagged in your loaded data.
+      {t('anomalies.section.empty')}
     </div>
   );
 }
@@ -235,12 +242,13 @@ function EmptyDetector() {
  * -------------------------------------------------------------- */
 
 function CostSpikeCard({ anomaly }: { anomaly: CostSpikeAnomaly }) {
+  const t = useT();
   return (
     <AnomalyCardShell anomaly={anomaly}>
-      <Stat label="cost" value={fmtUSD(anomaly.cost)} />
-      <Stat label="baseline" value={fmtUSD(anomaly.baselineMedian)} />
+      <Stat label={t('anomalies.stat.cost')} value={fmtUSD(anomaly.cost)} />
+      <Stat label={t('anomalies.stat.baseline')} value={fmtUSD(anomaly.baselineMedian)} />
       <Stat
-        label="signal"
+        label={t('anomalies.stat.signal')}
         value={
           anomaly.baselineMad === 0
             ? `${(anomaly.cost / Math.max(anomaly.baselineMedian, 0.5)).toFixed(1)}x`
@@ -252,22 +260,27 @@ function CostSpikeCard({ anomaly }: { anomaly: CostSpikeAnomaly }) {
 }
 
 function CostPerReqCard({ anomaly }: { anomaly: CostPerReqShiftAnomaly }) {
+  const t = useT();
   return (
     <AnomalyCardShell anomaly={anomaly}>
-      <Stat label="$/req" value={fmtUSD(anomaly.current)} />
-      <Stat label="baseline" value={fmtUSD(anomaly.baseline)} />
-      <Stat label="ratio" value={`${anomaly.ratio.toFixed(1)}x`} />
-      <Stat label="top model" value={anomaly.topModel} mono compact />
+      <Stat label={t('anomalies.stat.costPerReq')} value={fmtUSD(anomaly.current)} />
+      <Stat label={t('anomalies.stat.baseline')} value={fmtUSD(anomaly.baseline)} />
+      <Stat label={t('anomalies.stat.ratio')} value={`${anomaly.ratio.toFixed(1)}x`} />
+      <Stat label={t('anomalies.stat.topModel')} value={anomaly.topModel} mono compact />
     </AnomalyCardShell>
   );
 }
 
 function CacheDropCard({ anomaly }: { anomaly: CacheHitDropAnomaly }) {
+  const t = useT();
   return (
     <AnomalyCardShell anomaly={anomaly}>
-      <Stat label="today" value={`${(anomaly.current * 100).toFixed(0)}%`} />
-      <Stat label="baseline" value={`${(anomaly.baseline * 100).toFixed(0)}%`} />
-      <Stat label="drop" value={`${anomaly.dropPp.toFixed(0)}pp`} />
+      <Stat label={t('anomalies.stat.today')} value={`${(anomaly.current * 100).toFixed(0)}%`} />
+      <Stat
+        label={t('anomalies.stat.baseline')}
+        value={`${(anomaly.baseline * 100).toFixed(0)}%`}
+      />
+      <Stat label={t('anomalies.stat.drop')} value={`${anomaly.dropPp.toFixed(0)}pp`} />
     </AnomalyCardShell>
   );
 }
@@ -279,6 +292,7 @@ function AnomalyCardShell({
   anomaly: Anomaly;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const tone =
     anomaly.severity === 'high'
       ? 'var(--color-accent)'
@@ -306,7 +320,7 @@ function AnomalyCardShell({
         onClick={() => openDay(anomaly.date)}
         className="flex items-center gap-1 self-center rounded-md border border-transparent px-2 py-1 font-mono text-[11px] text-[var(--color-text-subtle)] uppercase tracking-[0.08em] transition-colors hover:border-[var(--color-border)] hover:text-[var(--color-text)]"
       >
-        Open day
+        {t('anomalies.openDay')}
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
       </button>
     </div>
@@ -314,6 +328,7 @@ function AnomalyCardShell({
 }
 
 function SeverityBadge({ severity }: { severity: Severity }) {
+  const t = useT();
   const styles: Record<Severity, { fg: string; bg: string }> = {
     high: { fg: 'var(--color-accent-text)', bg: 'var(--color-accent)' },
     medium: { fg: 'var(--color-text)', bg: 'var(--color-surface)' },
@@ -326,7 +341,7 @@ function SeverityBadge({ severity }: { severity: Severity }) {
       style={{ background: s.bg, color: s.fg }}
     >
       <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
-      {severity}
+      {t(`severity.${severity}`)}
     </span>
   );
 }
@@ -365,25 +380,28 @@ function Stat({
  * -------------------------------------------------------------- */
 
 function MethodPanel() {
+  const t = useT();
+  // Each bullet template wraps a bolded label in `<<L>>…<</L>>` so we
+  // can split on the same sentinel here and let translators reorder
+  // freely (CJK often inverts the label/body order).
+  const renderLabelled = (template: string) => {
+    const parts = template.split(/<<L>>|<<\/L>>/);
+    return (
+      <>
+        {parts[0]}
+        <span className="text-[var(--color-text)]">{parts[1]}</span>
+        {parts.slice(2).join('')}
+      </>
+    );
+  };
+
   return (
-    <Panel title="How this works" subtitle="Pure local stats">
+    <Panel title={t('anomalies.method.title')} subtitle={t('anomalies.method.subtitle')}>
       <ul className="flex list-inside list-disc flex-col gap-1.5 font-mono text-[12px] text-[var(--color-text-subtle)] leading-relaxed">
-        <li>
-          <span className="text-[var(--color-text)]">Cost spike</span>: robust z-score (MAD) against
-          the trailing 14 days. Falls back to a 5x median ratio when your history is perfectly flat
-          so first-time bursts still surface.
-        </li>
-        <li>
-          <span className="text-[var(--color-text)]">Cost-per-request</span>: today's $/req divided
-          by your 14-day median. Caught when
-          {' >= 3x'} and the day spent at least $5 to filter noise.
-        </li>
-        <li>
-          <span className="text-[var(--color-text)]">Cache hit drop</span>: today's cache-read share
-          vs trailing median, measured in percentage points. Days with under 1k input tokens are
-          ignored.
-        </li>
-        <li>All detectors run client-side over the loaded CSV. No data leaves your machine.</li>
+        <li>{renderLabelled(t('anomalies.method.bullet1'))}</li>
+        <li>{renderLabelled(t('anomalies.method.bullet2'))}</li>
+        <li>{renderLabelled(t('anomalies.method.bullet3'))}</li>
+        <li>{t('anomalies.method.bullet4')}</li>
       </ul>
     </Panel>
   );

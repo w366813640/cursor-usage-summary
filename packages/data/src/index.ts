@@ -72,3 +72,4 @@ export {
   type BudgetScenarioKind,
   type BudgetScenarioOptions,
 } from './scenarios';
+export { interpolate, translate, type Translator } from './i18n';

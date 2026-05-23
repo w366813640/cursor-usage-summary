@@ -1,6 +1,7 @@
 import { BurnStoryCard, fmtUSD, fmtUSDCompact } from '@cu/charts';
-import type { RowWithCost, UsageSummary } from '@cu/data';
+import { type RowWithCost, type Translator, type UsageSummary, translate } from '@cu/data';
 import { formatSonnetEquivalence, medianSonnetCost, ratioOver } from '@cu/pricing';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { type RefObject, useMemo, useRef } from 'react';
 import { ExportButton } from '../../export/ExportButton';
@@ -23,6 +24,7 @@ interface OverviewBurnsProps {
  */
 export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
   const burnsRef = useRef<HTMLDivElement>(null);
+  const t = useT();
 
   const top5 = useMemo(() => summary.topBurns.slice(0, 5), [summary.topBurns]);
   const sonnetBaseline = useMemo(() => medianSonnetCost(rows), [rows]);
@@ -45,11 +47,11 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
       className="flex flex-col gap-4"
     >
       <SectionHeader
-        title="Top 5 burns"
+        title={t('overview.burns.title')}
         subtitle={
           sonnetBaseline > 0
-            ? `Each request ≈ N regular Sonnet calls · baseline ${fmtUSDCompact(sonnetBaseline)} / call (median Sonnet in this dataset)`
-            : 'No Sonnet baseline in this dataset'
+            ? t('overview.burns.subtitleWithBaseline', { baseline: fmtUSDCompact(sonnetBaseline) })
+            : t('overview.burns.subtitleNoBaseline')
         }
         action={
           <ExportButton
@@ -58,14 +60,30 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
           />
         }
       />
-      {hottestDay.date ? (
-        <p className="font-serif text-[15px] italic leading-snug text-[var(--color-text-muted)]">
-          The hottest day was <span className="text-[var(--color-text)]">{hottestDay.date}</span> —
-          burned <span className="text-[var(--color-accent)]">{fmtUSD(hottestDay.cost)}</span>{' '}
-          across {hottestDay.rows} rows. Below are the five single requests that cost the most in
-          the past {daysSpan} days — each one tells its own token-mix story.
-        </p>
-      ) : null}
+      {hottestDay.date
+        ? (() => {
+            // Translate, then split on placeholders so we can colour the
+            // date + cost inline. Keeping the split here (not in the
+            // dictionary) means translators only worry about the
+            // sentence, not the JSX structure.
+            const template = t('overview.burns.hottest', {
+              date: '<<DATE>>',
+              cost: '<<COST>>',
+              rows: hottestDay.rows,
+              days: daysSpan,
+            });
+            const [before, mid, after] = template.split(/<<(?:DATE|COST)>>/);
+            return (
+              <p className="font-serif text-[15px] italic leading-snug text-[var(--color-text-muted)]">
+                {before}
+                <span className="text-[var(--color-text)]">{hottestDay.date}</span>
+                {mid}
+                <span className="text-[var(--color-accent)]">{fmtUSD(hottestDay.cost)}</span>
+                {after}
+              </p>
+            );
+          })()
+        : null}
       <div
         ref={burnsRef}
         className="grid grid-cols-1 gap-4 bg-[var(--color-bg)] p-2 lg:grid-cols-2 2xl:grid-cols-3"
@@ -73,7 +91,7 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
         {top5.map((r, idx) => {
           const ratio = ratioOver(r.cost, sonnetBaseline);
           const equivalence = formatSonnetEquivalence(ratio);
-          const caption = burnCaption({ row: r });
+          const caption = burnCaption({ row: r, t });
           return (
             <BurnStoryCard
               key={`${r.dateISO}-${idx}`}
@@ -101,6 +119,8 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
 
 interface BurnCaptionArgs {
   row: RowWithCost;
+  /** UI translator threaded through from the parent component. */
+  t: Translator;
 }
 
 /**
@@ -118,36 +138,67 @@ interface BurnCaptionArgs {
  * amplifier sitting on top of whichever token bucket dominated — the BurnStoryCard
  * already has a MAX MODE badge, but the caption is where we explain the
  * billing impact rather than just the label.
+ *
+ * Note: we deliberately don't title-case localised strings — CJK locales
+ * don't have a "first letter" concept, and the dictionary entries are
+ * already written in their natural sentence case.
  */
-function burnCaption({ row }: BurnCaptionArgs): string | null {
-  const t = row.tokens;
-  const total = t.inputWithoutCacheWrite + t.inputWithCacheWrite + t.cacheRead + t.output;
+function burnCaption({ row, t }: BurnCaptionArgs): string | null {
+  const tk = row.tokens;
+  const total = tk.inputWithoutCacheWrite + tk.inputWithCacheWrite + tk.cacheRead + tk.output;
   if (total === 0) return null;
 
-  const shareCR = t.cacheRead / total;
-  const shareCW = t.inputWithCacheWrite / total;
-  const shareIn = t.inputWithoutCacheWrite / total;
-  const shareOut = t.output / total;
+  const shareCR = tk.cacheRead / total;
+  const shareCW = tk.inputWithCacheWrite / total;
+  const shareIn = tk.inputWithoutCacheWrite / total;
+  const shareOut = tk.output / total;
 
   // Pick the dominant bucket. Thresholds tuned so a 40-50% slice already
   // wins (very few requests are perfectly 25/25/25/25).
   let core: string;
   if (shareOut >= 0.5) {
-    core = `output-heavy · ${(shareOut * 100).toFixed(0)}% generated by the model`;
+    core = translate(
+      t,
+      'narrative.burn.outputHeavy',
+      'output-heavy · {pct}% generated by the model',
+      { pct: (shareOut * 100).toFixed(0) },
+    );
   } else if (shareCR >= 0.5) {
-    core = `warm-cache rerun · ${(shareCR * 100).toFixed(0)}% replayed from cache`;
+    core = translate(
+      t,
+      'narrative.burn.warmCache',
+      'warm-cache rerun · {pct}% replayed from cache',
+      { pct: (shareCR * 100).toFixed(0) },
+    );
   } else if (shareCW >= 0.4) {
-    core = `cold-cache build · ${(shareCW * 100).toFixed(0)}% feeding the cache for the first time`;
+    core = translate(
+      t,
+      'narrative.burn.coldCache',
+      'cold-cache build · {pct}% feeding the cache for the first time',
+      { pct: (shareCW * 100).toFixed(0) },
+    );
   } else if (shareIn >= 0.4) {
-    core = `fresh input-heavy · ${(shareIn * 100).toFixed(0)}% billed at the full input rate`;
+    core = translate(
+      t,
+      'narrative.burn.freshInput',
+      'fresh input-heavy · {pct}% billed at the full input rate',
+      { pct: (shareIn * 100).toFixed(0) },
+    );
   } else {
-    core = `balanced mix · ${(total / 1_000_000).toFixed(1)}M tokens in one shot`;
+    core = translate(t, 'narrative.burn.balanced', 'balanced mix · {tokens}M tokens in one shot', {
+      tokens: (total / 1_000_000).toFixed(1),
+    });
   }
 
   if (row.maxMode) {
-    return `Max-mode 2× billing · ${core}`;
+    return translate(t, 'narrative.burn.maxMode', 'Max-mode 2× billing · {core}', {
+      core,
+    });
   }
-  // Capitalise the first letter for non-max-mode cases so the sentence reads
-  // cleanly without the "Max-mode" prefix doing the heavy lifting.
-  return core[0]!.toUpperCase() + core.slice(1);
+  // Capitalise the first letter only for English — CJK doesn't need it
+  // and our localised strings are already sentence-cased. We detect by
+  // checking whether the first char is in the ASCII range.
+  const first = core[0]!;
+  if (first >= 'a' && first <= 'z') return first.toUpperCase() + core.slice(1);
+  return core;
 }

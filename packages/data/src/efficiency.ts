@@ -1,4 +1,5 @@
 import type { RowWithCost, UsageSummary } from './aggregators';
+import { type Translator, translate } from './i18n';
 
 /**
  * "Where is my money going, and what could I do about it?"
@@ -76,9 +77,18 @@ export interface ComputeEfficiencyOptions {
   maxModeReductionRate?: number;
   /** Min dollar savings to surface as a recommendation. Default $1. */
   minRecommendationSavings?: number;
+  /**
+   * Optional locale translator. When omitted, every recommendation's
+   * title/detail falls back to its English literal so the test suite
+   * (which asserts substrings like "max-mode" / "single-model risk")
+   * keeps working unchanged.
+   */
+  t?: Translator;
 }
 
-const DEFAULTS: Required<ComputeEfficiencyOptions> = {
+// `t` is excluded — it's a function so there's no sensible default
+// shape to merge into.
+const DEFAULTS: Required<Omit<ComputeEfficiencyOptions, 't'>> = {
   minRequestUnits: 10,
   maxModeReductionRate: 0.5,
   minRecommendationSavings: 1,
@@ -93,6 +103,7 @@ export function computeEfficiency(
     ...DEFAULTS,
     ...opts,
   };
+  const t = opts.t;
 
   const actualCost = summary.totalCost;
   const actualRequests = summary.totalRequestUnits;
@@ -161,6 +172,7 @@ export function computeEfficiency(
     maxModeReductionRate,
     actualCost,
     minRecommendationSavings,
+    t,
   });
 
   return {
@@ -184,6 +196,7 @@ interface RecommendationContext {
   maxModeReductionRate: number;
   actualCost: number;
   minRecommendationSavings: number;
+  t: Translator | undefined;
 }
 
 function buildRecommendations(ctx: RecommendationContext): EfficiencyRecommendation[] {
@@ -204,8 +217,28 @@ function buildRecommendations(ctx: RecommendationContext): EfficiencyRecommendat
         if (savings >= ctx.minRecommendationSavings) {
           out.push({
             kind: 'switch-model',
-            title: `Consider switching half of ${shortName(expensive.model)} to ${shortName(ctx.cheapest.model)} to save ~$${savings.toFixed(2)}`,
-            detail: `${shortName(expensive.model)} cost $${expensive.costPerReq.toFixed(2)}/req vs ${shortName(ctx.cheapest.model)} at $${ctx.cheapest.costPerReq.toFixed(2)}/req (${ratio.toFixed(1)}x cheaper). Routing routine work to the cheaper model unlocks the saving without changing the harder tasks.`,
+            title: translate(
+              ctx.t,
+              'narrative.efficiency.switchModel.title',
+              'Consider switching half of {expensive} to {cheap} to save ~${savings}',
+              {
+                expensive: shortName(expensive.model),
+                cheap: shortName(ctx.cheapest.model),
+                savings: savings.toFixed(2),
+              },
+            ),
+            detail: translate(
+              ctx.t,
+              'narrative.efficiency.switchModel.detail',
+              '{expensive} cost ${expensiveCpr}/req vs {cheap} at ${cheapCpr}/req ({ratio}x cheaper). Routing routine work to the cheaper model unlocks the saving without changing the harder tasks.',
+              {
+                expensive: shortName(expensive.model),
+                expensiveCpr: expensive.costPerReq.toFixed(2),
+                cheap: shortName(ctx.cheapest.model),
+                cheapCpr: ctx.cheapest.costPerReq.toFixed(2),
+                ratio: ratio.toFixed(1),
+              },
+            ),
             estimatedSavings: savings,
             priority: savings > 20 ? 'high' : savings > 5 ? 'medium' : 'low',
           });
@@ -221,8 +254,21 @@ function buildRecommendations(ctx: RecommendationContext): EfficiencyRecommendat
     if (share >= 0.15 && savings >= ctx.minRecommendationSavings) {
       out.push({
         kind: 'drop-maxmode',
-        title: `Max-mode is ${(share * 100).toFixed(0)}% of your spend — ~$${savings.toFixed(2)} of that is the premium`,
-        detail: `You spent $${ctx.totalMaxModeCost.toFixed(2)} with max-mode on. Max-mode typically costs 2-4x baseline; turning it off when you don't need the deep-thinking pass would save roughly ${(ctx.maxModeReductionRate * 100).toFixed(0)}% of those rows.`,
+        title: translate(
+          ctx.t,
+          'narrative.efficiency.dropMaxmode.title',
+          'Max-mode is {pct}% of your spend — ~${savings} of that is the premium',
+          { pct: (share * 100).toFixed(0), savings: savings.toFixed(2) },
+        ),
+        detail: translate(
+          ctx.t,
+          'narrative.efficiency.dropMaxmode.detail',
+          "You spent ${cost} with max-mode on. Max-mode typically costs 2-4x baseline; turning it off when you don't need the deep-thinking pass would save roughly {ratePct}% of those rows.",
+          {
+            cost: ctx.totalMaxModeCost.toFixed(2),
+            ratePct: (ctx.maxModeReductionRate * 100).toFixed(0),
+          },
+        ),
         estimatedSavings: savings,
         priority: savings > 20 ? 'high' : savings > 5 ? 'medium' : 'low',
       });
@@ -236,8 +282,18 @@ function buildRecommendations(ctx: RecommendationContext): EfficiencyRecommendat
     if (diversifySavings >= ctx.minRecommendationSavings) {
       out.push({
         kind: 'switch-model',
-        title: `${(topModel.costShare * 100).toFixed(0)}% of spend is on ${shortName(topModel.model)} — single-model risk`,
-        detail: `Heavy single-model dependence makes you sensitive to price changes and outages. A modest fanout to a complementary model would shave ~$${diversifySavings.toFixed(2)} and add resilience.`,
+        title: translate(
+          ctx.t,
+          'narrative.efficiency.concentration.title',
+          '{pct}% of spend is on {model} — single-model risk',
+          { pct: (topModel.costShare * 100).toFixed(0), model: shortName(topModel.model) },
+        ),
+        detail: translate(
+          ctx.t,
+          'narrative.efficiency.concentration.detail',
+          'Heavy single-model dependence makes you sensitive to price changes and outages. A modest fanout to a complementary model would shave ~${savings} and add resilience.',
+          { savings: diversifySavings.toFixed(2) },
+        ),
         estimatedSavings: diversifySavings,
         priority: 'low',
       });
@@ -248,9 +304,16 @@ function buildRecommendations(ctx: RecommendationContext): EfficiencyRecommendat
   if (out.length === 0) {
     out.push({
       kind: 'good-news',
-      title: 'No obvious efficiency wins — your mix is already lean',
-      detail:
+      title: translate(
+        ctx.t,
+        'narrative.efficiency.goodNews.title',
+        'No obvious efficiency wins — your mix is already lean',
+      ),
+      detail: translate(
+        ctx.t,
+        'narrative.efficiency.goodNews.detail',
         'Your spend is spread across reasonable $/req models with no large max-mode tax. Keep watching the anomaly inspector for surprise spikes.',
+      ),
       estimatedSavings: 0,
       priority: 'low',
     });

@@ -1,6 +1,7 @@
 import { WeekHourHeatmap, fmtTokens, fmtUSD, hourWeekdayToCells } from '@cu/charts';
 import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
 import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronRight, Flame } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuditedRows } from '../hooks/useAuditedRows';
@@ -54,6 +55,7 @@ const DETAIL_CAP = 500;
  *     useAuditedRows)
  */
 export function DayPage({ summary, rows }: DayPageProps) {
+  const t = useT();
   const [metric, setMetric] = useState<'cost' | 'rows'>('cost');
   const [filter, setFilter] = useState<DateFilter>(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -121,12 +123,12 @@ export function DayPage({ summary, rows }: DayPageProps) {
   // included day — that's the day the user is most likely auditing.
   const targetDate = useMemo(() => resolveTargetDate(filter), [filter]);
   const answer = useMemo(
-    () => (targetDate ? buildDayAnswer(rows, targetDate) : null),
-    [rows, targetDate],
+    () => (targetDate ? buildDayAnswer(rows, targetDate, t) : null),
+    [rows, targetDate, t],
   );
   const comparisons = useMemo(
-    () => (targetDate ? buildDayComparisons(rows, targetDate) : null),
-    [rows, targetDate],
+    () => (targetDate ? buildDayComparisons(rows, targetDate, t) : null),
+    [rows, targetDate, t],
   );
 
   // Ref into the audit table so the hero "Jump to row" button can scroll
@@ -291,7 +293,11 @@ function DayAnswerHero({
   onJumpToBiggest,
   partiallyEstimated,
 }: DayAnswerHeroProps) {
-  const narrative = useMemo(() => composeDayNarrative(answer, comparison), [answer, comparison]);
+  const t = useT();
+  const narrative = useMemo(
+    () => composeDayNarrative(answer, comparison, t),
+    [answer, comparison, t],
+  );
   const sharePct = Math.round(answer.shareOfWeek * 100);
   const biggestTime = answer.biggest ? answer.biggest.date.toISOString().slice(11, 16) : null;
 

@@ -1,4 +1,5 @@
 import type { RowWithCost, UsageSummary } from './aggregators';
+import { type Translator, translate } from './i18n';
 
 /**
  * Locally-computed anomaly detection over Cursor usage data.
@@ -71,9 +72,19 @@ export interface AnomalyDetectionOptions {
   cacheDropMinPp?: number;
   /** Look-back window used for personal baselines. Default 14 days. */
   baselineWindowDays?: number;
+  /**
+   * Optional locale translator. When omitted, every `explanation`
+   * string falls back to its English literal — the test suite asserts
+   * substrings like "spent", "cost/request", and "cache hit ratio"
+   * against this default.
+   */
+  t?: Translator;
 }
 
-const DEFAULTS: Required<AnomalyDetectionOptions> = {
+// Defaults for every numeric tuning knob. `t` is intentionally excluded:
+// it's a function, has no sensible "default" value, and is threaded
+// separately into the explanation builders below.
+const DEFAULTS: Required<Omit<AnomalyDetectionOptions, 't'>> = {
   costSpikeZ: 2.5,
   costSpikeMinCost: 5,
   costPerReqRatio: 3.0,
@@ -162,8 +173,29 @@ export function detectCostSpikes(
 
     const severity: Severity = z >= 3.5 ? 'high' : z >= 2.5 ? 'medium' : 'low';
     const explanation = usedRatioFallback
-      ? `${today.date} spent $${today.cost.toFixed(2)}, ${(today.cost / Math.max(med, 0.5)).toFixed(1)}x your usual baseline of $${med.toFixed(2)}.`
-      : `${today.date} spent $${today.cost.toFixed(2)}, ${z.toFixed(1)} robust-z above the ${baselineWindowDays}-day baseline of $${med.toFixed(2)}.`;
+      ? translate(
+          opts.t,
+          'narrative.anomaly.spikeRatio',
+          '{date} spent ${cost}, {ratio}x your usual baseline of ${baseline}.',
+          {
+            date: today.date,
+            cost: today.cost.toFixed(2),
+            ratio: (today.cost / Math.max(med, 0.5)).toFixed(1),
+            baseline: med.toFixed(2),
+          },
+        )
+      : translate(
+          opts.t,
+          'narrative.anomaly.spikeZ',
+          '{date} spent ${cost}, {z} robust-z above the {window}-day baseline of ${baseline}.',
+          {
+            date: today.date,
+            cost: today.cost.toFixed(2),
+            z: z.toFixed(1),
+            window: baselineWindowDays,
+            baseline: med.toFixed(2),
+          },
+        );
     out.push({
       kind: 'cost-spike',
       date: today.date,
@@ -264,7 +296,18 @@ export function detectCostPerReqShifts(
       topModel: today.topModel,
       dailyCost: today.cost,
       severity,
-      explanation: `${today.date} cost/request was $${today.cpr.toFixed(2)}, ${ratio.toFixed(1)}x your baseline of $${baseline.toFixed(2)} (top model on this day: ${today.topModel}).`,
+      explanation: translate(
+        opts.t,
+        'narrative.anomaly.cprShift',
+        '{date} cost/request was ${cpr}, {ratio}x your baseline of ${baseline} (top model on this day: {topModel}).',
+        {
+          date: today.date,
+          cpr: today.cpr.toFixed(2),
+          ratio: ratio.toFixed(1),
+          baseline: baseline.toFixed(2),
+          topModel: today.topModel,
+        },
+      ),
     });
   }
   return out;
@@ -333,7 +376,17 @@ export function detectCacheHitDrops(
       baseline,
       dropPp,
       severity,
-      explanation: `${today.date} cache hit ratio dropped ${dropPp.toFixed(0)}pp to ${(today.ratio * 100).toFixed(0)}% (baseline ${(baseline * 100).toFixed(0)}%).`,
+      explanation: translate(
+        opts.t,
+        'narrative.anomaly.cacheDrop',
+        '{date} cache hit ratio dropped {dropPp}pp to {current}% (baseline {baseline}%).',
+        {
+          date: today.date,
+          dropPp: dropPp.toFixed(0),
+          current: (today.ratio * 100).toFixed(0),
+          baseline: (baseline * 100).toFixed(0),
+        },
+      ),
     });
   }
   return out;

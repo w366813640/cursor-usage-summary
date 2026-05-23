@@ -6,6 +6,7 @@ import {
   computeEfficiency,
 } from '@cu/data';
 import { Layers, Lightbulb, Sparkles, ThermometerSun, TrendingDown } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { Panel } from '../Panel';
@@ -24,7 +25,8 @@ interface EfficiencyCardProps {
  * priority pill so heavy hitters (>= $20 estimated savings) read first.
  */
 export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
-  const report = useMemo(() => computeEfficiency(summary, rows), [summary, rows]);
+  const t = useT();
+  const report = useMemo(() => computeEfficiency(summary, rows, { t }), [summary, rows, t]);
 
   return (
     <motion.section
@@ -33,12 +35,12 @@ export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
       transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
     >
       <Panel
-        title="Efficiency"
-        subtitle="Where can I trim?"
+        title={t('overview.efficiency.title')}
+        subtitle={t('overview.efficiency.subtitle')}
         action={
           <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             <ThermometerSun className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{report.byModel.length} models scanned</span>
+            <span>{t('overview.efficiency.modelsScanned', { n: report.byModel.length })}</span>
           </span>
         }
       >
@@ -52,36 +54,44 @@ export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
 }
 
 function StatRow({ report }: { report: ReturnType<typeof computeEfficiency> }) {
+  const t = useT();
   const cheapestSavings = report.scenarios.cheapestMix.savings;
   const noMaxSavings = report.scenarios.noMaxMode.savings;
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <ScenarioStat
-        label="Your cost/req"
+        label={t('overview.efficiency.yourCostPerReq')}
         value={fmtUSD(report.actualCostPerReq)}
         sub={
           report.cheapest
-            ? `cheapest model: ${shortName(report.cheapest.model)} @ ${fmtUSD(report.cheapest.costPerReq)}/req`
-            : 'not enough data yet'
+            ? t('overview.efficiency.cheapestModel', {
+                model: shortName(report.cheapest.model),
+                cost: fmtUSD(report.cheapest.costPerReq),
+              })
+            : t('overview.efficiency.notEnoughData')
         }
       />
       <ScenarioStat
-        label="Cheapest-mix savings"
+        label={t('overview.efficiency.cheapestSavings')}
         value={cheapestSavings > 0 ? `${fmtUSD(cheapestSavings)}` : '—'}
         sub={
           cheapestSavings > 0
-            ? `${(report.scenarios.cheapestMix.savingsPct * 100).toFixed(0)}% off current cost`
-            : 'already at the cheap end'
+            ? t('overview.efficiency.pctOff', {
+                pct: (report.scenarios.cheapestMix.savingsPct * 100).toFixed(0),
+              })
+            : t('overview.efficiency.alreadyCheap')
         }
         highlight={cheapestSavings > 0}
       />
       <ScenarioStat
-        label="No-max-mode savings"
+        label={t('overview.efficiency.noMaxSavings')}
         value={noMaxSavings > 0 ? `${fmtUSD(noMaxSavings)}` : '—'}
         sub={
           noMaxSavings > 0
-            ? `${(report.scenarios.noMaxMode.savingsPct * 100).toFixed(0)}% off current cost`
-            : 'max-mode is off'
+            ? t('overview.efficiency.pctOff', {
+                pct: (report.scenarios.noMaxMode.savingsPct * 100).toFixed(0),
+              })
+            : t('overview.efficiency.maxModeOff')
         }
         highlight={noMaxSavings > 0}
       />
@@ -132,6 +142,7 @@ function RecommendationList({
 }
 
 function RecCard({ rec }: { rec: EfficiencyRecommendation }) {
+  const t = useT();
   const Icon =
     rec.kind === 'switch-model'
       ? Layers
@@ -164,7 +175,7 @@ function RecCard({ rec }: { rec: EfficiencyRecommendation }) {
                 color: rec.priority === 'high' ? 'var(--color-accent-text)' : 'var(--color-text)',
               }}
             >
-              {rec.priority}
+              {t(`overview.actionFeed.priority.${rec.priority}`)}
             </span>
           ) : null}
         </div>

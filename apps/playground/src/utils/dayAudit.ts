@@ -1,4 +1,4 @@
-import type { RowWithCost } from '@cu/data';
+import { type RowWithCost, type Translator, translate } from '@cu/data';
 
 /**
  * Pure computation helpers backing the Day audit "answer hero" and
@@ -39,8 +39,16 @@ export interface DayAnswer {
  * Build the "today's answer" payload from the full row set + a target
  * date string (`YYYY-MM-DD`). Cheap (~O(rows)); safe to call on every
  * render without memoization for sub-1000 row days.
+ *
+ * Pass an optional `t` translator to localise `dateLabel`. Without it
+ * the function falls back to the English "Today (…)" form so existing
+ * callers and unit tests are unaffected.
  */
-export function buildDayAnswer(allRows: ReadonlyArray<RowWithCost>, targetDate: string): DayAnswer {
+export function buildDayAnswer(
+  allRows: ReadonlyArray<RowWithCost>,
+  targetDate: string,
+  t?: Translator,
+): DayAnswer {
   const dayRows = allRows.filter((r) => r.dateISO.slice(0, 10) === targetDate);
   const totalCost = dayRows.reduce((acc, r) => acc + r.cost, 0);
   const totalRows = dayRows.length;
@@ -85,15 +93,19 @@ export function buildDayAnswer(allRows: ReadonlyArray<RowWithCost>, targetDate: 
   }
 
   const today = todayISO();
+  const isToday = targetDate === today;
+  const dateLabel = isToday
+    ? translate(t, 'narrative.dayAudit.todayLabel', 'Today ({date})', { date: targetDate })
+    : targetDate;
   return {
     date: targetDate,
-    dateLabel: targetDate === today ? `Today (${targetDate})` : targetDate,
+    dateLabel,
     totalCost,
     totalRows,
     weekCost,
     shareOfWeek,
     biggest,
-    isToday: targetDate === today,
+    isToday,
     topModel,
     peakHour,
   };
@@ -117,10 +129,14 @@ export interface DayComparison {
  * the same weekday a week ago. Each entry handles the no-data case
  * (`hasReferenceData = false`) so the UI can render "no baseline" copy
  * without a separate branch.
+ *
+ * Optional `t` translator localises the human-readable `referenceLabel`
+ * strings; without it the English literal is used.
  */
 export function buildDayComparisons(
   allRows: ReadonlyArray<RowWithCost>,
   targetDate: string,
+  t?: Translator,
 ): { yesterday: DayComparison; sameWeekday: DayComparison } {
   const targetDateObj = parseISODate(targetDate);
   const yesterdayDate = formatISO(addDays(targetDateObj, -1));
@@ -133,19 +149,36 @@ export function buildDayComparisons(
   const yesterdayHasData = hasDataOn(allRows, yesterdayDate);
   const sameWeekdayHasData = hasDataOn(allRows, sameWeekdayDate);
 
+  // `getUTCDay()` is always 0..6 so the lookup is total, but TS can't
+  // see that — use a non-null assertion to match the rest of the file
+  // (see `parseISODate(targetDate)`).
+  const weekdayShort = WEEKDAYS[targetDateObj.getUTCDay()]!;
+  const weekdayLabel = translate(
+    t,
+    `narrative.dayAudit.weekday.${weekdayShort.toLowerCase()}`,
+    weekdayShort,
+  );
+
   return {
     yesterday: {
       target: targetCost,
       reference: yesterdayCost,
       pctDelta: pctDelta(targetCost, yesterdayCost),
-      referenceLabel: `yesterday (${yesterdayDate})`,
+      referenceLabel: translate(t, 'narrative.dayAudit.referenceYesterday', 'yesterday ({date})', {
+        date: yesterdayDate,
+      }),
       hasReferenceData: yesterdayHasData,
     },
     sameWeekday: {
       target: targetCost,
       reference: sameWeekdayCost,
       pctDelta: pctDelta(targetCost, sameWeekdayCost),
-      referenceLabel: `${WEEKDAYS[targetDateObj.getUTCDay()]} a week ago (${sameWeekdayDate})`,
+      referenceLabel: translate(
+        t,
+        'narrative.dayAudit.referenceSameWeekday',
+        '{weekday} a week ago ({date})',
+        { weekday: weekdayLabel, date: sameWeekdayDate },
+      ),
       hasReferenceData: sameWeekdayHasData,
     },
   };
@@ -157,33 +190,71 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
  * Compose the narrative paragraph shown under the answer hero. Pure
  * text — never goes through an LLM. Sentences are kept short so the
  * eye can read them inside a single beat.
+ *
+ * Optional `t` translator localises the output. Without it, the English
+ * literals embedded below are used — matching what the unit tests assert.
  */
-export function composeDayNarrative(answer: DayAnswer, comparison: DayComparison): string {
+export function composeDayNarrative(
+  answer: DayAnswer,
+  comparison: DayComparison,
+  t?: Translator,
+): string {
   if (answer.totalRows === 0) {
-    return `No requests landed on ${answer.date}. Pick another date with the filter to start your audit.`;
+    return translate(
+      t,
+      'narrative.dayAudit.empty',
+      'No requests landed on {date}. Pick another date with the filter to start your audit.',
+      { date: answer.date },
+    );
   }
 
   const parts: string[] = [];
   const costTxt = formatUSD(answer.totalCost);
-  const rowsTxt = `${answer.totalRows.toLocaleString()} request${answer.totalRows === 1 ? '' : 's'}`;
-  parts.push(`Spent ${costTxt} across ${rowsTxt}.`);
+  const rowsKey =
+    answer.totalRows === 1 ? 'narrative.dayAudit.rowsSingular' : 'narrative.dayAudit.rowsPlural';
+  const rowsTxt = translate(t, rowsKey, `{n} request${answer.totalRows === 1 ? '' : 's'}`, {
+    n: answer.totalRows.toLocaleString(),
+  });
+  parts.push(
+    translate(t, 'narrative.dayAudit.spend', 'Spent {cost} across {rows}.', {
+      cost: costTxt,
+      rows: rowsTxt,
+    }),
+  );
 
   if (answer.topModel && answer.topModel.share >= 0.15) {
     const sharePct = Math.round(answer.topModel.share * 100);
     parts.push(
-      `Top driver: ${answer.topModel.model} (${formatUSD(answer.topModel.cost)}, ${sharePct}% of the day).`,
+      translate(
+        t,
+        'narrative.dayAudit.topDriver',
+        'Top driver: {model} ({cost}, {sharePct}% of the day).',
+        {
+          model: answer.topModel.model,
+          cost: formatUSD(answer.topModel.cost),
+          sharePct,
+        },
+      ),
     );
   }
 
   if (answer.biggest && answer.biggest.cost > 0) {
-    const t = answer.biggest.date.toISOString().slice(11, 16);
+    const time = answer.biggest.date.toISOString().slice(11, 16);
     parts.push(
-      `Single biggest: ${formatUSD(answer.biggest.cost)} at ${t} on ${answer.biggest.model}.`,
+      translate(t, 'narrative.dayAudit.biggest', 'Single biggest: {cost} at {time} on {model}.', {
+        cost: formatUSD(answer.biggest.cost),
+        time,
+        model: answer.biggest.model,
+      }),
     );
   }
 
   if (answer.peakHour !== null && answer.totalRows >= 3) {
-    parts.push(`Peak hour was ${String(answer.peakHour).padStart(2, '0')}:00 UTC.`);
+    parts.push(
+      translate(t, 'narrative.dayAudit.peak', 'Peak hour was {hour}:00 UTC.', {
+        hour: String(answer.peakHour).padStart(2, '0'),
+      }),
+    );
   }
 
   if (comparison.hasReferenceData && comparison.reference > 0) {
@@ -191,11 +262,21 @@ export function composeDayNarrative(answer: DayAnswer, comparison: DayComparison
     if (!Number.isFinite(delta)) {
       // skipped — the next sentence already covers the "no baseline" case
     } else if (Math.abs(delta) < 0.05) {
-      parts.push('Roughly flat vs yesterday — no surprise jump.');
+      parts.push(
+        translate(t, 'narrative.dayAudit.flat', 'Roughly flat vs yesterday — no surprise jump.'),
+      );
     } else if (delta > 0) {
-      parts.push(`Up ${(delta * 100).toFixed(0)}% vs yesterday — worth a closer look.`);
+      parts.push(
+        translate(t, 'narrative.dayAudit.up', 'Up {pct}% vs yesterday — worth a closer look.', {
+          pct: (delta * 100).toFixed(0),
+        }),
+      );
     } else {
-      parts.push(`Down ${Math.abs(delta * 100).toFixed(0)}% vs yesterday.`);
+      parts.push(
+        translate(t, 'narrative.dayAudit.down', 'Down {pct}% vs yesterday.', {
+          pct: Math.abs(delta * 100).toFixed(0),
+        }),
+      );
     }
   }
 

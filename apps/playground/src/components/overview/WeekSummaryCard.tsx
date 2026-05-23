@@ -1,5 +1,6 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { composeWeekSummary } from '@cu/data';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { TrustHint } from '../TrustHint';
@@ -29,14 +30,15 @@ interface WeekSummaryCardProps {
  *   ⚑  Spend is up 32% — open the Anomalies tab to see what changed.
  */
 export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
-  const week = useMemo(() => composeWeekSummary(summary, rows), [summary, rows]);
+  const t = useT();
+  const week = useMemo(() => composeWeekSummary(summary, rows, { t }), [summary, rows, t]);
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38, ease: [0.2, 0, 0, 1] }}
-      aria-label="This week in a sentence"
+      aria-label={t('overview.week.aria')}
       className={[
         'group relative overflow-hidden border border-[var(--color-border)]',
         'bg-[var(--color-surface)]',
@@ -66,13 +68,18 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
             }}
           />
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            This week
+            {t('overview.week.label')}
           </span>
         </div>
         <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           {week.degraded
-            ? 'not enough history'
-            : `${week.windowDays} ${week.windowDays === 1 ? 'day' : 'days'} of data`}
+            ? t('overview.week.noHistory')
+            : t(
+                week.windowDays === 1
+                  ? 'overview.week.daysOfDataSingular'
+                  : 'overview.week.daysOfDataPlural',
+                { n: week.windowDays },
+              )}
         </span>
       </header>
 

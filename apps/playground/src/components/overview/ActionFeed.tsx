@@ -6,6 +6,7 @@ import {
   computeActionInsights,
 } from '@cu/data';
 import { AlertTriangle, Database, Flame, Lightbulb, Target, TrendingUp } from '@cu/icons';
+import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useSettings } from '../../hooks/useSettings';
@@ -23,13 +24,15 @@ interface ActionFeedProps {
  */
 export function ActionFeed({ summary, rows }: ActionFeedProps) {
   const { settings } = useSettings();
+  const t = useT();
   const insights = useMemo(
     () =>
       computeActionInsights(summary, rows, {
         monthlyRequestBudget: settings.monthlyRequestBudget,
         maxItems: 4,
+        t,
       }),
-    [summary, rows, settings.monthlyRequestBudget],
+    [summary, rows, settings.monthlyRequestBudget, t],
   );
 
   const primary = insights[0] ?? null;
@@ -41,11 +44,11 @@ export function ActionFeed({ summary, rows }: ActionFeedProps) {
       transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
     >
       <Panel
-        title="Action feed"
-        subtitle="What changed, why it matters, and what to do first"
+        title={t('overview.actionFeed.title')}
+        subtitle={t('overview.actionFeed.subtitle')}
         action={
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            local rules · no network
+            {t('overview.actionFeed.localTag')}
           </span>
         }
       >
@@ -64,6 +67,7 @@ export function ActionFeed({ summary, rows }: ActionFeedProps) {
 
 function PrimaryInsight({ insight }: { insight: ActionInsight }) {
   const Icon = iconFor(insight);
+  const t = useT();
   return (
     <div
       className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4"
@@ -73,7 +77,7 @@ function PrimaryInsight({ insight }: { insight: ActionInsight }) {
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4" aria-hidden="true" style={{ color: toneFor(insight) }} />
           <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-            do this first
+            {t('overview.actionFeed.doFirst')}
           </span>
         </div>
         <MetaPill insight={insight} />
@@ -84,7 +88,7 @@ function PrimaryInsight({ insight }: { insight: ActionInsight }) {
       </p>
       <div className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
         <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-          Next action
+          {t('overview.actionFeed.nextAction')}
         </div>
         <div className="mt-1 text-[13px] text-[var(--color-text)]">{insight.action}</div>
       </div>
@@ -115,12 +119,25 @@ function CompactInsight({ insight }: { insight: ActionInsight }) {
 }
 
 function MetaPill({ insight, compact = false }: { insight: ActionInsight; compact?: boolean }) {
+  const t = useT();
   const savings = insight.estimatedSavings && insight.estimatedSavings > 0;
+  // Priority + confidence go through the dictionary because they're a
+  // closed set of tokens (high/medium/low) that translate cleanly in
+  // both languages — keeps the pill from being half-English in zh.
   return (
     <span className="inline-flex items-center gap-1 rounded-sm border border-[var(--color-border)] px-1.5 py-[1px] font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-      <span>{insight.priority}</span>
-      {!compact ? <span>· {insight.confidence} confidence</span> : null}
-      {savings ? <span>· save {fmtUSD(insight.estimatedSavings ?? 0)}</span> : null}
+      <span>{t(`overview.actionFeed.priority.${insight.priority}`)}</span>
+      {!compact ? (
+        <span>
+          · {t(`overview.actionFeed.confidence.${insight.confidence}`)}{' '}
+          {t('overview.actionFeed.confidenceWord')}
+        </span>
+      ) : null}
+      {savings ? (
+        <span>
+          · {t('overview.actionFeed.save')} {fmtUSD(insight.estimatedSavings ?? 0)}
+        </span>
+      ) : null}
     </span>
   );
 }

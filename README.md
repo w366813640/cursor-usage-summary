@@ -58,12 +58,14 @@ Every number is computed on your machine. No network, no telemetry, no upload st
 
 ### Bilingual UI (en / 简体中文)
 
-The chrome — sidebar, settings drawer, welcome hero, onboarding, keyboard cheatsheet, Quick Tips, Trust hint, error boundary — speaks both English (default) and Simplified Chinese. Switch in `Settings → Language`; the choice persists via `localStorage` (`cu:locale`) and `<html lang>` updates automatically.
+Both the **chrome** (sidebar, settings drawer, welcome hero, onboarding, keyboard cheatsheet, Quick Tips, Trust hint, error boundary) **and the data narratives** (week summary card, Day Audit auto-paragraph, anomaly explanations, action feed insights, budget banner, efficiency recommendations, burn-story captions) speak both English (default) and Simplified Chinese. Switch in `Settings → Language`; the choice persists via `localStorage` (`cu:locale`) and `<html lang>` updates automatically.
 
-**What's still English-only:**
-data narratives (the auto-paragraphs in Day Audit, week summary, anomaly explanations, scenario captions). They build sentences from row data and need a locale-aware sentence builder to translate cleanly — that's a separate undertaking, currently tracked in the i18n round-2 backlog.
+Narrative translation is wired through a tiny `Translator` contract exported from `@cu/data`. Each builder accepts an optional `t` parameter and falls back to its English literal when called without one — so the test suite, the markdown report exporter, and any future CLI consumer keep working unchanged. Renderer components read `useT()` and thread it into the builder. See `.trellis/spec/frontend/i18n.md` for the full pattern + naming convention.
 
-Adding a third locale is mechanical: copy `packages/ui/src/i18n/dictionaries.ts`, translate the values, register the new key in `Locale`.
+**Still English-only by design:**
+the exported markdown report (`Settings → Manage data → Download local report`). Reports get pasted into issues / shared with teammates, so a single canonical language keeps them grep-able.
+
+Adding a third locale is mechanical: copy `packages/ui/src/i18n/dictionaries.ts`, translate the values (274 keys), register the new key in `Locale`, add a button in `SettingsDrawer`. Missing keys silently fall back to English.
 
 ---
 
@@ -261,7 +263,7 @@ Highlight reel (recent):
 - **Cross-page pivots** — Anomalies cards → Day Audit, Models rows → filtered Details.
 - **Saved filters** on the Details page (persisted in `localStorage`).
 - **Budget notifications** can be muted from Settings (tray label keeps updating regardless).
-- **Bilingual chrome** — English (default) + 简体中文 toggle in Settings.
+- **Bilingual everything** — English (default) + 简体中文 toggle in Settings, covering both chrome and the data narratives via a tiny `Translator` contract in `@cu/data`.
 
 ---
 

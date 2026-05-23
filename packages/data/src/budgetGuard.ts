@@ -1,4 +1,5 @@
 import type { UsageSummary } from './aggregators';
+import { type Translator, translate } from './i18n';
 
 /**
  * Budget urgency calculator — answers "am I about to blow my plan budget,
@@ -50,6 +51,12 @@ export interface BudgetGuardOptions {
   asOf?: Date;
   /** Treat usage as "safe" until at least N days have elapsed. Default 3. */
   warmupDays?: number;
+  /**
+   * Optional locale translator. When omitted, the function returns the
+   * built-in English `message` literal so the test suite (which asserts
+   * substrings like "On track" / "exhausted") keeps working unchanged.
+   */
+  t?: Translator;
 }
 
 export function computeBudgetUrgency(
@@ -126,19 +133,22 @@ export function computeBudgetUrgency(
     else if (projectedOverBudgetPct >= 0) severity = 'low';
   }
 
-  const message = buildMessage({
-    severity,
-    monthlyBudget,
-    projectedTotal,
-    projectedOverBudgetPct,
-    exhaustionDay,
-    daysToExhaustion,
-    used,
-    daysElapsed,
-    daysRemaining,
-    dailyRate,
-    totalDaysInMonth,
-  });
+  const message = buildMessage(
+    {
+      severity,
+      monthlyBudget,
+      projectedTotal,
+      projectedOverBudgetPct,
+      exhaustionDay,
+      daysToExhaustion,
+      used,
+      daysElapsed,
+      daysRemaining,
+      dailyRate,
+      totalDaysInMonth,
+    },
+    opts.t,
+  );
 
   return {
     enabled: true,
@@ -173,20 +183,46 @@ interface MessageContext {
   totalDaysInMonth: number;
 }
 
-function buildMessage(c: MessageContext): string {
+function buildMessage(c: MessageContext, t: Translator | undefined): string {
   if (c.severity === 'safe') {
     const remaining = Math.max(0, c.monthlyBudget - c.used);
-    return `On track. ${remaining.toFixed(0)} of ${c.monthlyBudget} requests remaining for the month.`;
+    return translate(
+      t,
+      'narrative.budget.safe',
+      'On track. {remaining} of {budget} requests remaining for the month.',
+      { remaining: remaining.toFixed(0), budget: c.monthlyBudget },
+    );
   }
   if (c.exhaustionDay !== null && c.daysToExhaustion !== null) {
     if (c.daysToExhaustion <= 0) {
       const overBy = Math.max(0, c.used - c.monthlyBudget);
-      return `Budget exhausted — ${overBy.toFixed(0)} requests over with ${c.daysRemaining} days left in the month.`;
+      return translate(
+        t,
+        'narrative.budget.exhausted',
+        'Budget exhausted — {overBy} requests over with {daysRemaining} days left in the month.',
+        { overBy: overBy.toFixed(0), daysRemaining: c.daysRemaining },
+      );
     }
-    return `At ${c.dailyRate.toFixed(0)} requests/day you'll hit your ${c.monthlyBudget}-request budget on day ${c.exhaustionDay} (in ${c.daysToExhaustion} days), ${Math.max(0, c.totalDaysInMonth - c.exhaustionDay)} days before month-end.`;
+    return translate(
+      t,
+      'narrative.budget.willHit',
+      "At {rate} requests/day you'll hit your {budget}-request budget on day {day} (in {daysToExhaustion} days), {daysBeforeMonthEnd} days before month-end.",
+      {
+        rate: c.dailyRate.toFixed(0),
+        budget: c.monthlyBudget,
+        day: c.exhaustionDay,
+        daysToExhaustion: c.daysToExhaustion,
+        daysBeforeMonthEnd: Math.max(0, c.totalDaysInMonth - c.exhaustionDay),
+      },
+    );
   }
   // Defensive fallback when there's no exhaustion (e.g. projected exactly
   // equals budget) — happens at severity === 'low' edge cases.
   const overPct = (c.projectedOverBudgetPct * 100).toFixed(0);
-  return `Projecting ${c.projectedTotal.toFixed(0)} requests by month-end (${overPct}% over the ${c.monthlyBudget} budget) at the current pace.`;
+  return translate(
+    t,
+    'narrative.budget.projecting',
+    'Projecting {projected} requests by month-end ({overPct}% over the {budget} budget) at the current pace.',
+    { projected: c.projectedTotal.toFixed(0), overPct, budget: c.monthlyBudget },
+  );
 }
