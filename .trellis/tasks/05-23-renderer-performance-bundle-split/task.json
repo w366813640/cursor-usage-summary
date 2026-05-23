@@ -3,7 +3,7 @@
   "name": "renderer-performance-bundle-split",
   "title": "Day 5: Renderer performance and bundle split",
   "description": "Lazy-load rare routes and expensive panels, reduce eager renderer work, memoize repeated analytics, and add bundle budget reporting.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

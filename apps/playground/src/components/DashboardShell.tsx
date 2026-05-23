@@ -1,15 +1,22 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useRoute } from '../router/useRoute';
-import { AnomaliesPage } from './AnomaliesPage';
-import { DetailsPage } from './DetailsPage';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
-import { DayPage } from './HoursPage';
-import { ModelsPage } from './ModelsPage';
 import { OverviewPage } from './OverviewPage';
 import { SideNav } from './SideNav';
-import { YearReviewPage } from './YearReviewPage';
+
+const YearReviewPage = lazy(() =>
+  import('./YearReviewPage').then((mod) => ({ default: mod.YearReviewPage })),
+);
+const AnomaliesPage = lazy(() =>
+  import('./AnomaliesPage').then((mod) => ({ default: mod.AnomaliesPage })),
+);
+const ModelsPage = lazy(() => import('./ModelsPage').then((mod) => ({ default: mod.ModelsPage })));
+const DetailsPage = lazy(() =>
+  import('./DetailsPage').then((mod) => ({ default: mod.DetailsPage })),
+);
+const DayPage = lazy(() => import('./HoursPage').then((mod) => ({ default: mod.DayPage })));
 
 interface DashboardShellProps {
   summary: UsageSummary;
@@ -79,14 +86,29 @@ export function DashboardShell({
           desktopActions={desktopActions}
         />
 
-        <div key={route}>
-          {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
-          {route === 'year' ? <YearReviewPage rows={rows} /> : null}
-          {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}
-          {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
-          {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
-          {route === 'day' ? <DayPage summary={summary} rows={rows} /> : null}
-        </div>
+        <Suspense fallback={<RouteLoadingSkeleton />}>
+          <div key={route}>
+            {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
+            {route === 'year' ? <YearReviewPage rows={rows} /> : null}
+            {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}
+            {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
+            {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
+            {route === 'day' ? <DayPage summary={summary} rows={rows} /> : null}
+          </div>
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+function RouteLoadingSkeleton() {
+  return (
+    <div className="rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+      <div className="h-3 w-32 animate-pulse rounded-full bg-[var(--color-border)]" />
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/70" />
+        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/60" />
+        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/50" />
       </div>
     </div>
   );
