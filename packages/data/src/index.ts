@@ -58,3 +58,11 @@ export {
   type BudgetSeverity,
   type BudgetUrgency,
 } from './budgetGuard';
+export {
+  computeActionInsights,
+  type ActionInsight,
+  type ActionInsightConfidence,
+  type ActionInsightKind,
+  type ActionInsightPriority,
+  type ComputeActionInsightsOptions,
+} from './insights';

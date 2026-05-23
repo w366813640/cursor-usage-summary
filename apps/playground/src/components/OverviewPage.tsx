@@ -6,6 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { ForecastPanel } from './ForecastPanel';
 import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
+import { ActionFeed } from './overview/ActionFeed';
 import { BudgetUrgencyBanner } from './overview/BudgetUrgencyBanner';
 import { EfficiencyCard } from './overview/EfficiencyCard';
 import { OverviewActivity } from './overview/OverviewActivity';
@@ -61,6 +62,8 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
       <BudgetUrgencyBanner summary={summary} rows={rows} />
 
       <WeekSummaryCard summary={summary} rows={rows} />
+
+      <ActionFeed summary={summary} rows={rows} />
 
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
 

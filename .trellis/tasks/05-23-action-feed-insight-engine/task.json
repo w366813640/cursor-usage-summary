@@ -3,7 +3,7 @@
   "name": "action-feed-insight-engine",
   "title": "Day 2: Action feed insight engine",
   "description": "Create deterministic local insight ranking from budget, forecast, anomalies, efficiency, and top-burn signals, then surface it on Overview.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
