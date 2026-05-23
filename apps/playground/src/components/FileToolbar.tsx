@@ -1,4 +1,11 @@
-import { type UsageRow, type UsageSummary, redactRowsToCsv, redactedFileName } from '@cu/data';
+import {
+  type RowWithCost,
+  type UsageSummary,
+  computeActionInsights,
+  computeBudgetScenarios,
+  redactRowsToCsv,
+  redactedFileName,
+} from '@cu/data';
 import {
   Clock,
   Download,
@@ -11,6 +18,7 @@ import {
 } from '@cu/icons';
 import { motion } from 'framer-motion';
 import { useFocusMode } from '../hooks/useFocusMode';
+import { useSettings } from '../hooks/useSettings';
 import { describeLastUpdate } from '../utils/relativeTime';
 
 /**
@@ -37,7 +45,7 @@ interface FileToolbarProps {
   elapsedMs: number;
   lastIngestedAt: number;
   summary: UsageSummary;
-  rows: ReadonlyArray<UsageRow>;
+  rows: ReadonlyArray<RowWithCost>;
   desktopActions: DesktopActions;
 }
 
@@ -79,10 +87,20 @@ export function FileToolbar({
   };
 
   const [focusMode, setFocusMode] = useFocusMode();
+  const { settings } = useSettings();
 
   const mergedLabel = sourceFiles.length > 1 ? `${sourceFiles.length} files merged` : null;
   const lastSaved = describeLastUpdate(lastIngestedAt);
   const storageLabel = desktopActions.storageHint;
+  const onExportReport = () => {
+    const markdown = buildLocalReport({
+      summary,
+      rows,
+      fileName,
+      monthlyRequestBudget: settings.monthlyRequestBudget,
+    });
+    triggerDownload(markdown, redactedFileName(fileName).replace(/\.csv$/i, '-report.md'));
+  };
 
   return (
     <motion.div
@@ -166,9 +184,79 @@ export function FileToolbar({
           onClick={onExportRedacted}
           title="Export redacted CSV (Cloud Agent ID / Automation ID replaced with hash aliases)"
         />
+        <ToolbarButton
+          icon={<Download size={12} aria-hidden="true" />}
+          label="report"
+          onClick={onExportReport}
+          title="Export privacy-safe markdown summary with insights and planning scenarios"
+        />
       </div>
     </motion.div>
   );
+}
+
+function buildLocalReport({
+  summary,
+  rows,
+  fileName,
+  monthlyRequestBudget,
+}: {
+  summary: UsageSummary;
+  rows: ReadonlyArray<RowWithCost>;
+  fileName: string;
+  monthlyRequestBudget: number;
+}): string {
+  const insights = computeActionInsights(summary, rows, { monthlyRequestBudget }).slice(0, 5);
+  const scenarios = computeBudgetScenarios(summary, rows, { monthlyRequestBudget }).slice(0, 4);
+  const lines = [
+    '# Cursor Usage Local Report',
+    '',
+    `Generated: ${new Date().toISOString()}`,
+    `Source: ${redactedFileName(fileName)}`,
+    '',
+    '## Summary',
+    '',
+    `- Date range: ${summary.dateRange.firstISO?.slice(0, 10) ?? 'n/a'} to ${
+      summary.dateRange.lastISO?.slice(0, 10) ?? 'n/a'
+    }`,
+    `- Rows: ${summary.totalRows.toLocaleString()}`,
+    `- Request units: ${Math.round(summary.totalRequestUnits).toLocaleString()}`,
+    `- Estimated cost: ${formatUSD(summary.totalCost)}`,
+    `- Cache hit ratio: ${(summary.cacheHitStats.hitRatio * 100).toFixed(0)}%`,
+    '',
+    '## Recommended Actions',
+    '',
+    ...insights.flatMap((insight) => [
+      `- ${insight.title} (${insight.priority}, ${insight.confidence} confidence)`,
+      `  - Detail: ${insight.detail}`,
+      `  - Action: ${insight.action}`,
+      `  - Source: ${insight.source}`,
+    ]),
+    '',
+    '## Planning Scenarios',
+    '',
+    ...scenarios.flatMap((scenario) => [
+      `- ${scenario.title} (${scenario.confidence} confidence)`,
+      `  - Projected: ${formatUSD(scenario.projectedCost)} · ${Math.round(
+        scenario.projectedRequests,
+      ).toLocaleString()} request units`,
+      `  - Delta: ${formatUSD(scenario.costDelta)} · ${Math.round(
+        scenario.requestDelta,
+      ).toLocaleString()} request units`,
+      `  - Action: ${scenario.action}`,
+    ]),
+    '',
+    '## Privacy',
+    '',
+    'This report omits raw CSV rows, Cloud Agent IDs, Automation IDs, prompt text, and database contents.',
+    '',
+  ];
+  return `${lines.join('\n')}\n`;
+}
+
+function formatUSD(value: number): string {
+  const sign = value < 0 ? '-' : '';
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
 function Sep() {
