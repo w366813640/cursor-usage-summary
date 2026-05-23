@@ -14,6 +14,7 @@ import {
 import { type DateFilter, DateRangeFilter, applyDateFilter } from './DateRangeFilter';
 import { MetricToggle, Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
+import { TrustHint } from './TrustHint';
 
 interface DayPageProps {
   summary: UsageSummary;
@@ -160,6 +161,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
           comparison={comparisons.yesterday}
           sameWeekday={comparisons.sameWeekday}
           onJumpToBiggest={jumpToRow}
+          partiallyEstimated={summary.costPartiallyEstimated}
         />
       ) : null}
 
@@ -269,13 +271,20 @@ export function DayPage({ summary, rows }: DayPageProps) {
  * ---------------------------------------------------------------- */
 
 interface DayAnswerHeroProps {
+  partiallyEstimated: boolean;
   answer: DayAnswer;
   comparison: DayComparison;
   sameWeekday: DayComparison;
   onJumpToBiggest: (rowId: string) => void;
 }
 
-function DayAnswerHero({ answer, comparison, sameWeekday, onJumpToBiggest }: DayAnswerHeroProps) {
+function DayAnswerHero({
+  answer,
+  comparison,
+  sameWeekday,
+  onJumpToBiggest,
+  partiallyEstimated,
+}: DayAnswerHeroProps) {
   const narrative = useMemo(() => composeDayNarrative(answer, comparison), [answer, comparison]);
   const sharePct = Math.round(answer.shareOfWeek * 100);
   const biggestTime = answer.biggest ? answer.biggest.date.toISOString().slice(11, 16) : null;
@@ -322,10 +331,11 @@ function DayAnswerHero({ answer, comparison, sameWeekday, onJumpToBiggest }: Day
 
       <div className="flex items-baseline gap-4">
         <p
-          className="font-serif text-[36px] leading-[1.05] tracking-[-0.01em] tabular-nums text-[var(--color-text)]"
+          className="flex items-baseline font-serif text-[36px] leading-[1.05] tracking-[-0.01em] tabular-nums text-[var(--color-text)]"
           style={{ fontFeatureSettings: '"tnum" 1' }}
         >
           {fmtUSD(answer.totalCost)}
+          <TrustHint partiallyEstimated={partiallyEstimated} side="bottom" />
         </p>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
           <span>

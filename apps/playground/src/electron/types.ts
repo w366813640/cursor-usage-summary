@@ -127,6 +127,7 @@ export interface UserSettings {
     habitFocus: 'cache' | 'top-burn' | 'volume' | null;
   };
   navigation: NavigationPreference;
+  budgetNotificationsMuted: boolean;
 }
 
 export interface ExportToFileResult {

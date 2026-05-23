@@ -55,10 +55,19 @@ function applyTraySnapshot(report: BudgetReport): void {
   }
 }
 
-function maybeFire(report: BudgetReport): { fired: boolean; threshold?: number } {
+function maybeFire(report: BudgetReport): { fired: boolean; threshold?: number; muted?: boolean } {
   if (!Notification.isSupported()) return { fired: false };
   const decision = decideBudgetNotification(guard, report);
   if (!decision) return { fired: false };
+
+  // The user can silence budget toasts entirely from Settings. We
+  // still mark the threshold as hit so re-enabling notifications
+  // doesn't cause a backlog of toasts to fire at once.
+  if (readSettings().budgetNotificationsMuted) {
+    guard = recordNotification(guard, decision.monthKey, decision.threshold);
+    persistGuard(decision.monthKey);
+    return { fired: false, threshold: decision.threshold, muted: true };
+  }
 
   try {
     const n = new Notification({
@@ -84,7 +93,7 @@ export function registerBudgetIpc(_getWindow: () => BrowserWindow | null): void 
     }
     applyTraySnapshot(report);
     const out = maybeFire(report);
-    return { ok: true, fired: out.fired, threshold: out.threshold };
+    return { ok: true, fired: out.fired, threshold: out.threshold, muted: out.muted };
   });
 
   ipcMain.handle('budget:resetGuard', () => {

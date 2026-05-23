@@ -2,6 +2,7 @@ import type { RowWithCost, UsageSummary } from '@cu/data';
 import { composeWeekSummary } from '@cu/data';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { TrustHint } from '../TrustHint';
 
 interface WeekSummaryCardProps {
   summary: UsageSummary;
@@ -82,6 +83,7 @@ export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
         style={{ fontFeatureSettings: '"tnum" 1' }}
       >
         {week.headline}
+        <TrustHint partiallyEstimated={summary.costPartiallyEstimated} />
       </p>
 
       {week.bullets.length > 0 ? (

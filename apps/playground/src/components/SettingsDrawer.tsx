@@ -588,6 +588,40 @@ export function SettingsDrawer({
                 <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                   current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
                 </p>
+
+                <label className="mt-3 flex items-start gap-2 text-[12px] text-[var(--color-text-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={settings.budgetNotificationsMuted}
+                    onChange={async (e) => {
+                      const muted = e.target.checked;
+                      setStatus({
+                        kind: 'busy',
+                        message: muted ? 'Muting budget toasts…' : 'Unmuting budget toasts…',
+                      });
+                      try {
+                        await save({ budgetNotificationsMuted: muted });
+                        setStatus({
+                          kind: 'ok',
+                          message: muted
+                            ? 'Budget notifications muted.'
+                            : 'Budget notifications re-armed.',
+                        });
+                      } catch (err) {
+                        setStatus({
+                          kind: 'error',
+                          message: err instanceof Error ? err.message : String(err),
+                        });
+                      }
+                    }}
+                    className="mt-1 h-3.5 w-3.5 cursor-pointer accent-[var(--color-accent)]"
+                  />
+                  <span className="leading-snug">
+                    Mute OS toasts for the 80% / 100% budget thresholds. The tray label keeps
+                    updating either way — this just silences the popup so it stops nagging once
+                    you've acknowledged it.
+                  </span>
+                </label>
               </Section>
 
               <Section

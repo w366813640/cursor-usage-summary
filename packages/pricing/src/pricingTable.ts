@@ -1,6 +1,13 @@
 import type { ModelPricing } from './types';
 
 /**
+ * ISO date of the pricing snapshot below. Read by `TrustHint` / About
+ * panel so the user can correlate sudden cost-shifts in their data
+ * with table updates. Bump this together with any row edit.
+ */
+export const PRICING_TABLE_AS_OF = '2026-05-14';
+
+/**
  * Cursor public per-token pricing snapshot.
  *
  * Source of truth: https://cursor.com/docs/models-and-pricing (verified

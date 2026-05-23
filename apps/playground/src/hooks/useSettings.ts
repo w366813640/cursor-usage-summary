@@ -20,6 +20,7 @@ const FALLBACK: UserSettings = {
     order: ['overview', 'year', 'anomalies', 'models', 'details', 'day'],
     hidden: [],
   },
+  budgetNotificationsMuted: false,
 };
 
 const SETTINGS_EVENT = 'cu:settings-change';

@@ -62,6 +62,14 @@ export interface UserSettings {
    * fills the default order whenever it's missing.
    */
   navigation: NavigationPreference;
+  /**
+   * When true, the main process skips OS-level budget toasts entirely
+   * even when 80% / 100% thresholds are crossed. The tray label keeps
+   * updating so the user still has at-a-glance visibility. Default
+   * false (toasts enabled) — the user opts in to silence by clicking
+   * "Mute budget notifications" in Settings.
+   */
+  budgetNotificationsMuted: boolean;
 }
 
 const DEFAULT_NAVIGATION: NavigationPreference = {
@@ -76,6 +84,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   displayDensity: 'comfortable',
   personalGoals: { monthlyRequestTarget: null, habitFocus: null },
   navigation: { ...DEFAULT_NAVIGATION, order: [...DEFAULT_NAVIGATION.order], hidden: [] },
+  budgetNotificationsMuted: false,
 };
 
 const SETTINGS_FILENAME = 'cursor-usage-settings.json';
@@ -158,6 +167,8 @@ function normalize(raw: unknown): UserSettings {
       habitFocus,
     },
     navigation: normalizeNavigation(obj.navigation),
+    budgetNotificationsMuted:
+      typeof obj.budgetNotificationsMuted === 'boolean' ? obj.budgetNotificationsMuted : false,
   };
 }
 

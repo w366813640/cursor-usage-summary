@@ -1,7 +1,8 @@
 import { fmtTokens, fmtUSD } from '@cu/charts';
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSavedDetailsFilters } from '../hooks/useSavedDetailsFilters';
 import { Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
 
@@ -27,7 +28,20 @@ const PAGE_SIZE = 50;
  */
 export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
   const [sort, setSort] = useState<SortKey>('cost-desc');
-  const [modelFilter, setModelFilter] = useState<string>('');
+  // Drill-down hint from Models page: when the user clicked
+  // "→ requests" on a model row, we land here pre-filtered.
+  const [modelFilter, setModelFilter] = useState<string>(() => {
+    try {
+      const pending = sessionStorage.getItem('cu:pendingDetailsModel');
+      if (pending) {
+        sessionStorage.removeItem('cu:pendingDetailsModel');
+        return pending;
+      }
+    } catch {
+      // sessionStorage may be unavailable; fall through to empty filter.
+    }
+    return '';
+  });
   const [query, setQuery] = useState<string>('');
   const [page, setPage] = useState<number>(0);
 
@@ -78,7 +92,16 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
       />
 
       <Panel title="Filter + sort">
-        <div className="flex flex-wrap items-end gap-3">
+        <SavedFiltersBar
+          query={query}
+          modelFilter={modelFilter}
+          onApply={(snap) => {
+            setQuery(snap.query);
+            setModelFilter(snap.modelFilter);
+            setPage(0);
+          }}
+        />
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <FilterField label="search">
             <input
               type="text"
@@ -284,8 +307,16 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
                           aria-label={`Open Day audit for ${r.date.toISOString().slice(0, 10)}`}
                           title="Open Day audit (g + h)"
                           onClick={() => {
+                            const iso = r.date.toISOString().slice(0, 10);
+                            // Same drill-down hint Anomalies / OverviewActivity
+                            // use so the Day page picks up the date on mount.
+                            try {
+                              sessionStorage.setItem('cu:pendingDayDate', iso);
+                            } catch {
+                              // sessionStorage may be unavailable; route still navigates.
+                            }
                             if (onJumpToDay) {
-                              onJumpToDay(r.date.toISOString().slice(0, 10));
+                              onJumpToDay(iso);
                             } else {
                               window.location.hash = '#day';
                             }
@@ -365,5 +396,128 @@ function PageButton({
     >
       {children}
     </button>
+  );
+}
+
+interface SavedFiltersBarProps {
+  query: string;
+  modelFilter: string;
+  onApply: (snap: { query: string; modelFilter: string }) => void;
+}
+
+/**
+ * Chip row above the Filter+Sort fields. Persists snapshots of
+ * (search, model) to localStorage via `useSavedDetailsFilters`. Click
+ * a chip to re-apply, X to remove, "+ save current" to capture the
+ * active filter. Hidden entirely on first load when the user has
+ * nothing saved AND no active filter — keeps the panel clean for
+ * new users.
+ */
+function SavedFiltersBar({ query, modelFilter, onApply }: SavedFiltersBarProps) {
+  const { filters, save, remove } = useSavedDetailsFilters();
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+  const hasActiveFilter = query.trim() !== '' || modelFilter !== '';
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (naming) inputRef.current?.focus();
+  }, [naming]);
+
+  if (filters.length === 0 && !hasActiveFilter) return null;
+
+  function commitSave() {
+    const id = save(name, { query, modelFilter });
+    if (id) {
+      setName('');
+      setNaming(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+        Saved
+      </span>
+      {filters.map((f) => {
+        const active = f.query === query && f.modelFilter === modelFilter;
+        return (
+          <span
+            key={f.id}
+            className={[
+              'group/chip inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] transition-colors',
+              active
+                ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+            ].join(' ')}
+          >
+            <button
+              type="button"
+              onClick={() => onApply({ query: f.query, modelFilter: f.modelFilter })}
+              className="max-w-[160px] truncate"
+              title={`search="${f.query}" · model="${f.modelFilter || 'all'}"`}
+            >
+              {f.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(f.id)}
+              aria-label={`Delete saved filter ${f.name}`}
+              className="text-[var(--color-text-subtle)] opacity-0 transition-opacity hover:text-[var(--color-destructive)] group-hover/chip:opacity-100"
+            >
+              ×
+            </button>
+          </span>
+        );
+      })}
+      {hasActiveFilter ? (
+        naming ? (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-accent)] bg-[var(--color-surface-raised)] px-2 py-0.5">
+            <input
+              ref={inputRef}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitSave();
+                if (e.key === 'Escape') {
+                  setNaming(false);
+                  setName('');
+                }
+              }}
+              placeholder="filter name"
+              maxLength={32}
+              className="w-[120px] bg-transparent font-mono text-[11px] text-[var(--color-text)] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={commitSave}
+              disabled={!name.trim()}
+              className="font-mono text-[11px] text-[var(--color-accent)] disabled:opacity-40"
+            >
+              save
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setNaming(false);
+                setName('');
+              }}
+              aria-label="Cancel save"
+              className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setNaming(true)}
+            className="rounded-full border border-dashed border-[var(--color-border)] px-2 py-0.5 font-mono text-[11px] text-[var(--color-text-subtle)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+          >
+            + save current
+          </button>
+        )
+      ) : null}
+    </div>
   );
 }

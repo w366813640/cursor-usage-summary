@@ -36,6 +36,7 @@ interface UserSettings {
     habitFocus: 'cache' | 'top-burn' | 'volume' | null;
   };
   navigation: NavigationPreference;
+  budgetNotificationsMuted: boolean;
 }
 
 interface ExportToFileResult {

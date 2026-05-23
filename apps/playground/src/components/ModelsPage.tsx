@@ -269,6 +269,8 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
                     {h.key}
                   </th>
                 ))}
+                <th aria-label="row actions" className="w-[48px]" />
+                {/* hover-only pivot */}
               </tr>
             </thead>
             <tbody>
@@ -418,6 +420,27 @@ function ModelRow({ stats: s, isOpen, rowIndex, onToggle }: ModelRowProps) {
             <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">—</span>
           )}
         </td>
+        <td className="px-2 py-2 text-right align-middle">
+          <button
+            type="button"
+            aria-label={`Filter All requests by ${s.model}`}
+            title="Open All requests filtered by this model"
+            onClick={(e) => {
+              // The row click also toggles expansion — stop the bubble so
+              // a pivot click doesn't accidentally collapse/open the panel.
+              e.stopPropagation();
+              try {
+                sessionStorage.setItem('cu:pendingDetailsModel', s.model);
+              } catch {
+                // sessionStorage may be unavailable; the route still navigates.
+              }
+              window.location.hash = '/details';
+            }}
+            className="inline-flex h-5 w-5 items-center justify-center rounded-sm border border-transparent font-mono text-[11px] text-[var(--color-text-subtle)] opacity-0 transition-all duration-150 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] focus-visible:opacity-100 group-hover/row:opacity-100"
+          >
+            →
+          </button>
+        </td>
       </tr>
       {isOpen ? <ModelExpansion stats={s} /> : null}
     </>
@@ -439,7 +462,7 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
   return (
     <tr className="border-b border-[var(--color-border)]">
       <td
-        colSpan={8}
+        colSpan={9}
         className="px-5 py-5"
         style={{
           background:

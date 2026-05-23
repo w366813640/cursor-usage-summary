@@ -465,6 +465,27 @@ function WelcomeHero({
           <div className="mt-4 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
             Storage ? desktop ? cursor-usage.db
           </div>
+
+          <ul
+            className="mt-6 flex flex-col gap-2 text-left text-[12px] text-[var(--color-text-muted)]"
+            aria-label="What you'll see after import"
+          >
+            {[
+              'A week-in-a-sentence summary above every metric',
+              'Day Audit with an auto-narrative + biggest-spend jumper',
+              'Local anomaly detector flags days that look unusual',
+              'Models view with cache-hit + cost-per-request hygiene',
+            ].map((line) => (
+              <li key={line} className="flex items-start gap-2">
+                <span
+                  aria-hidden="true"
+                  className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full"
+                  style={{ background: 'var(--color-accent)' }}
+                />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
           {errMsg && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -529,25 +550,25 @@ function WelcomeHero({
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="font-serif text-[20px] tracking-tight">What you will learn first</h2>
           <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-            Local analysis ? replaced with your data after upload
+            Local analysis · replaced with your data after upload
           </span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiPreviewCard
             label="Total spend"
             value="$1,247.83"
-            meta="What happened ? total cost, requests, tokens"
+            meta="What happened · total cost, requests, tokens"
             accent
           />
           <KpiPreviewCard
             label="Single most expensive"
             value="$139.37"
-            meta="Why it happened ? model, day, max-mode context"
+            meta="Why it happened · model, day, max-mode context"
           />
           <KpiPreviewCard
             label="Top model by spend"
             value="claude-4-sonnet-thinking"
-            meta="What to do next ? switch, reduce, cache, or watch"
+            meta="What to do next · switch, reduce, cache, or watch"
             valueClass="font-mono text-[18px] leading-[1.4] tracking-tight"
           />
         </div>
