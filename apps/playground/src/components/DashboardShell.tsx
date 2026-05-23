@@ -103,7 +103,12 @@ export function DashboardShell({
 
 function RouteLoadingSkeleton() {
   return (
-    <div className="rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+    <div
+      className="rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading dashboard route"
+    >
       <div className="h-3 w-32 animate-pulse rounded-full bg-[var(--color-border)]" />
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/70" />

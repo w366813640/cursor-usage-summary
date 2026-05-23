@@ -3,7 +3,7 @@
   "name": "motion-accessibility-pass",
   "title": "Day 6: Motion and accessibility pass",
   "description": "Define motion roles, add reduced-motion fallbacks, improve keyboard navigation, focus behavior, chart/table ARIA, and accessibility smoke coverage.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

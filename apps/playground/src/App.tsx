@@ -8,6 +8,7 @@ import {
   ToastProvider,
   TooltipProvider,
 } from '@cu/ui';
+import { MotionConfig } from 'framer-motion';
 import { CommandPaletteProvider } from './components/CommandPalette';
 import { WelcomePage } from './pages/WelcomePage';
 
@@ -24,7 +25,9 @@ export function App() {
                     {/* The palette wraps everything below so Cmd/Ctrl+K
                         works on both the welcome screen and the dashboard. */}
                     <CommandPaletteProvider>
-                      <WelcomePage />
+                      <MotionConfig reducedMotion="user">
+                        <WelcomePage />
+                      </MotionConfig>
                     </CommandPaletteProvider>
                   </SidebarStateProvider>
                 </KeyboardShortcutsProvider>
