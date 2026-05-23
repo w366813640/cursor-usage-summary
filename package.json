@@ -21,6 +21,7 @@
     "desktop:install-natives": "pnpm --filter @cu/desktop install-natives",
     "bundle:report": "node scripts/bundle-report.mjs",
     "storage:restore-node-natives": "pnpm --filter @cu/desktop install-natives:node",
+    "release:smoke": "pnpm lint && pnpm typecheck && pnpm test && pnpm --filter @cu/playground build && pnpm bundle:report",
     "test": "turbo run test"
   },
   "devDependencies": {

@@ -21,6 +21,7 @@
 
 ## Smoke Test
 
+- Run `pnpm release:smoke` before packaging to cover lint, typecheck, tests, renderer build, and bundle budget reporting.
 - Launch the packaged app with a clean user-data directory.
 - Import a known CSV and confirm preview, dedupe, commit, history, and undo.
 - Export and restore a JSON backup, then confirm row and batch counts.
