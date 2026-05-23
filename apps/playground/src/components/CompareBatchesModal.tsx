@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { loadBatchStats } from '../electron/desktopStorage';
 import type { BatchStats, BatchSummary } from '../electron/types';
+import { useDrawerA11y } from '../hooks/useDrawerA11y';
 import { describeLastUpdate } from '../utils/relativeTime';
 
 interface CompareBatchesModalProps {
@@ -58,6 +59,7 @@ export function CompareBatchesModal({
   // Default to the two most recent batches if the caller didn't specify.
   const [leftId, setLeftId] = useState<number | null>(initialLeftId ?? null);
   const [rightId, setRightId] = useState<number | null>(initialRightId ?? null);
+  const dialogRef = useDrawerA11y(open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -73,11 +75,12 @@ export function CompareBatchesModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(0,0,0,0.55)] p-6"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(0,0,0,0.55)] p-6"
           role="presentation"
           onClick={onClose}
         >
           <motion.div
+            ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}

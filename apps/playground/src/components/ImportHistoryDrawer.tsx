@@ -2,6 +2,7 @@ import { Clock, FileSpreadsheet, History, Loader2, Sliders, Trash2, X } from '@c
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import type { BatchSummary } from '../electron/types';
+import { useDrawerA11y } from '../hooks/useDrawerA11y';
 import { describeLastUpdate } from '../utils/relativeTime';
 import { CompareBatchesModal } from './CompareBatchesModal';
 
@@ -34,6 +35,7 @@ export function ImportHistoryDrawer({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const dialogRef = useDrawerA11y(open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -79,11 +81,12 @@ export function ImportHistoryDrawer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
+          className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={onClose}
         >
           <motion.aside
+            ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ x: 80, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 60, opacity: 0 }}
@@ -92,9 +95,9 @@ export function ImportHistoryDrawer({
             role="dialog"
             aria-modal="true"
             aria-label="Import history"
-            className="flex h-full w-[520px] max-w-full flex-col gap-4 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] px-6 pb-6 pt-5 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
+            className="flex h-full w-[520px] max-w-full flex-col overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-6 pt-5 pb-3 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-surface)_88%,transparent)]">
               <div className="flex items-center gap-2.5">
                 <History size={16} className="text-[var(--color-accent)]" aria-hidden="true" />
                 <div className="flex flex-col gap-0.5">
@@ -132,139 +135,141 @@ export function ImportHistoryDrawer({
               </div>
             </div>
 
-            {error ? (
-              <div
-                className="rounded-md border px-3.5 py-3 font-mono text-[11px]"
-                style={{
-                  borderColor:
-                    'color-mix(in oklab, var(--color-destructive) 55%, var(--color-border))',
-                  background: 'color-mix(in oklab, var(--color-destructive) 8%, transparent)',
-                  color: 'var(--color-destructive)',
-                }}
-              >
-                {error}
-              </div>
-            ) : null}
+            <div className="flex flex-1 flex-col gap-4 px-6 pt-5 pb-6">
+              {error ? (
+                <div
+                  className="rounded-md border px-3.5 py-3 font-mono text-[11px]"
+                  style={{
+                    borderColor:
+                      'color-mix(in oklab, var(--color-destructive) 55%, var(--color-border))',
+                    background: 'color-mix(in oklab, var(--color-destructive) 8%, transparent)',
+                    color: 'var(--color-destructive)',
+                  }}
+                >
+                  {error}
+                </div>
+              ) : null}
 
-            {batches === null ? (
-              <div className="flex h-[200px] items-center justify-center text-[var(--color-text-subtle)]">
-                <Loader2 size={18} aria-hidden="true" className="animate-spin" />
-                <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.08em]">
-                  Loading batches…
-                </span>
-              </div>
-            ) : batches.length === 0 ? (
-              <div className="flex h-[200px] flex-col items-center justify-center gap-2 text-[var(--color-text-subtle)]">
-                <History size={20} aria-hidden="true" />
-                <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
-                  No imports yet — drop a CSV to get started.
-                </span>
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {batches.map((b) => (
-                  <li
-                    key={b.id}
-                    className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <span
-                          className="flex items-center gap-1.5 truncate font-mono text-[12px] text-[var(--color-text)]"
-                          title={b.sourceFilename}
-                        >
-                          <FileSpreadsheet
-                            size={12}
-                            className="shrink-0 text-[var(--color-accent)]"
-                            aria-hidden="true"
-                          />
-                          {b.sourceFilename}
-                        </span>
-                        <span className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                          <Clock size={10} aria-hidden="true" />
-                          {describeLastUpdate(b.importedAt) ?? 'just now'}
-                        </span>
-                        <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                          {b.dateMin ?? '—'} → {b.dateMax ?? '—'}
-                        </span>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="font-mono text-[11px] text-[var(--color-text)]">
-                          +{b.rowCountAdded.toLocaleString()} rows
-                        </span>
-                        {b.rowCountSkipped > 0 ? (
-                          <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-                            {b.rowCountSkipped.toLocaleString()} skipped
+              {batches === null ? (
+                <div className="flex h-[200px] items-center justify-center text-[var(--color-text-subtle)]">
+                  <Loader2 size={18} aria-hidden="true" className="animate-spin" />
+                  <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.08em]">
+                    Loading batches…
+                  </span>
+                </div>
+              ) : batches.length === 0 ? (
+                <div className="flex h-[200px] flex-col items-center justify-center gap-2 text-[var(--color-text-subtle)]">
+                  <History size={20} aria-hidden="true" />
+                  <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
+                    No imports yet — drop a CSV to get started.
+                  </span>
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {batches.map((b) => (
+                    <li
+                      key={b.id}
+                      className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <span
+                            className="flex items-center gap-1.5 truncate font-mono text-[12px] text-[var(--color-text)]"
+                            title={b.sourceFilename}
+                          >
+                            <FileSpreadsheet
+                              size={12}
+                              className="shrink-0 text-[var(--color-accent)]"
+                              aria-hidden="true"
+                            />
+                            {b.sourceFilename}
                           </span>
-                        ) : null}
+                          <span className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                            <Clock size={10} aria-hidden="true" />
+                            {describeLastUpdate(b.importedAt) ?? 'just now'}
+                          </span>
+                          <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                            {b.dateMin ?? '—'} → {b.dateMax ?? '—'}
+                          </span>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="font-mono text-[11px] text-[var(--color-text)]">
+                            +{b.rowCountAdded.toLocaleString()} rows
+                          </span>
+                          {b.rowCountSkipped > 0 ? (
+                            <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+                              {b.rowCountSkipped.toLocaleString()} skipped
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
 
-                    {pendingUndoId === b.id ? (
-                      <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-2">
-                        <span className="mr-auto font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
-                          Undo will delete{' '}
-                          <span className="text-[var(--color-text)]">
-                            {b.rowCountAdded.toLocaleString()}
-                          </span>{' '}
-                          rows from this batch
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setPendingUndoId(null)}
-                          disabled={busyId === b.id}
-                          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleConfirmUndo(b.id)}
-                          disabled={busyId === b.id}
-                          className="flex items-center gap-1 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                          style={{
-                            background: 'var(--color-destructive)',
-                            color: 'white',
-                            borderColor: 'var(--color-destructive)',
-                          }}
-                        >
-                          {busyId === b.id ? (
-                            <Loader2 size={10} aria-hidden="true" className="animate-spin" />
-                          ) : (
+                      {pendingUndoId === b.id ? (
+                        <div className="mt-3 flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-2">
+                          <span className="mr-auto font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)]">
+                            Undo will delete{' '}
+                            <span className="text-[var(--color-text)]">
+                              {b.rowCountAdded.toLocaleString()}
+                            </span>{' '}
+                            rows from this batch
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setPendingUndoId(null)}
+                            disabled={busyId === b.id}
+                            className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleConfirmUndo(b.id)}
+                            disabled={busyId === b.id}
+                            className="flex items-center gap-1 rounded-md border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{
+                              background: 'var(--color-destructive)',
+                              color: 'white',
+                              borderColor: 'var(--color-destructive)',
+                            }}
+                          >
+                            {busyId === b.id ? (
+                              <Loader2 size={10} aria-hidden="true" className="animate-spin" />
+                            ) : (
+                              <Trash2 size={10} aria-hidden="true" />
+                            )}
+                            Delete batch
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setPendingUndoId(b.id)}
+                            className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
+                          >
                             <Trash2 size={10} aria-hidden="true" />
-                          )}
-                          Delete batch
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-2 flex items-center justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setPendingUndoId(b.id)}
-                          className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
-                        >
-                          <Trash2 size={10} aria-hidden="true" />
-                          Undo
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+                            Undo
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-            <p className="mt-auto border-t border-[var(--color-border)] pt-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
-              Undo only removes rows this batch actually wrote. Rows that dedup-collapsed onto an
-              earlier import stay with their original batch.
-            </p>
+              <p className="mt-auto border-t border-[var(--color-border)] pt-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+                Undo only removes rows this batch actually wrote. Rows that dedup-collapsed onto an
+                earlier import stay with their original batch.
+              </p>
 
-            <CompareBatchesModal
-              open={compareOpen}
-              batches={batches ?? []}
-              initialLeftId={batches?.[0]?.id}
-              initialRightId={batches?.[1]?.id}
-              onClose={() => setCompareOpen(false)}
-            />
+              <CompareBatchesModal
+                open={compareOpen}
+                batches={batches ?? []}
+                initialLeftId={batches?.[0]?.id}
+                initialRightId={batches?.[1]?.id}
+                onClose={() => setCompareOpen(false)}
+              />
+            </div>
           </motion.aside>
         </motion.div>
       ) : null}

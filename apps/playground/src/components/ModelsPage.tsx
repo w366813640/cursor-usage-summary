@@ -227,6 +227,24 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
         </div>
       ) : null}
 
+      {sorted.length === 0 && partition.low.length > 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-[14px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-10 text-center">
+          <span className="font-serif text-[16px] text-[var(--color-text)]">
+            All {stats.length} models flagged as low-activity.
+          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            Every model is below {LOW_ROW_THRESHOLD} requests or hasn't run in {STALE_DAYS} days.
+          </span>
+          <button
+            type="button"
+            onClick={() => setHideLowActivity(false)}
+            className="mt-2 rounded-md border border-[var(--color-border)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-colors hover:border-[var(--color-accent)]"
+          >
+            show all anyway
+          </button>
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent),0_10px_28px_-22px_rgba(0,0,0,0.55)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left">

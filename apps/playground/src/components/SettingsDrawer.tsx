@@ -12,6 +12,7 @@ import {
   FolderOpen,
   HardDrive,
   History,
+  Info,
   Layout,
   Loader2,
   Monitor,
@@ -19,6 +20,7 @@ import {
   RotateCcw,
   Save,
   Settings,
+  Sparkles,
   Sun,
   Upload,
   X,
@@ -40,7 +42,10 @@ import {
   updateSettings,
 } from '../electron/desktopStorage';
 import type { NavRouteId, UpdateStatus } from '../electron/types';
+import { useDrawerA11y } from '../hooks/useDrawerA11y';
 import { useSettings } from '../hooks/useSettings';
+import { useUnreadChangelog } from '../hooks/useUnreadChangelog';
+import { CHANGELOG_ENTRIES } from '../utils/changelog';
 import { buildLocalReport, triggerDownload } from '../utils/localReport';
 
 /**
@@ -103,6 +108,7 @@ export function SettingsDrawer({
   onOpenImport,
   onOpenHistory,
 }: SettingsDrawerProps) {
+  const dialogRef = useDrawerA11y(open, onClose);
   const { settings, loading, save } = useSettings();
   const { mode: themeMode, setMode: setThemeMode, resolved } = useTheme();
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -373,11 +379,12 @@ export function SettingsDrawer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
+          className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={onClose}
         >
           <motion.aside
+            ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ x: 80, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 60, opacity: 0 }}
@@ -386,9 +393,14 @@ export function SettingsDrawer({
             role="dialog"
             aria-modal="true"
             aria-label="Settings"
-            className="flex h-full w-[560px] max-w-full flex-col gap-5 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] px-6 pb-6 pt-5 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
+            className="flex h-full w-[560px] max-w-full flex-col overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
           >
-            <div className="flex items-start justify-between gap-3">
+            {/* Sticky drawer-internal header — stays anchored at the
+                drawer top even when the body scrolls past the visible
+                viewport (the bug the user hit: "manage data 显示不完全,
+                让标题栏覆盖了"). z-10 sits above sibling Section dot
+                indicators but stays under the modal scrim layer. */}
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-6 pt-5 pb-3 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-surface)_88%,transparent)]">
               <div className="flex items-center gap-2.5">
                 <Settings size={16} className="text-[var(--color-accent)]" aria-hidden="true" />
                 <div className="flex flex-col gap-0.5">
@@ -410,376 +422,386 @@ export function SettingsDrawer({
               </button>
             </div>
 
-            <StatusBanner status={status} />
+            <div className="flex flex-col gap-5 px-6 pt-5 pb-6">
+              <StatusBanner status={status} />
 
-            <DataManagementSection
-              dataset={dataset ?? null}
-              monthlyRequestBudget={settings.monthlyRequestBudget}
-              onOpenImport={() => {
-                if (!onOpenImport) return;
-                onOpenImport();
-                onClose();
-              }}
-              onOpenHistory={() => {
-                if (!onOpenHistory) return;
-                onOpenHistory();
-                onClose();
-              }}
-              onStatus={setStatus}
-            />
-
-            <NavigationSection
-              order={settings.navigation.order}
-              hidden={settings.navigation.hidden}
-              onChange={async (next) => {
-                setStatus({ kind: 'busy', message: 'Saving navigation layout…' });
-                try {
-                  await save({ navigation: next });
-                  setStatus({ kind: 'ok', message: 'Navigation layout saved.' });
-                } catch (err) {
-                  setStatus({
-                    kind: 'error',
-                    message: err instanceof Error ? err.message : String(err),
-                  });
-                }
-              }}
-              onReset={async () => {
-                setStatus({ kind: 'busy', message: 'Restoring default navigation…' });
-                try {
-                  await save({
-                    navigation: {
-                      order: ['overview', 'year', 'anomalies', 'models', 'details', 'day'],
-                      hidden: [],
-                    },
-                  });
-                  setStatus({ kind: 'ok', message: 'Navigation reset to default.' });
-                } catch (err) {
-                  setStatus({
-                    kind: 'error',
-                    message: err instanceof Error ? err.message : String(err),
-                  });
-                }
-              }}
-            />
-
-            <Section
-              icon={
-                resolved === 'dark' ? (
-                  <Moon size={12} aria-hidden="true" />
-                ) : (
-                  <Sun size={12} aria-hidden="true" />
-                )
-              }
-              title="Theme"
-              hint="System follows your OS — light / dark force the choice."
-            >
-              <div className="flex gap-2">
-                {(
-                  [
-                    {
-                      id: 'system',
-                      label: 'System',
-                      icon: <Monitor size={12} aria-hidden="true" />,
-                    },
-                    { id: 'light', label: 'Light', icon: <Sun size={12} aria-hidden="true" /> },
-                    { id: 'dark', label: 'Dark', icon: <Moon size={12} aria-hidden="true" /> },
-                  ] satisfies Array<{ id: ThemeMode; label: string; icon: ReactNode }>
-                ).map((opt) => {
-                  const active = themeMode === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setThemeMode(opt.id)}
-                      className={[
-                        'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors',
-                        active
-                          ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                          : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
-                      ].join(' ')}
-                    >
-                      {opt.icon}
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                resolved: {resolved}
-              </p>
-            </Section>
-
-            <Section
-              icon={<Monitor size={12} aria-hidden="true" />}
-              title="Display density"
-              hint="Comfortable is the default. Dense tightens the workbench; Presentation gives screenshots more air."
-            >
-              <div className="grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ['comfortable', 'Comfortable', 'Balanced spacing for daily review.'],
-                    ['dense', 'Dense', 'Tighter rows and chrome for power scanning.'],
-                    ['presentation', 'Presentation', 'More breathing room for exports and demos.'],
-                  ] as const
-                ).map(([id, label, hint]) => {
-                  const active = settings.displayDensity === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => void onSaveDensity(id)}
-                      className={[
-                        'flex min-h-[76px] flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors',
-                        active
-                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]/35 text-[var(--color-text)]'
-                          : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
-                      ].join(' ')}
-                    >
-                      <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
-                        {label}
-                      </span>
-                      <span className="text-[11px] leading-snug text-[var(--color-text-subtle)]">
-                        {hint}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Section>
-
-            <Section
-              icon={<HardDrive size={12} aria-hidden="true" />}
-              title="Monthly request budget"
-              hint="Drives the plan cap displayed on the Overview — Monthly panel."
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  step={50}
-                  value={budgetDraft}
-                  onChange={(e) => setBudgetDraft(e.target.value)}
-                  className="w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-                />
-                <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-                  requests / month
-                </span>
-                <div className="ml-auto">
-                  <SaveButton onClick={onSaveBudget} disabled={loading} />
-                </div>
-              </div>
-              <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
-              </p>
-            </Section>
-
-            <Section
-              icon={<Check size={12} aria-hidden="true" />}
-              title="Personal goals"
-              hint="Optional local-only coaching targets. Leave target blank to follow the plan cap."
-            >
-              <div className="grid grid-cols-[1fr_1.4fr_auto] items-end gap-2">
-                <Field
-                  label="Request target"
-                  value={goalDraft.monthlyRequestTarget}
-                  onChange={(v) => setGoalDraft((g) => ({ ...g, monthlyRequestTarget: v }))}
-                  placeholder={String(settings.monthlyRequestBudget)}
-                  type="number"
-                />
-                <label className="flex flex-col gap-1">
-                  <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                    Habit focus
-                  </span>
-                  <select
-                    value={goalDraft.habitFocus}
-                    onChange={(e) =>
-                      setGoalDraft((g) => ({
-                        ...g,
-                        habitFocus: e.target.value as typeof goalDraft.habitFocus,
-                      }))
-                    }
-                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
-                  >
-                    <option value="">No focus</option>
-                    <option value="cache">Improve cache reuse</option>
-                    <option value="top-burn">Trim top-burn runs</option>
-                    <option value="volume">Reduce request volume</option>
-                  </select>
-                </label>
-                <SaveButton onClick={onSaveGoals} disabled={loading} />
-              </div>
-            </Section>
-
-            <Section
-              icon={<Download size={12} aria-hidden="true" />}
-              title="Updates"
-              hint="Release channels are explicit: dev builds explain why updates are disabled."
-            >
-              <UpdateStatusCard
-                status={updateStatus}
-                onCheck={onCheckForUpdates}
-                onInstall={onInstallUpdate}
+              <DataManagementSection
+                dataset={dataset ?? null}
+                monthlyRequestBudget={settings.monthlyRequestBudget}
+                onOpenImport={() => {
+                  if (!onOpenImport) return;
+                  onOpenImport();
+                  onClose();
+                }}
+                onOpenHistory={() => {
+                  if (!onOpenHistory) return;
+                  onOpenHistory();
+                  onClose();
+                }}
+                onStatus={setStatus}
               />
-            </Section>
 
-            <Section
-              icon={<HardDrive size={12} aria-hidden="true" />}
-              title="Currency display"
-              hint="USD remains source of truth — these fields override the renderer's formatter."
-            >
-              <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
-                <Field
-                  label="Code"
-                  value={currencyDraft.code}
-                  onChange={(v) => setCurrencyDraft((c) => ({ ...c, code: v }))}
-                  placeholder="USD"
-                />
-                <Field
-                  label="Symbol"
-                  value={currencyDraft.symbol}
-                  onChange={(v) => setCurrencyDraft((c) => ({ ...c, symbol: v }))}
-                  placeholder="$"
-                />
-                <Field
-                  label="Multiplier"
-                  value={currencyDraft.multiplier}
-                  onChange={(v) => setCurrencyDraft((c) => ({ ...c, multiplier: v }))}
-                  placeholder="1"
-                  type="number"
-                />
-                <div className="flex flex-col gap-1.5">
-                  <SaveButton onClick={onSaveCurrency} disabled={loading} />
+              <NavigationSection
+                order={settings.navigation.order}
+                hidden={settings.navigation.hidden}
+                onChange={async (next) => {
+                  setStatus({ kind: 'busy', message: 'Saving navigation layout…' });
+                  try {
+                    await save({ navigation: next });
+                    setStatus({ kind: 'ok', message: 'Navigation layout saved.' });
+                  } catch (err) {
+                    setStatus({
+                      kind: 'error',
+                      message: err instanceof Error ? err.message : String(err),
+                    });
+                  }
+                }}
+                onReset={async () => {
+                  setStatus({ kind: 'busy', message: 'Restoring default navigation…' });
+                  try {
+                    await save({
+                      navigation: {
+                        order: ['overview', 'year', 'anomalies', 'models', 'details', 'day'],
+                        hidden: [],
+                      },
+                    });
+                    setStatus({ kind: 'ok', message: 'Navigation reset to default.' });
+                  } catch (err) {
+                    setStatus({
+                      kind: 'error',
+                      message: err instanceof Error ? err.message : String(err),
+                    });
+                  }
+                }}
+              />
+
+              <Section
+                icon={
+                  resolved === 'dark' ? (
+                    <Moon size={12} aria-hidden="true" />
+                  ) : (
+                    <Sun size={12} aria-hidden="true" />
+                  )
+                }
+                title="Theme"
+                hint="System follows your OS — light / dark force the choice."
+              >
+                <div className="flex gap-2">
+                  {(
+                    [
+                      {
+                        id: 'system',
+                        label: 'System',
+                        icon: <Monitor size={12} aria-hidden="true" />,
+                      },
+                      { id: 'light', label: 'Light', icon: <Sun size={12} aria-hidden="true" /> },
+                      { id: 'dark', label: 'Dark', icon: <Moon size={12} aria-hidden="true" /> },
+                    ] satisfies Array<{ id: ThemeMode; label: string; icon: ReactNode }>
+                  ).map((opt) => {
+                    const active = themeMode === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setThemeMode(opt.id)}
+                        className={[
+                          'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] transition-colors',
+                          active
+                            ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+                        ].join(' ')}
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                  current: {settings.currency.code} ({settings.currency.symbol}, ?
-                  {settings.currency.multiplier})
-                </span>
+                <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  resolved: {resolved}
+                </p>
+              </Section>
+
+              <Section
+                icon={<Monitor size={12} aria-hidden="true" />}
+                title="Display density"
+                hint="Comfortable is the default. Dense tightens the workbench; Presentation gives screenshots more air."
+              >
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ['comfortable', 'Comfortable', 'Balanced spacing for daily review.'],
+                      ['dense', 'Dense', 'Tighter rows and chrome for power scanning.'],
+                      [
+                        'presentation',
+                        'Presentation',
+                        'More breathing room for exports and demos.',
+                      ],
+                    ] as const
+                  ).map(([id, label, hint]) => {
+                    const active = settings.displayDensity === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => void onSaveDensity(id)}
+                        className={[
+                          'flex min-h-[76px] flex-col items-start gap-1 rounded-md border px-3 py-2 text-left transition-colors',
+                          active
+                            ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)]/35 text-[var(--color-text)]'
+                            : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text)] hover:text-[var(--color-text)]',
+                        ].join(' ')}
+                      >
+                        <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
+                          {label}
+                        </span>
+                        <span className="text-[11px] leading-snug text-[var(--color-text-subtle)]">
+                          {hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Section>
+
+              <Section
+                icon={<HardDrive size={12} aria-hidden="true" />}
+                title="Monthly request budget"
+                hint="Drives the plan cap displayed on the Overview — Monthly panel."
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    step={50}
+                    value={budgetDraft}
+                    onChange={(e) => setBudgetDraft(e.target.value)}
+                    className="w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                  />
+                  <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+                    requests / month
+                  </span>
+                  <div className="ml-auto">
+                    <SaveButton onClick={onSaveBudget} disabled={loading} />
+                  </div>
+                </div>
+                <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                  current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
+                </p>
+              </Section>
+
+              <Section
+                icon={<Check size={12} aria-hidden="true" />}
+                title="Personal goals"
+                hint="Optional local-only coaching targets. Leave target blank to follow the plan cap."
+              >
+                <div className="grid grid-cols-[1fr_1.4fr_auto] items-end gap-2">
+                  <Field
+                    label="Request target"
+                    value={goalDraft.monthlyRequestTarget}
+                    onChange={(v) => setGoalDraft((g) => ({ ...g, monthlyRequestTarget: v }))}
+                    placeholder={String(settings.monthlyRequestBudget)}
+                    type="number"
+                  />
+                  <label className="flex flex-col gap-1">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                      Habit focus
+                    </span>
+                    <select
+                      value={goalDraft.habitFocus}
+                      onChange={(e) =>
+                        setGoalDraft((g) => ({
+                          ...g,
+                          habitFocus: e.target.value as typeof goalDraft.habitFocus,
+                        }))
+                      }
+                      className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                    >
+                      <option value="">No focus</option>
+                      <option value="cache">Improve cache reuse</option>
+                      <option value="top-burn">Trim top-burn runs</option>
+                      <option value="volume">Reduce request volume</option>
+                    </select>
+                  </label>
+                  <SaveButton onClick={onSaveGoals} disabled={loading} />
+                </div>
+              </Section>
+
+              <Section
+                icon={<Download size={12} aria-hidden="true" />}
+                title="Updates"
+                hint="Release channels are explicit: dev builds explain why updates are disabled."
+              >
+                <UpdateStatusCard
+                  status={updateStatus}
+                  onCheck={onCheckForUpdates}
+                  onInstall={onInstallUpdate}
+                />
+              </Section>
+
+              <Section
+                icon={<HardDrive size={12} aria-hidden="true" />}
+                title="Currency display"
+                hint="USD remains source of truth — these fields override the renderer's formatter."
+              >
+                <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
+                  <Field
+                    label="Code"
+                    value={currencyDraft.code}
+                    onChange={(v) => setCurrencyDraft((c) => ({ ...c, code: v }))}
+                    placeholder="USD"
+                  />
+                  <Field
+                    label="Symbol"
+                    value={currencyDraft.symbol}
+                    onChange={(v) => setCurrencyDraft((c) => ({ ...c, symbol: v }))}
+                    placeholder="$"
+                  />
+                  <Field
+                    label="Multiplier"
+                    value={currencyDraft.multiplier}
+                    onChange={(v) => setCurrencyDraft((c) => ({ ...c, multiplier: v }))}
+                    placeholder="1"
+                    type="number"
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <SaveButton onClick={onSaveCurrency} disabled={loading} />
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                    current: {settings.currency.code} ({settings.currency.symbol}, ?
+                    {settings.currency.multiplier})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void onResetCurrency()}
+                    className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                  >
+                    <RotateCcw size={10} aria-hidden="true" />
+                    reset to USD
+                  </button>
+                </div>
+              </Section>
+
+              <Section
+                icon={<HardDrive size={12} aria-hidden="true" />}
+                title="Local database"
+                hint="cursor-usage.db lives in your OS user-data folder — never leaves the device."
+              >
+                <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <code className="truncate font-mono text-[11px] text-[var(--color-text)]">
+                      {dbPath ?? 'resolving…'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => void revealDbInFolder()}
+                      disabled={!dbPath}
+                      className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FolderOpen size={10} aria-hidden="true" />
+                      reveal
+                    </button>
+                  </div>
+                  {settingsPath ? (
+                    <div className="mt-1.5 font-mono text-[11px] text-[var(--color-text-subtle)]">
+                      settings:{' '}
+                      <span className="text-[var(--color-text-muted)]">{settingsPath}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </Section>
+
+              <Section
+                icon={<FileText size={12} aria-hidden="true" />}
+                title="Support diagnostics"
+                hint="Exports metadata only: versions, counts, settings summary, update state, and paths."
+              >
                 <button
                   type="button"
-                  onClick={() => void onResetCurrency()}
-                  className="flex items-center gap-1 rounded-md border border-[var(--color-border)] px-2 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)] hover:text-[var(--color-text)]"
+                  onClick={() => void onExportDiagnostics()}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
                 >
-                  <RotateCcw size={10} aria-hidden="true" />
-                  reset to USD
+                  <Download size={12} aria-hidden="true" />
+                  Export diagnostics JSON
                 </button>
-              </div>
-            </Section>
+                <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+                  No raw CSV rows, prompt text, Cloud Agent IDs, Automation IDs, or database
+                  contents are included.
+                </p>
+              </Section>
 
-            <Section
-              icon={<HardDrive size={12} aria-hidden="true" />}
-              title="Local database"
-              hint="cursor-usage.db lives in your OS user-data folder — never leaves the device."
-            >
-              <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <code className="truncate font-mono text-[11px] text-[var(--color-text)]">
-                    {dbPath ?? 'resolving…'}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => void revealDbInFolder()}
-                    disabled={!dbPath}
-                    className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <FolderOpen size={10} aria-hidden="true" />
-                    reveal
-                  </button>
-                </div>
-                {settingsPath ? (
-                  <div className="mt-1.5 font-mono text-[11px] text-[var(--color-text-subtle)]">
-                    settings: <span className="text-[var(--color-text-muted)]">{settingsPath}</span>
-                  </div>
-                ) : null}
-              </div>
-            </Section>
-
-            <Section
-              icon={<FileText size={12} aria-hidden="true" />}
-              title="Support diagnostics"
-              hint="Exports metadata only: versions, counts, settings summary, update state, and paths."
-            >
-              <button
-                type="button"
-                onClick={() => void onExportDiagnostics()}
-                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              <Section
+                icon={<Download size={12} aria-hidden="true" />}
+                title="Backup & restore"
+                hint="JSON export bundles every batch + row so you can replay on another machine."
               >
-                <Download size={12} aria-hidden="true" />
-                Export diagnostics JSON
-              </button>
-              <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
-                No raw CSV rows, prompt text, Cloud Agent IDs, Automation IDs, or database contents
-                are included.
-              </p>
-            </Section>
-
-            <Section
-              icon={<Download size={12} aria-hidden="true" />}
-              title="Backup & restore"
-              hint="JSON export bundles every batch + row so you can replay on another machine."
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void onExport()}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-                  >
-                    <Download size={12} aria-hidden="true" />
-                    Export to .json
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmRestore(true)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
-                  >
-                    <Upload size={12} aria-hidden="true" />
-                    Restore from .json
-                  </button>
-                </div>
-                {confirmRestore ? (
-                  <div className="rounded-md border border-[var(--color-destructive)] bg-[color-mix(in_oklab,var(--color-destructive)_10%,transparent)] px-3 py-2.5">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle
-                        size={12}
-                        className="mt-0.5 shrink-0 text-[var(--color-destructive)]"
-                        aria-hidden="true"
-                      />
-                      <span className="font-mono text-[11px] text-[var(--color-text)]">
-                        Restoring will <strong>replace</strong> every batch + row currently in the
-                        database. Export a backup first if you're unsure.
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setConfirmRestore(false)}
-                        className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void onRestoreConfirmed()}
-                        className="rounded-md border border-[var(--color-destructive)] bg-[var(--color-destructive)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-white transition-opacity hover:opacity-90"
-                      >
-                        Replace + restore
-                      </button>
-                    </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void onExport()}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                    >
+                      <Download size={12} aria-hidden="true" />
+                      Export to .json
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRestore(true)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-destructive)] hover:text-[var(--color-destructive)]"
+                    >
+                      <Upload size={12} aria-hidden="true" />
+                      Restore from .json
+                    </button>
                   </div>
-                ) : null}
-                {settings.lastBackupAt ? (
-                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                    last export: {new Date(settings.lastBackupAt).toLocaleString()}
-                  </p>
-                ) : (
-                  <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
-                    no backup taken yet
-                  </p>
-                )}
-              </div>
-            </Section>
+                  {confirmRestore ? (
+                    <div className="rounded-md border border-[var(--color-destructive)] bg-[color-mix(in_oklab,var(--color-destructive)_10%,transparent)] px-3 py-2.5">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle
+                          size={12}
+                          className="mt-0.5 shrink-0 text-[var(--color-destructive)]"
+                          aria-hidden="true"
+                        />
+                        <span className="font-mono text-[11px] text-[var(--color-text)]">
+                          Restoring will <strong>replace</strong> every batch + row currently in the
+                          database. Export a backup first if you're unsure.
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRestore(false)}
+                          className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void onRestoreConfirmed()}
+                          className="rounded-md border border-[var(--color-destructive)] bg-[var(--color-destructive)] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.06em] text-white transition-opacity hover:opacity-90"
+                        >
+                          Replace + restore
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {settings.lastBackupAt ? (
+                    <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                      last export: {new Date(settings.lastBackupAt).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                      no backup taken yet
+                    </p>
+                  )}
+                </div>
+              </Section>
+
+              <WhatsNewSection />
+              <AboutSection />
+            </div>
           </motion.aside>
         </motion.div>
       ) : null}
@@ -1277,5 +1299,116 @@ function NavIconButton({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Lists every entry in CHANGELOG_ENTRIES. Touching this section
+ * auto-marks all entries seen, so the Quick Tips unread dot clears
+ * as a side effect.
+ */
+function WhatsNewSection() {
+  const { markAllSeen, hasUnread } = useUnreadChangelog();
+  useEffect(() => {
+    // Fire only when the drawer is open AND there's something new —
+    // avoids touching localStorage on every render.
+    if (hasUnread) markAllSeen();
+  }, [hasUnread, markAllSeen]);
+
+  return (
+    <Section
+      icon={<Sparkles size={12} aria-hidden="true" />}
+      title="What's new"
+      hint="Release highlights for this build."
+    >
+      <div className="flex flex-col gap-4">
+        {CHANGELOG_ENTRIES.map((entry) => (
+          <div key={entry.version} className="border-l-2 border-[var(--color-accent)] pl-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <h4 className="font-serif text-[14px] text-[var(--color-text)]">{entry.title}</h4>
+              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+                {entry.version} · {entry.date}
+              </span>
+            </div>
+            <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+              {entry.highlights.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+const APP_VERSION = CHANGELOG_ENTRIES[0]?.version ?? '0.0.0-dev';
+
+/**
+ * Read-only metadata: version + (when running in Electron) the
+ * absolute path of the local SQLite database, so an operator can
+ * find/back-up/restore-on-disaster the file without diving into
+ * platform-specific app-data locations.
+ */
+function AboutSection() {
+  const [dbPath, setDbPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Best-effort: the desktop bridge exposes the path via a tiny
+    // IPC handler; web mode has no DB, so we leave it null and the
+    // UI degrades to "managed by browser storage".
+    const bridge = (window as { cursorUsage?: { getDbPath?: () => Promise<string> } }).cursorUsage;
+    if (!bridge?.getDbPath) return;
+    let cancelled = false;
+    void bridge
+      .getDbPath()
+      .then((p) => {
+        if (!cancelled) setDbPath(p);
+      })
+      .catch(() => {
+        // ignore — older builds without the handler simply hide the row
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Section
+      icon={<Info size={12} aria-hidden="true" />}
+      title="About"
+      hint="No network, no telemetry. Everything stays on this machine."
+    >
+      <dl className="flex flex-col gap-2 text-[12px]">
+        <Row label="Version">
+          <span className="font-mono">{APP_VERSION}</span>
+        </Row>
+        <Row label="Data">
+          {dbPath ? (
+            <span className="break-all font-mono text-[11px] text-[var(--color-text-muted)]">
+              {dbPath}
+            </span>
+          ) : (
+            <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+              browser storage (web preview)
+            </span>
+          )}
+        </Row>
+        <Row label="License">
+          <span className="font-mono">MIT · local-first</span>
+        </Row>
+      </dl>
+    </Section>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <dt className="w-[68px] shrink-0 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+        {label}
+      </dt>
+      <dd className="flex-1 text-[var(--color-text)]">{children}</dd>
+    </div>
   );
 }

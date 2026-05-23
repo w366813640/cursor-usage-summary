@@ -96,10 +96,11 @@ export function FileToolbar({
       transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
       // Sticky so the Focus / Manage data buttons stay reachable from any
       // route at any scroll position. top-12 = app header height (48px);
-      // z-40 sits below the right-edge SettingsDrawer (z-50-ish) but above
-      // every Panel border and the sticky SectionHeader (z-30). The faint
-      // backdrop blur + bg color avoid the "ghosted text" effect from
-      // scrolling content bleeding through a transparent bar.
+      // z-40 sits below modal/drawer overlays (z-[60]) and the app
+      // header (z-50) but above every Panel border and the sticky
+      // SectionHeader (z-30). The faint backdrop blur + bg color
+      // avoid the "ghosted text" effect from scrolling content
+      // bleeding through a transparent bar.
       className="sticky top-12 z-40 -mx-1 flex items-center justify-end gap-2 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-bg)_72%,transparent)]"
     >
       <ToolbarButton

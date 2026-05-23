@@ -19,6 +19,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
 import { ImportHistoryDrawer } from '../components/ImportHistoryDrawer';
 import { ImportPreviewDrawer } from '../components/ImportPreviewDrawer';
+import { OnboardingTour } from '../components/OnboardingTour';
+import { QuickTipsButton } from '../components/QuickTipsButton';
 import { SettingsDrawer } from '../components/SettingsDrawer';
 import { isDesktop as detectDesktop } from '../electron/bridge';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
@@ -248,6 +250,12 @@ function DesktopWelcomePage() {
         onOpenImport={onPick}
         onOpenHistory={() => setHistoryOpen(true)}
       />
+
+      {/* Commercial-polish chrome: floating help button + first-run
+          tour. Mount on every state (welcome + dashboard) so a user
+          can summon shortcuts / changelog before they've imported. */}
+      <QuickTipsButton onOpenSettings={() => setSettingsOpen(true)} />
+      {success ? <OnboardingTour /> : null}
     </PageChrome>
   );
 }

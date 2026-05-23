@@ -9,6 +9,7 @@ import {
 } from '@cu/icons';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { PreviewResult } from '../electron/types';
+import { useDrawerA11y } from '../hooks/useDrawerA11y';
 
 interface ImportPreviewDrawerProps {
   open: boolean;
@@ -49,6 +50,9 @@ export function ImportPreviewDrawer({
 }: ImportPreviewDrawerProps) {
   const nothingToImport = preview.isDuplicateFile || preview.wouldAdd === 0;
   const showCommit = !nothingToImport;
+  const dialogRef = useDrawerA11y(open, () => {
+    if (!committing) onCancel();
+  });
 
   return (
     <AnimatePresence>
@@ -58,13 +62,14 @@ export function ImportPreviewDrawer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
+          className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={() => {
             if (!committing) onCancel();
           }}
         >
           <motion.aside
+            ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ x: 80, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 60, opacity: 0 }}
@@ -73,9 +78,9 @@ export function ImportPreviewDrawer({
             role="dialog"
             aria-modal="true"
             aria-label="Import preview"
-            className="flex h-full w-[480px] max-w-full flex-col gap-5 overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] px-6 pb-6 pt-5 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
+            className="flex h-full w-[480px] max-w-full flex-col overflow-y-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.55)]"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-6 pt-5 pb-3 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-surface)_88%,transparent)]">
               <div className="flex items-center gap-2.5">
                 <FileSpreadsheet
                   size={16}
@@ -107,44 +112,45 @@ export function ImportPreviewDrawer({
                 <X size={14} aria-hidden="true" />
               </button>
             </div>
+            <div className="flex flex-1 flex-col gap-5 px-6 pt-5 pb-6">
+              {preview.isDuplicateFile ? (
+                <DuplicateFileNotice fileName={fileName} />
+              ) : preview.wouldAdd === 0 ? (
+                <NoNewRowsNotice rowsSeen={rowsSeen} />
+              ) : (
+                <PreviewSummary preview={preview} rowsSeen={rowsSeen} failures={failures} />
+              )}
 
-            {preview.isDuplicateFile ? (
-              <DuplicateFileNotice fileName={fileName} />
-            ) : preview.wouldAdd === 0 ? (
-              <NoNewRowsNotice rowsSeen={rowsSeen} />
-            ) : (
-              <PreviewSummary preview={preview} rowsSeen={rowsSeen} failures={failures} />
-            )}
-
-            <div className="mt-auto flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={committing}
-                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {showCommit ? 'Cancel' : 'Close'}
-              </button>
-              {showCommit ? (
+              <div className="mt-auto flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
                 <button
                   type="button"
-                  onClick={onConfirm}
+                  onClick={onCancel}
                   disabled={committing}
-                  className="flex items-center gap-1.5 rounded-md border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{
-                    background: 'var(--color-accent)',
-                    color: 'var(--color-bg)',
-                    borderColor: 'var(--color-accent)',
-                  }}
+                  className="rounded-md border border-[var(--color-border)] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {committing ? (
-                    <Loader2 size={12} aria-hidden="true" className="animate-spin" />
-                  ) : (
-                    <CheckCircle2 size={12} aria-hidden="true" />
-                  )}
-                  {committing ? 'Importing…' : `Import ${preview.wouldAdd.toLocaleString()} rows`}
+                  {showCommit ? 'Cancel' : 'Close'}
                 </button>
-              ) : null}
+                {showCommit ? (
+                  <button
+                    type="button"
+                    onClick={onConfirm}
+                    disabled={committing}
+                    className="flex items-center gap-1.5 rounded-md border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.06em] transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{
+                      background: 'var(--color-accent)',
+                      color: 'var(--color-bg)',
+                      borderColor: 'var(--color-accent)',
+                    }}
+                  >
+                    {committing ? (
+                      <Loader2 size={12} aria-hidden="true" className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={12} aria-hidden="true" />
+                    )}
+                    {committing ? 'Importing…' : `Import ${preview.wouldAdd.toLocaleString()} rows`}
+                  </button>
+                ) : null}
+              </div>
             </div>
           </motion.aside>
         </motion.div>

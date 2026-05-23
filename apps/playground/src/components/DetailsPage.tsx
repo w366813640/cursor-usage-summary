@@ -8,6 +8,12 @@ import { SectionHeader } from './SectionHeader';
 interface DetailsPageProps {
   summary: UsageSummary;
   rows: ReadonlyArray<RowWithCost>;
+  /**
+   * Switch to the Day Audit route. Fired by the hover-only "→ day"
+   * cell so a row's context (date) can be picked back up there.
+   * Optional — the page degrades to a hash-fallback when absent.
+   */
+  onJumpToDay?: (isoDate: string) => void;
 }
 
 type SortKey = 'date-desc' | 'cost-desc' | 'tokens-desc';
@@ -19,7 +25,7 @@ const PAGE_SIZE = 50;
  * sortable so the user can answer arbitrary questions like "what's the most
  * expensive Gemini call I ever made?" without leaving the page.
  */
-export function DetailsPage({ summary, rows }: DetailsPageProps) {
+export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
   const [sort, setSort] = useState<SortKey>('cost-desc');
   const [modelFilter, setModelFilter] = useState<string>('');
   const [query, setQuery] = useState<string>('');
@@ -154,12 +160,14 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
                     {c.key}
                   </th>
                 ))}
+                <th aria-label="row actions" className="w-[44px]" />
+                {/* hover-only actions */}
               </tr>
             </thead>
             <tbody>
               {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-3 py-10 text-center">
+                  <td colSpan={8} className="px-3 py-10 text-center">
                     <div className="mx-auto flex max-w-[420px] flex-col items-center gap-2 font-mono text-[11px] text-[var(--color-text-subtle)]">
                       <span className="font-serif text-[16px] text-[var(--color-text)]">
                         No matching requests
@@ -269,6 +277,23 @@ export function DetailsPage({ summary, rows }: DetailsPageProps) {
                         ) : (
                           '—'
                         )}
+                      </td>
+                      <td className="px-2 py-2 text-right align-middle">
+                        <button
+                          type="button"
+                          aria-label={`Open Day audit for ${r.date.toISOString().slice(0, 10)}`}
+                          title="Open Day audit (g + h)"
+                          onClick={() => {
+                            if (onJumpToDay) {
+                              onJumpToDay(r.date.toISOString().slice(0, 10));
+                            } else {
+                              window.location.hash = '#day';
+                            }
+                          }}
+                          className="inline-flex h-5 w-5 items-center justify-center rounded-sm border border-transparent font-mono text-[11px] text-[var(--color-text-subtle)] opacity-0 transition-all duration-150 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] focus-visible:opacity-100 group-hover/row:opacity-100"
+                        >
+                          →
+                        </button>
                       </td>
                     </tr>
                   );

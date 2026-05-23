@@ -1,11 +1,13 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
+import { useShortcut } from '@cu/ui';
 import { Suspense, lazy, useMemo } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useFocusMode } from '../hooks/useFocusMode';
 import { useSettings } from '../hooks/useSettings';
-import { useRoute } from '../router/useRoute';
+import { type AppRoute, useRoute } from '../router/useRoute';
 import { useExtraPaletteActions } from './CommandPalette';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
+import { KeyboardCheatsheet } from './KeyboardCheatsheet';
 import { OverviewPage } from './OverviewPage';
 import { SideNav } from './SideNav';
 
@@ -133,8 +135,25 @@ export function DashboardShell({
   useBudgetReporter({ summary });
   useExtraPaletteActions(desktopPaletteActions);
 
+  // Navigation shortcuts: g + first letter of the section. Mirrors
+  // Vim / Gmail muscle memory. `?` is wired in KeyboardCheatsheet,
+  // Cmd/Ctrl+K stays owned by the command palette.
+  useNavigationShortcuts(navigate);
+  // Cmd/Ctrl+, opens Settings — convention shared with VS Code / Cursor.
+  useShortcut(
+    {
+      id: 'open-settings',
+      combo: { mod: true, key: ',' },
+      description: 'Open Settings drawer',
+      group: 'global',
+      handler: () => onOpenSettings(),
+    },
+    [onOpenSettings],
+  );
+
   return (
     <div className="flex gap-5">
+      <KeyboardCheatsheet />
       <SideNav current={route} onNavigate={navigate} routeLayout={navLayout} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -157,13 +176,51 @@ export function DashboardShell({
             {route === 'year' ? <YearReviewPage rows={rows} /> : null}
             {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}
             {route === 'models' ? <ModelsPage summary={summary} rows={rows} /> : null}
-            {route === 'details' ? <DetailsPage summary={summary} rows={rows} /> : null}
+            {route === 'details' ? (
+              <DetailsPage summary={summary} rows={rows} onJumpToDay={() => navigate('day')} />
+            ) : null}
             {route === 'day' ? <DayPage summary={summary} rows={rows} /> : null}
           </div>
         </Suspense>
       </div>
     </div>
   );
+}
+
+/**
+ * Registers six "g + letter" combos as global shortcuts so power users
+ * can flick between routes without the mouse. Letters are chosen to
+ * disambiguate (o = overview, y = year, a = anomalies, m = models,
+ * d = details, h = day audit — `d` is taken). `g` as a prefix matches
+ * Vim / Gmail muscle memory but here we just bind the second key
+ * directly because a true sequence handler would need a small state
+ * machine — out of scope.
+ */
+function useNavigationShortcuts(navigate: (r: AppRoute) => void) {
+  const mappings: Array<{ key: string; route: AppRoute; description: string }> = [
+    { key: 'o', route: 'overview', description: 'Go to Overview' },
+    { key: 'y', route: 'year', description: 'Go to Year review' },
+    { key: 'a', route: 'anomalies', description: 'Go to Anomalies' },
+    { key: 'm', route: 'models', description: 'Go to Models' },
+    { key: 'r', route: 'details', description: 'Go to All requests (details)' },
+    { key: 'h', route: 'day', description: 'Go to Day audit' },
+  ];
+  for (const m of mappings) {
+    // The mappings array is a stable module-level constant, so this
+    // loop registers a fixed set of shortcuts on every render — the
+    // hook order is deterministic even though it's wrapped in a
+    // `for` loop.
+    useShortcut(
+      {
+        id: `nav-${m.route}`,
+        combo: { key: m.key },
+        description: m.description,
+        group: 'navigation',
+        handler: () => navigate(m.route),
+      },
+      [navigate],
+    );
+  }
 }
 
 function RouteLoadingSkeleton() {
@@ -174,11 +231,11 @@ function RouteLoadingSkeleton() {
       aria-live="polite"
       aria-label="Loading dashboard route"
     >
-      <div className="h-3 w-32 animate-pulse rounded-full bg-[var(--color-border)]" />
+      <div className="cu-shimmer h-3 w-32 rounded-full" />
       <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/70" />
-        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/60" />
-        <div className="h-24 animate-pulse rounded-[12px] bg-[var(--color-border)]/50" />
+        <div className="cu-shimmer h-24 rounded-[12px]" />
+        <div className="cu-shimmer h-24 rounded-[12px]" style={{ animationDelay: '120ms' }} />
+        <div className="cu-shimmer h-24 rounded-[12px]" style={{ animationDelay: '240ms' }} />
       </div>
     </div>
   );

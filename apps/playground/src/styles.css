@@ -62,3 +62,66 @@ body {
   --cu-density-stack-gap: 18px;
   --cu-density-line-height: 1.65;
 }
+
+/* ----------------------------------------------------------------
+ * Accessibility: visible focus rings on every interactive control
+ *
+ * Tailwind's default reset strips browser focus rings. We restore a
+ * consistent 2px accent-coloured ring on `:focus-visible` so
+ * keyboard users always know where they are. `:focus` (mouse click)
+ * stays quiet to avoid the "halo on every click" pattern.
+ *
+ * Inputs / textareas get a slightly stronger box-shadow ring + a
+ * matching border colour because their native outline would clash
+ * with the rounded-md border styles we already use.
+ * ---------------------------------------------------------------- */
+:root {
+  --cu-focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent);
+}
+
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--cu-focus-ring);
+  border-radius: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-accent) 25%, transparent);
+}
+
+/* ----------------------------------------------------------------
+ * Shimmer skeleton — replaces tailwind's `animate-pulse` for
+ * placeholders. A pulse is a flat alpha breathe (feels "frozen");
+ * a shimmer sweeps a light gradient across the surface, which reads
+ * as "loading, not stuck". `prefers-reduced-motion` falls back to a
+ * static surface tone so vestibular users don't see motion.
+ * ---------------------------------------------------------------- */
+@keyframes cu-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.cu-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-border) 70%, transparent) 0%,
+    color-mix(in oklab, var(--color-border) 95%, var(--color-text) 6%) 50%,
+    color-mix(in oklab, var(--color-border) 70%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: cu-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cu-shimmer {
+    animation: none;
+    background: var(--color-border);
+  }
+}
