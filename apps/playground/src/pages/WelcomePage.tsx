@@ -185,6 +185,7 @@ function DesktopWelcomePage() {
               onOpenHistory: () => setHistoryOpen(true),
               storageHint: 'Saved locally in cursor-usage.db (better-sqlite3, main process)',
             }}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         ) : !bootChecked ? (
           <BootGate />

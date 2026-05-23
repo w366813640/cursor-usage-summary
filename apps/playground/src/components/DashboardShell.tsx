@@ -1,7 +1,9 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useMemo, useState } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
+import { useFocusMode } from '../hooks/useFocusMode';
 import { useRoute } from '../router/useRoute';
+import { useExtraPaletteActions } from './CommandPalette';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { OverviewPage } from './OverviewPage';
 import { SideNav } from './SideNav';
@@ -29,6 +31,7 @@ interface DashboardShellProps {
   lastIngestedAt: number;
   /** Wires the toolbar buttons (Import / History) to the desktop shell. */
   desktopActions: DesktopActions;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -55,14 +58,60 @@ export function DashboardShell({
   elapsedMs,
   lastIngestedAt,
   desktopActions,
+  onOpenSettings,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
   const [navExpanded, setNavExpanded] = useState(false);
+  const [focusMode, setFocusMode] = useFocusMode();
+  const desktopPaletteActions = useMemo(
+    () => [
+      {
+        id: 'desktop-import-csv',
+        name: 'Import CSV',
+        subtitle: 'Preview and merge another usage export',
+        keywords: 'upload add file merge csv usage',
+        section: 'Desktop',
+        perform: desktopActions.onOpenImport,
+      },
+      {
+        id: 'desktop-import-history',
+        name: 'Open Import History',
+        subtitle: 'Review batches and undo imports',
+        keywords: 'history batch undo restore previous imports',
+        section: 'Desktop',
+        perform: desktopActions.onOpenHistory,
+      },
+      {
+        id: 'desktop-settings',
+        name: 'Open Settings',
+        subtitle: 'Theme, density, goals, backup, updates',
+        keywords: 'preferences options backup restore goals density update',
+        section: 'Desktop',
+        perform: onOpenSettings,
+      },
+      {
+        id: 'desktop-toggle-focus',
+        name: focusMode ? 'Disable Focus Mode' : 'Enable Focus Mode',
+        subtitle: 'Hide or restore context panels on Overview',
+        keywords: 'focus mode simplify hide panels',
+        section: 'Desktop',
+        perform: () => setFocusMode(!focusMode),
+      },
+    ],
+    [
+      desktopActions.onOpenImport,
+      desktopActions.onOpenHistory,
+      focusMode,
+      onOpenSettings,
+      setFocusMode,
+    ],
+  );
 
   // Keeps the tray label fresh and fires budget-cross toasts. No-op in
   // web mode (bridge absent) and idempotent — the hook diffs the
   // payload internally before crossing the IPC boundary.
   useBudgetReporter({ summary });
+  useExtraPaletteActions(desktopPaletteActions);
 
   return (
     <div className="flex gap-5">
