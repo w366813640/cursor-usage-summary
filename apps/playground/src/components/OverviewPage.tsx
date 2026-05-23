@@ -9,6 +9,7 @@ import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { ActionFeed } from './overview/ActionFeed';
 import { BudgetUrgencyBanner } from './overview/BudgetUrgencyBanner';
 import { EfficiencyCard } from './overview/EfficiencyCard';
+import { GoalProgressPanel } from './overview/GoalProgressPanel';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
 import { OverviewKpiHero } from './overview/OverviewKpiHero';
@@ -65,6 +66,8 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
       <WeekSummaryCard summary={summary} rows={rows} />
 
       <ActionFeed summary={summary} rows={rows} />
+
+      <GoalProgressPanel summary={summary} settings={settings} />
 
       <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
 

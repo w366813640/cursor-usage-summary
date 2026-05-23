@@ -25,6 +25,10 @@ interface UserSettings {
   currency: { code: string; symbol: string; multiplier: number };
   lastBackupAt: string | null;
   displayDensity: 'comfortable' | 'dense' | 'presentation';
+  personalGoals: {
+    monthlyRequestTarget: number | null;
+    habitFocus: 'cache' | 'top-burn' | 'volume' | null;
+  };
 }
 
 interface ExportToFileResult {

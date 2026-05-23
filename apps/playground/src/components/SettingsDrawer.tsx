@@ -74,6 +74,10 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' });
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<string>('');
+  const [goalDraft, setGoalDraft] = useState({
+    monthlyRequestTarget: '',
+    habitFocus: '' as '' | 'cache' | 'top-burn' | 'volume',
+  });
   const [currencyDraft, setCurrencyDraft] = useState({
     code: '',
     symbol: '',
@@ -115,7 +119,14 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
       symbol: settings.currency.symbol,
       multiplier: String(settings.currency.multiplier),
     });
-  }, [loading, settings.monthlyRequestBudget, settings.currency]);
+    setGoalDraft({
+      monthlyRequestTarget:
+        settings.personalGoals.monthlyRequestTarget === null
+          ? ''
+          : String(settings.personalGoals.monthlyRequestTarget),
+      habitFocus: settings.personalGoals.habitFocus ?? '',
+    });
+  }, [loading, settings.monthlyRequestBudget, settings.currency, settings.personalGoals]);
 
   const onSaveBudget = async () => {
     const next = Number(budgetDraft);
@@ -164,6 +175,34 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
       await save({ displayDensity });
       document.documentElement.dataset.density = displayDensity;
       setStatus({ kind: 'ok', message: `Display density set to ${displayDensity}.` });
+    } catch (err) {
+      setStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const onSaveGoals = async () => {
+    const rawTarget = goalDraft.monthlyRequestTarget.trim();
+    const monthlyRequestTarget = rawTarget === '' ? null : Number(rawTarget);
+    if (
+      monthlyRequestTarget !== null &&
+      (!Number.isFinite(monthlyRequestTarget) || monthlyRequestTarget <= 0)
+    ) {
+      setStatus({ kind: 'error', message: 'Monthly goal must be empty or a positive number.' });
+      return;
+    }
+    setStatus({ kind: 'busy', message: 'Saving personal goals...' });
+    try {
+      await save({
+        personalGoals: {
+          monthlyRequestTarget:
+            monthlyRequestTarget === null ? null : Math.round(monthlyRequestTarget),
+          habitFocus: goalDraft.habitFocus || null,
+        },
+      });
+      setStatus({ kind: 'ok', message: 'Personal goals saved.' });
     } catch (err) {
       setStatus({
         kind: 'error',
@@ -445,6 +484,43 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
               <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
                 current persisted: {settings.monthlyRequestBudget.toLocaleString()} req/mo
               </p>
+            </Section>
+
+            <Section
+              icon={<Check size={12} aria-hidden="true" />}
+              title="Personal goals"
+              hint="Optional local-only coaching targets. Leave target blank to follow the plan cap."
+            >
+              <div className="grid grid-cols-[1fr_1.4fr_auto] items-end gap-2">
+                <Field
+                  label="Request target"
+                  value={goalDraft.monthlyRequestTarget}
+                  onChange={(v) => setGoalDraft((g) => ({ ...g, monthlyRequestTarget: v }))}
+                  placeholder={String(settings.monthlyRequestBudget)}
+                  type="number"
+                />
+                <label className="flex flex-col gap-1">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]">
+                    Habit focus
+                  </span>
+                  <select
+                    value={goalDraft.habitFocus}
+                    onChange={(e) =>
+                      setGoalDraft((g) => ({
+                        ...g,
+                        habitFocus: e.target.value as typeof goalDraft.habitFocus,
+                      }))
+                    }
+                    className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none"
+                  >
+                    <option value="">No focus</option>
+                    <option value="cache">Improve cache reuse</option>
+                    <option value="top-burn">Trim top-burn runs</option>
+                    <option value="volume">Reduce request volume</option>
+                  </select>
+                </label>
+                <SaveButton onClick={onSaveGoals} disabled={loading} />
+              </div>
             </Section>
 
             <Section

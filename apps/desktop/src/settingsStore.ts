@@ -37,6 +37,10 @@ export interface UserSettings {
   currency: CurrencyPreference;
   lastBackupAt: string | null;
   displayDensity: 'comfortable' | 'dense' | 'presentation';
+  personalGoals: {
+    monthlyRequestTarget: number | null;
+    habitFocus: 'cache' | 'top-burn' | 'volume' | null;
+  };
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -44,6 +48,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   currency: { code: 'USD', symbol: '$', multiplier: 1 },
   lastBackupAt: null,
   displayDensity: 'comfortable',
+  personalGoals: { monthlyRequestTarget: null, habitFocus: null },
 };
 
 const SETTINGS_FILENAME = 'cursor-usage-settings.json';
@@ -64,10 +69,15 @@ function clamp(n: unknown, min: number, max: number, fallback: number): number {
 function normalize(raw: unknown): UserSettings {
   const obj = (raw ?? {}) as Partial<UserSettings>;
   const currency = (obj.currency ?? {}) as Partial<CurrencyPreference>;
+  const goals = (obj.personalGoals ?? {}) as Partial<UserSettings['personalGoals']>;
   const displayDensity =
     obj.displayDensity === 'dense' || obj.displayDensity === 'presentation'
       ? obj.displayDensity
       : 'comfortable';
+  const habitFocus =
+    goals.habitFocus === 'cache' || goals.habitFocus === 'top-burn' || goals.habitFocus === 'volume'
+      ? goals.habitFocus
+      : null;
   return {
     monthlyRequestBudget: clamp(obj.monthlyRequestBudget, 1, 1_000_000, 500),
     currency: {
@@ -77,6 +87,14 @@ function normalize(raw: unknown): UserSettings {
     },
     lastBackupAt: typeof obj.lastBackupAt === 'string' ? obj.lastBackupAt : null,
     displayDensity,
+    personalGoals: {
+      monthlyRequestTarget:
+        typeof goals.monthlyRequestTarget === 'number' &&
+        Number.isFinite(goals.monthlyRequestTarget)
+          ? clamp(goals.monthlyRequestTarget, 1, 1_000_000, 500)
+          : null,
+      habitFocus,
+    },
   };
 }
 
@@ -106,6 +124,7 @@ export function writeSettings(partial: Partial<UserSettings>): UserSettings {
     ...current,
     ...partial,
     currency: { ...current.currency, ...(partial.currency ?? {}) },
+    personalGoals: { ...current.personalGoals, ...(partial.personalGoals ?? {}) },
   });
   const p = settingsPath();
   const dir = path.dirname(p);

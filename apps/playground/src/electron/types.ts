@@ -107,6 +107,10 @@ export interface UserSettings {
   currency: CurrencyPreference;
   lastBackupAt: string | null;
   displayDensity: 'comfortable' | 'dense' | 'presentation';
+  personalGoals: {
+    monthlyRequestTarget: number | null;
+    habitFocus: 'cache' | 'top-burn' | 'volume' | null;
+  };
 }
 
 export interface ExportToFileResult {

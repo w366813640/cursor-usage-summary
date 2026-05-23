@@ -15,6 +15,7 @@ const FALLBACK: UserSettings = {
   currency: { code: 'USD', symbol: '$', multiplier: 1 },
   lastBackupAt: null,
   displayDensity: 'comfortable',
+  personalGoals: { monthlyRequestTarget: null, habitFocus: null },
 };
 
 const SETTINGS_EVENT = 'cu:settings-change';
