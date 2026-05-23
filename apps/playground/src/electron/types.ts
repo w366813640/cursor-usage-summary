@@ -123,6 +123,12 @@ export interface ImportFromFileResult {
   error?: string;
 }
 
+export interface DiagnosticsExportResult {
+  canceled: boolean;
+  path?: string;
+  bytesWritten?: number;
+}
+
 /**
  * Snapshot of the current month the renderer pushes to the main
  * process. Main uses it to update the tray label and to decide whether
@@ -190,6 +196,7 @@ export interface DesktopBridge {
       version: string;
       appName: string;
     }>;
+    exportDiagnostics: () => Promise<DiagnosticsExportResult>;
   };
   settings: {
     get: () => Promise<UserSettings>;

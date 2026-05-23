@@ -1,11 +1,12 @@
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { BrowserWindow, app, ipcMain, nativeTheme, shell } from 'electron';
-import { closeDb, registerDbIpc } from './db';
+import { BrowserWindow, app, dialog, ipcMain, nativeTheme, shell } from 'electron';
+import { closeDb, getDb, registerDbIpc } from './db';
 import { registerBudgetIpc, resetBudgetGuard } from './notifications';
 import { getSettingsPath, readSettings, writeSettings } from './settingsStore';
 import { type SplashHandle, showSplash } from './splash';
 import { destroyTray, ensureTray } from './tray';
-import { maybeRegisterAutoUpdater, registerUpdateIpc } from './updater';
+import { getLastUpdateStatus, maybeRegisterAutoUpdater, registerUpdateIpc } from './updater';
 
 const isDev = !app.isPackaged;
 const RENDERER_DEV_URL = process.env.RENDERER_DEV_URL ?? 'http://localhost:5173';
@@ -14,6 +15,12 @@ const baseDir = __dirname;
 
 let mainWindow: BrowserWindow | null = null;
 let splash: SplashHandle | null = null;
+
+interface DiagnosticsExportResult {
+  canceled: boolean;
+  path?: string;
+  bytesWritten?: number;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -113,6 +120,60 @@ function registerIpc() {
     version: app.getVersion(),
     appName: app.getName(),
   }));
+
+  ipcMain.handle('app:exportDiagnostics', async (): Promise<DiagnosticsExportResult> => {
+    const options = {
+      title: 'Export Cursor Usage diagnostics',
+      defaultPath: `cursor-usage-diagnostics-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'Diagnostics JSON', extensions: ['json'] }],
+    };
+    const result =
+      mainWindow && !mainWindow.isDestroyed()
+        ? await dialog.showSaveDialog(mainWindow, options)
+        : await dialog.showSaveDialog(options);
+    if (result.canceled || !result.filePath) return { canceled: true };
+
+    const settings = readSettings();
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      app: {
+        name: app.getName(),
+        version: app.getVersion(),
+        isPackaged: app.isPackaged,
+        platform: process.platform,
+        arch: process.arch,
+        electron: process.versions.electron,
+        chrome: process.versions.chrome,
+        node: process.versions.node,
+      },
+      security: {
+        contextIsolation: true,
+        sandbox: true,
+        nodeIntegration: false,
+        webSecurity: true,
+      },
+      settings: {
+        monthlyRequestBudget: settings.monthlyRequestBudget,
+        currencyCode: settings.currency.code,
+        currencyMultiplier: settings.currency.multiplier,
+        displayDensity: settings.displayDensity,
+        hasBackup: Boolean(settings.lastBackupAt),
+      },
+      database: {
+        counts: getDb().counts(),
+        path: path.join(app.getPath('userData'), 'cursor-usage.db'),
+        settingsPath: getSettingsPath(),
+      },
+      update: getLastUpdateStatus(),
+    };
+    const json = `${JSON.stringify(payload, null, 2)}\n`;
+    writeFileSync(result.filePath, json, 'utf-8');
+    return {
+      canceled: false,
+      path: result.filePath,
+      bytesWritten: Buffer.byteLength(json, 'utf-8'),
+    };
+  });
 
   // Settings surface — small JSON store at
   // userData/cursor-usage-settings.json. Theme persistence still goes

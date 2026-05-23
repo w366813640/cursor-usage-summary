@@ -41,6 +41,12 @@ interface ImportFromFileResult {
   error?: string;
 }
 
+interface DiagnosticsExportResult {
+  canceled: boolean;
+  path?: string;
+  bytesWritten?: number;
+}
+
 interface BudgetReportPayload {
   monthKey: string;
   monthLabel: string;
@@ -90,6 +96,8 @@ const bridge = {
   },
   app: {
     getInfo: () => ipcRenderer.invoke('app:get-info') as Promise<AppInfo>,
+    exportDiagnostics: () =>
+      ipcRenderer.invoke('app:exportDiagnostics') as Promise<DiagnosticsExportResult>,
   },
   /**
    * User settings — a flat JSON file at

@@ -6,6 +6,7 @@ import type {
   BudgetReportPayload,
   BudgetReportResult,
   DbCounts,
+  DiagnosticsExportResult,
   ExportToFileResult,
   ImportBatchInfo,
   ImportFromFileResult,
@@ -94,6 +95,10 @@ export async function sha256File(file: File): Promise<string> {
 
 export async function getSettings(): Promise<UserSettings> {
   return bridge().settings.get();
+}
+
+export async function exportDiagnosticsToFile(): Promise<DiagnosticsExportResult> {
+  return bridge().app.exportDiagnostics();
 }
 
 export async function updateSettings(partial: Partial<UserSettings>): Promise<UserSettings> {

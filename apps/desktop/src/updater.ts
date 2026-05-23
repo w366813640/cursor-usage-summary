@@ -177,3 +177,7 @@ export function registerUpdateIpc(): void {
     }
   });
 }
+
+export function getLastUpdateStatus(): UpdateStatus {
+  return lastStatus;
+}

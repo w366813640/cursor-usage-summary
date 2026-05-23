@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Check,
   Download,
+  FileText,
   FolderOpen,
   HardDrive,
   Loader2,
@@ -20,6 +21,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import {
   checkForUpdates,
   exportDbToFile,
+  exportDiagnosticsToFile,
   getDbPath,
   getSettingsPath,
   getUpdateStatus,
@@ -229,6 +231,27 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
       setStatus({
         kind: 'ok',
         message: `Backup written to ${result.path} (${kb} KB).`,
+      });
+    } catch (err) {
+      setStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const onExportDiagnostics = async () => {
+    setStatus({ kind: 'busy', message: 'Exporting privacy-safe diagnostics...' });
+    try {
+      const result = await exportDiagnosticsToFile();
+      if (result.canceled) {
+        setStatus({ kind: 'idle' });
+        return;
+      }
+      const kb = ((result.bytesWritten ?? 0) / 1024).toFixed(1);
+      setStatus({
+        kind: 'ok',
+        message: `Diagnostics written to ${result.path} (${kb} KB).`,
       });
     } catch (err) {
       setStatus({
@@ -507,6 +530,25 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
                   </div>
                 ) : null}
               </div>
+            </Section>
+
+            <Section
+              icon={<FileText size={12} aria-hidden="true" />}
+              title="Support diagnostics"
+              hint="Exports metadata only: versions, counts, settings summary, update state, and paths."
+            >
+              <button
+                type="button"
+                onClick={() => void onExportDiagnostics()}
+                className="flex w-full items-center justify-center gap-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              >
+                <Download size={12} aria-hidden="true" />
+                Export diagnostics JSON
+              </button>
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+                No raw CSV rows, prompt text, Cloud Agent IDs, Automation IDs, or database contents
+                are included.
+              </p>
             </Section>
 
             <Section
