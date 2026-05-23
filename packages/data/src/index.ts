@@ -66,3 +66,9 @@ export {
   type ActionInsightPriority,
   type ComputeActionInsightsOptions,
 } from './insights';
+export {
+  computeBudgetScenarios,
+  type BudgetScenario,
+  type BudgetScenarioKind,
+  type BudgetScenarioOptions,
+} from './scenarios';

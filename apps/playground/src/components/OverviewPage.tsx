@@ -12,6 +12,7 @@ import { EfficiencyCard } from './overview/EfficiencyCard';
 import { OverviewActivity } from './overview/OverviewActivity';
 import { OverviewBurns } from './overview/OverviewBurns';
 import { OverviewKpiHero } from './overview/OverviewKpiHero';
+import { ScenarioPlannerPanel } from './overview/ScenarioPlannerPanel';
 import { WeekSummaryCard } from './overview/WeekSummaryCard';
 
 export interface OverviewPageProps {
@@ -100,6 +101,18 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
             transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
           >
             <ForecastPanel rows={rows} />
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
+          >
+            <ScenarioPlannerPanel
+              summary={summary}
+              rows={rows}
+              monthlyRequestBudget={settings.monthlyRequestBudget}
+            />
           </motion.section>
 
           <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />
