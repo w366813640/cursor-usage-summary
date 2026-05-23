@@ -18,13 +18,18 @@ import { type ThemeMode, useTheme } from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
+  checkForUpdates,
   exportDbToFile,
   getDbPath,
   getSettingsPath,
+  getUpdateStatus,
   importDbFromFile,
+  installUpdateAndRestart,
+  onUpdateStatus,
   revealDbInFolder,
   updateSettings,
 } from '../electron/desktopStorage';
+import type { UpdateStatus } from '../electron/types';
 import { useSettings } from '../hooks/useSettings';
 
 interface SettingsDrawerProps {
@@ -64,6 +69,7 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [dbPath, setDbPath] = useState<string | null>(null);
   const [settingsPath, setSettingsPathState] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' });
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<string>('');
   const [currencyDraft, setCurrencyDraft] = useState({
@@ -77,16 +83,25 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
     let active = true;
     (async () => {
       try {
-        const [p1, p2] = await Promise.all([getDbPath(), getSettingsPath()]);
+        const [p1, p2, update] = await Promise.all([
+          getDbPath(),
+          getSettingsPath(),
+          getUpdateStatus(),
+        ]);
         if (!active) return;
         setDbPath(p1);
         setSettingsPathState(p2);
+        setUpdateStatus(update);
       } catch {
         // Path display is best-effort — fall back to silent miss.
       }
     })();
+    const offUpdate = onUpdateStatus((next) => {
+      if (active) setUpdateStatus(next);
+    });
     return () => {
       active = false;
+      offUpdate();
     };
   }, [open]);
 
@@ -161,6 +176,38 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
       await save({ currency: { code: 'USD', symbol: '$', multiplier: 1 } });
       setCurrencyDraft({ code: 'USD', symbol: '$', multiplier: '1' });
       setStatus({ kind: 'ok', message: 'Currency reset to USD ($, ×1).' });
+    } catch (err) {
+      setStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const onCheckForUpdates = async () => {
+    setStatus({ kind: 'busy', message: 'Checking for updates...' });
+    try {
+      const result = await checkForUpdates();
+      if (result.ok) {
+        setStatus({ kind: 'ok', message: 'Update check started.' });
+        return;
+      }
+      setStatus({ kind: 'error', message: `Update check unavailable: ${result.reason}` });
+    } catch (err) {
+      setStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  const onInstallUpdate = async () => {
+    setStatus({ kind: 'busy', message: 'Installing update and restarting...' });
+    try {
+      const result = await installUpdateAndRestart();
+      if (!result.ok) {
+        setStatus({ kind: 'error', message: `Install unavailable: ${result.reason}` });
+      }
     } catch (err) {
       setStatus({
         kind: 'error',
@@ -378,6 +425,18 @@ export function SettingsDrawer({ open, onClose, onAfterRestore }: SettingsDrawer
             </Section>
 
             <Section
+              icon={<Download size={12} aria-hidden="true" />}
+              title="Updates"
+              hint="Release channels are explicit: dev builds explain why updates are disabled."
+            >
+              <UpdateStatusCard
+                status={updateStatus}
+                onCheck={onCheckForUpdates}
+                onInstall={onInstallUpdate}
+              />
+            </Section>
+
+            <Section
               icon={<HardDrive size={12} aria-hidden="true" />}
               title="Currency display"
               hint="USD remains source of truth — these fields override the renderer's formatter."
@@ -587,6 +646,72 @@ function SaveButton({
       save
     </button>
   );
+}
+
+function UpdateStatusCard({
+  status,
+  onCheck,
+  onInstall,
+}: {
+  status: UpdateStatus;
+  onCheck: () => void | Promise<void>;
+  onInstall: () => void | Promise<void>;
+}) {
+  const message = describeUpdateStatus(status);
+  const canInstall = status.kind === 'downloaded';
+  return (
+    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+            {status.kind}
+          </div>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+            {message}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => void onCheck()}
+            disabled={status.kind === 'checking' || status.kind === 'downloading'}
+            className="rounded-md border border-[var(--color-border)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            check
+          </button>
+          <button
+            type="button"
+            onClick={() => void onInstall()}
+            disabled={!canInstall}
+            className="rounded-md border border-[var(--color-accent)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-accent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            restart
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function describeUpdateStatus(status: UpdateStatus): string {
+  switch (status.kind) {
+    case 'idle':
+      return 'No update check has run in this session yet.';
+    case 'disabled':
+      return `Auto-update is disabled for this build (${status.reason}). Packaged release builds can enable it with CU_AUTO_UPDATE=1.`;
+    case 'checking':
+      return 'Checking the configured release feed now.';
+    case 'available':
+      return `Version ${status.version} is available and will download through the updater.`;
+    case 'not-available':
+      return `You are up to date on version ${status.version}.`;
+    case 'downloading':
+      return `Downloading update (${Math.round(status.percent)}%).`;
+    case 'downloaded':
+      return `Version ${status.version} is downloaded. Restart to install it.`;
+    case 'error':
+      return `Update check failed: ${status.message}`;
+  }
 }
 
 function StatusBanner({ status }: { status: Status }) {

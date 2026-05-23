@@ -3,7 +3,7 @@
   "name": "desktop-release-ux-hardening",
   "title": "Day 7: Desktop release UX hardening",
   "description": "Harden release experience: app icon/signing checklist, update UX, diagnostics/error boundary, backup restore validation, and packaging smoke matrix.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
