@@ -13,6 +13,11 @@ export {
   type SmallMultiplesProps,
 } from './SmallMultiples';
 export { StackBar, type StackBarProps, type StackBarSegment } from './StackBar';
+export {
+  StackedAreaChart,
+  type StackedAreaChartProps,
+  type StackedAreaSeries,
+} from './StackedAreaChart';
 export { StatGrid, type StatGridItem, type StatGridProps } from './StatGrid';
 export { Treemap, type TreemapDatum, type TreemapProps } from './Treemap';
 export {
@@ -30,5 +35,7 @@ export {
   modelsToSmallMultiples,
   modelsToTreemap,
   providersToStackSegments,
+  rowsToDailyStack,
   tokensToStackSegments,
+  type DailyStack,
 } from './adapters';

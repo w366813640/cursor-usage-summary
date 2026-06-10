@@ -3,16 +3,30 @@ import { type CSSProperties, type ReactNode, createContext, useContext, useMemo 
 import type { BrandTheme } from './types';
 
 /**
- * Default brand · Bloomberg-leaning power tool aesthetic.
+ * Default brand · "Linear Glass" — cool graphite + violet.
  *
- * Deep brown background, warm orange accent, JetBrains Mono for data — the
- * intent is "open this in a dim room at midnight to find that one expensive
- * Opus request." Pairs naturally with the dark theme.
+ * Deliberately carries NO palette overrides: the design tokens in
+ * @cu/tokens (violet accent, glass shadows) are the single source of
+ * truth, and this brand simply lets them through. Alternates below
+ * override the accent trio for users who want a different mood.
  */
-export const cuBloombergBrand: BrandTheme = {
-  id: 'cu-bloomberg',
+export const cuLinearGlassBrand: BrandTheme = {
+  id: 'cu-linear-glass',
   name: 'Cursor Usage',
-  tagline: 'Bloomberg Terminal-style usage analytics',
+  tagline: 'Glass-dark usage analytics',
+  logo: <CuMark size={22} />,
+  logoCompact: <CuMark size={18} />,
+  preferTheme: 'dark',
+};
+
+/**
+ * Classic warm brand · the original Bloomberg-leaning amber palette,
+ * kept as an alternate for users attached to the v1 look.
+ */
+export const cuClassicWarmBrand: BrandTheme = {
+  id: 'cu-classic-warm',
+  name: 'Cursor Usage · Classic',
+  tagline: 'Warm amber terminal aesthetic',
   logo: <CuMark size={22} />,
   logoCompact: <CuMark size={18} />,
   preferTheme: 'dark',
@@ -21,25 +35,6 @@ export const cuBloombergBrand: BrandTheme = {
     accentHover: '#e9946f',
     accentSoft: '#3f2c22',
     mark: '#db8460',
-  },
-};
-
-/**
- * Warm restrained brand · same warm palette as the base projects, recommended
- * for daytime use. Same data, gentler aesthetic.
- */
-export const cuWarmBrand: BrandTheme = {
-  id: 'cu-warm',
-  name: 'Cursor Usage · Warm',
-  tagline: 'Warm-restrained tool aesthetic',
-  logo: <CuMark size={22} />,
-  logoCompact: <CuMark size={18} />,
-  preferTheme: 'light',
-  palette: {
-    accent: '#c96f4a',
-    accentHover: '#b85f3d',
-    accentSoft: '#f7e7d9',
-    mark: '#c96f4a',
   },
 };
 
@@ -57,46 +52,48 @@ export const cuMonoBrand: BrandTheme = {
   palette: {
     accent: '#c4c2bc',
     accentHover: '#e1dfd8',
-    accentSoft: '#2b2926',
+    accentSoft: '#262833',
     mark: '#c4c2bc',
   },
 };
 
 /**
- * Linear-night brand · vibrant violet/indigo over dark navy. Inspired by the
- * Linear app's high-contrast night UI; designed for users who want a more
- * "modern SaaS" aesthetic than the default warm-Bloomberg palette.
+ * Aurora brand · electric cyan over the same graphite base. A cooler,
+ * higher-energy alternate to the violet default.
  */
-export const cuLinearNightBrand: BrandTheme = {
-  id: 'cu-linear-night',
-  name: 'Cursor Usage · Linear Night',
-  tagline: 'Indigo on midnight — modern SaaS night mode',
+export const cuAuroraBrand: BrandTheme = {
+  id: 'cu-aurora',
+  name: 'Cursor Usage · Aurora',
+  tagline: 'Electric cyan night mode',
   logo: <CuMark size={22} />,
   logoCompact: <CuMark size={18} />,
   preferTheme: 'dark',
   palette: {
-    accent: '#7c83ff',
-    accentHover: '#9095ff',
-    accentSoft: '#1f2247',
-    mark: '#7c83ff',
+    accent: '#22d3ee',
+    accentHover: '#4be0f5',
+    accentSoft: '#0f2e38',
+    mark: '#22d3ee',
   },
 };
 
+/** @deprecated Renamed — the default brand is now `cuLinearGlassBrand`. */
+export const cuBloombergBrand = cuClassicWarmBrand;
+
 export const builtInBrands: readonly BrandTheme[] = [
-  cuBloombergBrand,
-  cuWarmBrand,
+  cuLinearGlassBrand,
+  cuClassicWarmBrand,
   cuMonoBrand,
-  cuLinearNightBrand,
+  cuAuroraBrand,
 ];
 
-const BrandContext = createContext<BrandTheme>(cuBloombergBrand);
+const BrandContext = createContext<BrandTheme>(cuLinearGlassBrand);
 
 export interface BrandProviderProps {
   brand?: BrandTheme;
   children: ReactNode;
 }
 
-export function BrandProvider({ brand = cuBloombergBrand, children }: BrandProviderProps) {
+export function BrandProvider({ brand = cuLinearGlassBrand, children }: BrandProviderProps) {
   const cssVars = useMemo<CSSProperties>(() => {
     const style: Record<string, string> = {};
     const p = brand.palette;

@@ -17,9 +17,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: [
-          'bg-[#1B1A18] text-white border border-[#1B1A18]',
-          'hover:bg-[#2C2A26] active:bg-[#0F0E0D]',
-          'dark:bg-[#F1ECE2] dark:text-[#1F1E1B] dark:border-[#F1ECE2] dark:hover:bg-white',
+          'bg-[#15171E] text-white border border-[#15171E]',
+          'hover:bg-[#272A35] active:bg-[#0C0D12]',
+          'dark:bg-[#EDEEF4] dark:text-[#15171E] dark:border-[#EDEEF4] dark:hover:bg-white',
         ],
         accent: [
           'bg-[var(--color-accent)] text-[var(--color-accent-foreground)] border border-transparent',

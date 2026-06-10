@@ -7,51 +7,51 @@
  */
 
 export const lightColors = {
-  bg: '#F7F3EA',
-  surface: '#FFFAF2',
-  surfaceMuted: '#EFE8DC',
+  bg: '#F5F6FA',
+  surface: '#FFFFFF',
+  surfaceMuted: '#EEF0F6',
   surfaceRaised: '#FFFFFF',
-  surfaceSunken: '#EBE3D5',
-  text: '#2B2926',
-  textMuted: '#7B746B',
-  textSubtle: '#A8A096',
-  border: '#E2D9CB',
-  borderStrong: '#CFC4B2',
-  accent: '#C96F4A',
-  accentHover: '#B85F3D',
-  accentSoft: '#F7E7D9',
+  surfaceSunken: '#E7E9F1',
+  text: '#15171E',
+  textMuted: '#5B5E6B',
+  textSubtle: '#9094A3',
+  border: '#E3E5EE',
+  borderStrong: '#C9CCDA',
+  accent: '#7C3AED',
+  accentHover: '#6D28D9',
+  accentSoft: '#F1EBFE',
   accentText: '#FFFFFF',
-  destructive: '#D14343',
-  destructiveSoft: '#FBE7E7',
-  success: '#3F9871',
-  warning: '#C8862A',
-  info: '#5577B8',
-  user: '#33312D',
-  userBg: '#EEE7DC',
+  destructive: '#E5484D',
+  destructiveSoft: '#FDEBEC',
+  success: '#0E9F6E',
+  warning: '#D97706',
+  info: '#3B82F6',
+  user: '#1D1F29',
+  userBg: '#EAECF4',
 } as const;
 
 export const darkColors = {
-  bg: '#1D1B17',
-  surface: '#25231F',
-  surfaceMuted: '#2E2B25',
-  surfaceRaised: '#36332C',
-  surfaceSunken: '#161412',
-  text: '#F1ECE2',
-  textMuted: '#B8AF9F',
-  textSubtle: '#877E70',
-  border: '#3C3832',
-  borderStrong: '#554F45',
-  accent: '#DB8460',
-  accentHover: '#E9946F',
-  accentSoft: '#3F2C22',
+  bg: '#0A0B0F',
+  surface: '#12141A',
+  surfaceMuted: '#1A1D26',
+  surfaceRaised: '#1E212C',
+  surfaceSunken: '#07080B',
+  text: '#EDEEF4',
+  textMuted: '#A5A8B7',
+  textSubtle: '#6E7180',
+  border: '#23262F',
+  borderStrong: '#343845',
+  accent: '#8B5CF6',
+  accentHover: '#9D77F8',
+  accentSoft: '#221C3D',
   accentText: '#FFFFFF',
-  destructive: '#E16868',
-  destructiveSoft: '#3B1F1F',
-  success: '#5BAE85',
-  warning: '#D49A45',
-  info: '#7C9AD9',
-  user: '#F1ECE2',
-  userBg: '#2E2B25',
+  destructive: '#F26D7E',
+  destructiveSoft: '#371B22',
+  success: '#34D399',
+  warning: '#FBBF24',
+  info: '#60A5FA',
+  user: '#EDEEF4',
+  userBg: '#1A1D26',
 } as const;
 
 export type ColorKey = keyof typeof lightColors;
@@ -111,8 +111,10 @@ export const space = {
 } as const;
 
 export const fontFamily = {
-  serif:
-    "'Source Serif 4', 'Source Serif Pro', 'Tiempos Headline', 'Iowan Old Style', 'Apple Garamond', Georgia, 'Times New Roman', serif",
+  /** Display face. The CSS variable is still `--font-serif` for legacy
+   *  utility-class reasons; the actual face is Space Grotesk. */
+  serif: "'Space Grotesk', 'Inter', system-ui, sans-serif",
+  display: "'Space Grotesk', 'Inter', system-ui, sans-serif",
   sans: "'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
   mono: "'JetBrains Mono', 'Fira Code', 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace",
 } as const;
@@ -132,12 +134,13 @@ export const fontSize = {
 
 export const shadow = {
   none: 'none',
-  xs: '0 1px 2px rgba(53, 41, 28, 0.05)',
-  composer: '0 1px 0 rgba(53,41,28,0.04), 0 8px 24px -12px rgba(53,41,28,0.10)',
-  composerFocus: '0 1px 0 rgba(53,41,28,0.06), 0 12px 32px -10px rgba(53,41,28,0.14)',
-  popover: '0 8px 28px -8px rgba(53,41,28,0.18), 0 2px 6px rgba(53,41,28,0.06)',
-  modal: '0 24px 64px -16px rgba(53,41,28,0.28), 0 8px 16px -8px rgba(53,41,28,0.10)',
-  card: '0 1px 2px rgba(53, 41, 28, 0.04)',
+  xs: '0 1px 2px rgba(18, 18, 26, 0.06)',
+  composer: '0 1px 0 rgba(18,18,26,0.04), 0 8px 24px -12px rgba(18,18,26,0.10)',
+  composerFocus: '0 1px 0 rgba(18,18,26,0.06), 0 12px 32px -10px rgba(18,18,26,0.14)',
+  popover: '0 8px 28px -8px rgba(18,18,26,0.18), 0 2px 6px rgba(18,18,26,0.06)',
+  modal: '0 24px 64px -16px rgba(18,18,26,0.28), 0 8px 16px -8px rgba(18,18,26,0.10)',
+  card: '0 1px 2px rgba(18, 18, 26, 0.04)',
+  glow: '0 0 28px -6px rgba(139, 92, 246, 0.55)',
 } as const;
 
 export const motion = {

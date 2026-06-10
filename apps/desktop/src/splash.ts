@@ -3,7 +3,7 @@ import { BrowserWindow, nativeTheme } from 'electron';
 /**
  * Lightweight branded splash. Renders inline HTML via a data: URL so it
  * appears in <50ms — no preload bundle, no renderer round-trip. The
- * inline SVG mark uses the same warm-amber accent the dashboard uses
+ * inline SVG mark uses the same violet accent the dashboard uses
  * (--color-accent), so the splash feels like the same product as the
  * window it precedes.
  *
@@ -13,12 +13,12 @@ import { BrowserWindow, nativeTheme } from 'electron';
  */
 
 function inlineSplashHtml(dark: boolean): string {
-  const bg = dark ? '#1F1E1B' : '#F7F3EA';
-  const surface = dark ? '#2A2825' : '#FFFAF2';
-  const border = dark ? '#34312B' : '#DDD4C7';
-  const text = dark ? '#F1ECE2' : '#2B2926';
-  const muted = dark ? '#A39C90' : '#7A7368';
-  const accent = dark ? '#D9825F' : '#C96F4A';
+  const bg = dark ? '#0A0B0F' : '#F5F6FA';
+  const surface = dark ? '#12141A' : '#FFFFFF';
+  const border = dark ? '#23262F' : '#E3E5EE';
+  const text = dark ? '#EDEEF4' : '#15171E';
+  const muted = dark ? '#6E7180' : '#9094A3';
+  const accent = dark ? '#8B5CF6' : '#7C3AED';
 
   return `<!doctype html>
 <html lang="en">
@@ -48,11 +48,11 @@ function inlineSplashHtml(dark: boolean): string {
       width: 56px; height: 56px;
       animation: pulse 1.8s ease-in-out infinite;
       transform-origin: 50% 50%;
-      filter: drop-shadow(0 4px 12px rgba(${dark ? '217,130,95' : '201,111,74'}, 0.32));
+      filter: drop-shadow(0 4px 14px rgba(139,92,246, 0.45));
     }
     .mark rect { fill: ${accent}; }
     .label { color: ${muted}; letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; }
-    .name { font-family: "Source Serif 4", "Times New Roman", serif; font-size: 18px; color: ${text}; letter-spacing: 0.01em; }
+    .name { font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif; font-weight: 600; font-size: 18px; color: ${text}; letter-spacing: 0.01em; }
     @keyframes pulse {
       0%, 100% { transform: scale(1); opacity: 0.85; }
       50% { transform: scale(1.08); opacity: 1; }

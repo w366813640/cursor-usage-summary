@@ -72,7 +72,10 @@ describe('computeActionInsights', () => {
     }
     const summary = aggregate(rows);
 
-    const insights = computeActionInsights(summary, rows, { monthlyRequestBudget: 500 });
+    const insights = computeActionInsights(summary, rows, {
+      monthlyRequestBudget: 500,
+      asOf: new Date('2026-05-10T12:00:00.000Z'),
+    });
 
     expect(insights[0]?.kind).toBe('budget-risk');
     expect(insights.some((i) => i.kind === 'cache-health')).toBe(true);

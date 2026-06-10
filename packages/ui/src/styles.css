@@ -76,9 +76,12 @@
   --shadow-composer-focus: var(--shadow-composer-focus);
   --shadow-popover: var(--shadow-popover);
   --shadow-modal: var(--shadow-modal);
+  --shadow-glass: var(--shadow-glass);
+  --shadow-glow: var(--shadow-glow);
 
   --font-sans: var(--font-sans);
   --font-serif: var(--font-serif);
+  --font-display: var(--font-display);
   --font-mono: var(--font-mono);
 
   --text-2xs: var(--text-2xs);

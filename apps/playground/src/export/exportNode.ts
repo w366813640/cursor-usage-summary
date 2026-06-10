@@ -28,7 +28,7 @@ export async function exportNodeToPng(
   options: ExportOptions,
 ): Promise<{ ok: true } | { ok: false; error: Error }> {
   try {
-    const resolvedBg = readResolvedColor(node, '--color-bg', '#0e0d0c');
+    const resolvedBg = readResolvedColor(node, '--color-bg', '#0a0b0f');
     const dataUrl = await toPng(node, {
       pixelRatio: options.pixelRatio ?? 2,
       backgroundColor: options.backgroundColor ?? resolvedBg,

@@ -1,21 +1,24 @@
 import {
   Heatmap,
   SmallMultiples,
+  StackedAreaChart,
   StatGrid,
   Treemap,
   WeekHourHeatmap,
   daysToHeatmap,
   fmtTokens,
   fmtUSD,
+  fmtUSDCompact,
   hourWeekdayToCells,
   modelsToSmallMultiples,
   modelsToTreemap,
   providersToStackSegments,
+  rowsToDailyStack,
   tokensToStackSegments,
 } from '@cu/charts';
 import { type RowWithCost, type UsageSummary, detectAllAnomalies } from '@cu/data';
 import { motion } from 'framer-motion';
-import { type RefObject, useMemo, useRef, useState } from 'react';
+import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { ExportButton } from '../../export/ExportButton';
 import { MetricToggle, Panel } from '../Panel';
 import { SectionHeader } from '../SectionHeader';
@@ -47,6 +50,26 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
   // Ref passed to ExportButton so the chosen section can be captured as a
   // PNG without us having to thread DOM IDs through every component.
   const weekHourRef = useRef<HTMLDivElement>(null);
+
+  // Hero stacked-area: per-day cost split across the top-5 models.
+  const dailyStack = useMemo(() => rowsToDailyStack(rows, 5), [rows]);
+  const [hiddenSeries, setHiddenSeries] = useState<ReadonlySet<string>>(new Set());
+  const toggleSeries = useCallback((id: string) => {
+    setHiddenSeries((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const drillToDay = useCallback((date: string) => {
+    try {
+      sessionStorage.setItem('cu:pendingDayDate', date);
+    } catch {
+      // private-mode sandboxes — the route change still happens
+    }
+    window.location.hash = '/day';
+  }, []);
 
   const calendar = useMemo(() => daysToHeatmap(summary, heatMetric), [summary, heatMetric]);
   const weekHour = useMemo(() => hourWeekdayToCells(summary, 'cost'), [summary]);
@@ -92,6 +115,21 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
       className="flex flex-col gap-4"
     >
       <SectionHeader title="Activity rhythm" subtitle="When and how intensely" />
+      <Panel
+        title="Daily cost · by model"
+        subtitle={`${daysSpan} days · top 5 models stacked · hover to inspect · click to drill`}
+      >
+        <StackedAreaChart
+          dates={dailyStack.dates}
+          series={dailyStack.series}
+          height={264}
+          formatValue={fmtUSDCompact}
+          hiddenIds={hiddenSeries}
+          onToggleSeries={toggleSeries}
+          onSelectDate={drillToDay}
+          ariaLabel="Daily cost stacked by model"
+        />
+      </Panel>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Panel
           title="Daily activity"

@@ -2,8 +2,19 @@
 @import "@cu/tokens/css";
 @import "@cu/ui/styles.css";
 
+/*
+ * Tailwind v4 only auto-scans files under the app root. The workspace
+ * packages are aliased to ../../packages/<pkg>/src (outside the root),
+ * so any utility class used *only* there would silently never be
+ * generated. Declare them as explicit sources.
+ */
+@source "../../../packages/ui/src";
+@source "../../../packages/charts/src";
+@source "../../../packages/brand/src";
+@source "../../../packages/icons/src";
+
 @import "@fontsource-variable/inter/index.css";
-@import "@fontsource-variable/source-serif-4/index.css";
+@import "@fontsource-variable/space-grotesk/index.css";
 @import "@fontsource-variable/jetbrains-mono/index.css";
 
 /* Make sure body inherits theme bg painted by the pre-React inline script. */
@@ -22,6 +33,28 @@ body,
 body {
   margin: 0;
   overflow-x: hidden;
+}
+
+/* ----------------------------------------------------------------
+ * Ambient glow — the "Linear Glass" signature. Two large radial
+ * washes (violet + cyan) pinned to the top of the page. Painted on a
+ * fixed pseudo-element so it never re-rasterizes during scroll, and
+ * z-indexed behind #root content.
+ * ---------------------------------------------------------------- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(900px 480px at 18% -12%, var(--cu-ambient-a), transparent 64%),
+    radial-gradient(720px 420px at 86% -16%, var(--cu-ambient-b), transparent 60%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 /* ----------------------------------------------------------------

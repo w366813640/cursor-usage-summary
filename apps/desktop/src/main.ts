@@ -30,8 +30,8 @@ interface DiagnosticsExportResult {
 // strip on the old color and produced a jarring vertical mismatch
 // against the body background.
 const TITLEBAR_COLORS = {
-  light: { bg: '#F7F3EA', symbol: '#2B2926' },
-  dark: { bg: '#1F1E1B', symbol: '#F1ECE2' },
+  light: { bg: '#F5F6FA', symbol: '#15171E' },
+  dark: { bg: '#0A0B0F', symbol: '#EDEEF4' },
 } as const;
 
 function applyTitleBarOverlay(window: BrowserWindow, dark: boolean) {

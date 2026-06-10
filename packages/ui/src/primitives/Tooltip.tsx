@@ -19,8 +19,8 @@ export const TooltipContent = forwardRef<
         sideOffset={sideOffset}
         className={cn(
           'z-[300] px-2 py-1 rounded-[6px] text-[12px] leading-none origin-[var(--radix-tooltip-content-transform-origin)]',
-          'bg-[#1B1A18] text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)]',
-          'dark:bg-[#F1ECE2] dark:text-[#1F1E1B] dark:shadow-[0_4px_12px_rgba(0,0,0,0.45)]',
+          'bg-[#15171E] text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)]',
+          'dark:bg-[#EDEEF4] dark:text-[#15171E] dark:shadow-[0_4px_12px_rgba(0,0,0,0.45)]',
           'will-change-[opacity,transform]',
           'data-[state=delayed-open]:animate-[tooltip-in_140ms_var(--ease-spring)_forwards]',
           'data-[state=instant-open]:animate-[tooltip-in_140ms_var(--ease-spring)_forwards]',

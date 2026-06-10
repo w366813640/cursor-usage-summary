@@ -26,7 +26,7 @@
               ? 'light'
               : 'dark';
           document.documentElement.setAttribute('data-theme', resolved);
-          document.documentElement.style.background = resolved === 'dark' ? '#1d1b17' : '#f7f3ea';
+          document.documentElement.style.background = resolved === 'dark' ? '#0a0b0f' : '#f5f6fa';
         } catch (_) {
           /* localStorage may be unavailable in private mode; the renderer recovers. */
         }
@@ -38,12 +38,12 @@
         margin: 0;
         padding: 0;
         height: 100%;
-        background: #1d1b17;
+        background: #0a0b0f;
       }
       [data-theme='light'] html,
       html[data-theme='light'],
       html[data-theme='light'] body {
-        background: #f7f3ea;
+        background: #f5f6fa;
       }
       #root {
         min-height: 100vh;

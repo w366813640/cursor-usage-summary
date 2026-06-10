@@ -32,6 +32,8 @@ export interface ActionInsight {
 export interface ComputeActionInsightsOptions {
   monthlyRequestBudget?: number;
   maxItems?: number;
+  /** Clock override for deterministic budget scoring (defaults to now). */
+  asOf?: Date;
   /**
    * Optional locale translator. When omitted, every insight falls back
    * to its English literal (which is also what the test suite asserts
@@ -64,7 +66,7 @@ export function computeActionInsights(
   const t = options.t;
   const insights: ActionInsight[] = [];
 
-  addBudgetInsight(insights, summary, budget, t);
+  addBudgetInsight(insights, summary, budget, t, options.asOf);
   addAnomalyInsight(insights, summary, rows, t);
   addEfficiencyInsights(insights, summary, rows, t);
   addForecastInsight(insights, summary, t);
@@ -109,8 +111,9 @@ function addBudgetInsight(
   summary: UsageSummary,
   budget: number,
   t: Translator | undefined,
+  asOf?: Date,
 ): void {
-  const urgency = computeBudgetUrgency(summary, budget, { t });
+  const urgency = computeBudgetUrgency(summary, budget, { t, asOf });
   if (!urgency.enabled || urgency.severity === 'safe') return;
 
   out.push({

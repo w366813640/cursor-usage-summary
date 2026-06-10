@@ -105,7 +105,7 @@ export function KpiCard({
 }: KpiCardProps) {
   const valueClass = monoValue
     ? 'font-mono text-[20px] leading-[1.4] tracking-tight'
-    : 'font-serif text-[38px] leading-[1.05] tracking-[-0.01em]';
+    : 'font-serif text-[36px] font-semibold leading-[1.05] tracking-[-0.02em] tabular-nums';
 
   const [copied, setCopied] = useState(false);
   const copyValue = useCallback(() => {
@@ -156,8 +156,8 @@ export function KpiCard({
       className={[
         'group relative isolate flex flex-col gap-3 overflow-hidden rounded-[14px] border border-[var(--color-border)]',
         'bg-[var(--color-surface)] p-5 transition-[box-shadow,border-color,background-color] duration-[260ms]',
-        // Inset top hairline so the card feels lifted off the page.
-        'shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_4%,transparent)]',
+        // Glass pane: inset top highlight + soft drop (see shadow.css).
+        'shadow-[var(--shadow-glass)]',
         'hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-raised)]',
         'hover:shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-accent)_22%,transparent),0_10px_28px_-14px_color-mix(in_srgb,var(--color-accent)_32%,transparent)]',
         className ?? '',
@@ -198,7 +198,15 @@ export function KpiCard({
       <div className="flex items-baseline gap-2">
         <div
           className={`${valueClass} transition-colors`}
-          style={accent ? { color: 'var(--color-accent)' } : undefined}
+          style={
+            accent
+              ? {
+                  color: 'var(--color-accent)',
+                  textShadow:
+                    '0 0 24px color-mix(in srgb, var(--color-accent) 35%, transparent)',
+                }
+              : undefined
+          }
         >
           {displayValue}
         </div>

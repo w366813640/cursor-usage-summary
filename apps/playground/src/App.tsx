@@ -21,7 +21,7 @@ export function App() {
           from Settings → Language. Persisted via `cu:locale` so the
           choice survives reloads / app restarts. */}
       <I18nProvider initialLocale="en">
-        <BrandSwitcherProvider initialBrandId="cu-bloomberg">
+        <BrandSwitcherProvider initialBrandId="cu-linear-glass">
           <TooltipProvider delayDuration={150}>
             <ToastProvider>
               <ModalStackProvider>

@@ -15,7 +15,7 @@ import zlib from 'node:zlib';
  *
  * Color choice:
  *   - On Windows / Linux the icon shows up in the system tray as-is,
- *     so we render the warm-amber accent (#C96F4A) at full opacity to
+ *     so we render the violet accent (#8B5CF6) at full opacity to
  *     match the dashboard's branding.
  *   - On macOS the caller should set `nativeImage.setTemplateImage(true)`;
  *     macOS ignores RGB and recolours per theme using only the alpha
@@ -98,7 +98,7 @@ export interface TrayBarsOptions {
   color?: { r: number; g: number; b: number };
 }
 
-const DEFAULT_COLOR = { r: 0xc9, g: 0x6f, b: 0x4a };
+const DEFAULT_COLOR = { r: 0x8b, g: 0x5c, b: 0xf6 };
 
 interface BarSpec {
   /** Bar X start as a fraction of width [0..1]. */

@@ -1,63 +1,64 @@
 /*
- * Chart tokens.
+ * Chart tokens — "Linear Glass" palette.
  *
  *  --cu-heat-N  — sequential heatmap palette (0 = empty, 5 = hottest).
- *                 Built around the warm terracotta accent so heat reads
- *                 as "fire", not "stoplight". Light + Dark mirror each
- *                 other in perceived brightness, not in literal hex.
+ *                 Violet luminance ramp: dark cells melt into the page,
+ *                 hot cells glow like the accent. Light + Dark mirror
+ *                 each other in perceived brightness, not literal hex.
  *
- *  --cu-cat-N   — categorical palette for providers / stack segments.
- *                 6 hues chosen for accessible contrast on both bg surfaces.
+ *  --cu-cat-N   — categorical palette for models / providers / stacks.
+ *                 6 high-saturation hues (violet leads) tuned for dark
+ *                 graphite first, with darker counterparts for light.
  */
 
 :root,
 [data-theme="light"] {
-  --cu-heat-0: #efe6d6;
-  --cu-heat-1: #f5d6b9;
-  --cu-heat-2: #f0b18b;
-  --cu-heat-3: #e08961;
-  --cu-heat-4: #c25a36;
-  --cu-heat-5: #8a371d;
+  --cu-heat-0: #ecedf4;
+  --cu-heat-1: #ddd6fe;
+  --cu-heat-2: #b7a4f9;
+  --cu-heat-3: #8b5cf6;
+  --cu-heat-4: #6d28d9;
+  --cu-heat-5: #4c1d95;
 
-  --cu-cat-1: #c96f4a;
-  --cu-cat-2: #5577b8;
-  --cu-cat-3: #3f9871;
-  --cu-cat-4: #c8862a;
-  --cu-cat-5: #8c5cb8;
-  --cu-cat-6: #7b746b;
+  --cu-cat-1: #7c3aed;
+  --cu-cat-2: #0891b2;
+  --cu-cat-3: #0e9f6e;
+  --cu-cat-4: #d97706;
+  --cu-cat-5: #e11d48;
+  --cu-cat-6: #2563eb;
 }
 
 [data-theme="dark"] {
-  --cu-heat-0: #2a2620;
-  --cu-heat-1: #4a3528;
-  --cu-heat-2: #6e4732;
-  --cu-heat-3: #9c5b39;
-  --cu-heat-4: #c97043;
-  --cu-heat-5: #f59159;
+  --cu-heat-0: #171924;
+  --cu-heat-1: #262450;
+  --cu-heat-2: #3b3580;
+  --cu-heat-3: #5747c9;
+  --cu-heat-4: #7e63f2;
+  --cu-heat-5: #b9a5ff;
 
-  --cu-cat-1: #db8460;
-  --cu-cat-2: #7c9ad9;
-  --cu-cat-3: #5bae85;
-  --cu-cat-4: #d49a45;
-  --cu-cat-5: #a98ad6;
-  --cu-cat-6: #b8af9f;
+  --cu-cat-1: #8b5cf6;
+  --cu-cat-2: #22d3ee;
+  --cu-cat-3: #34d399;
+  --cu-cat-4: #fbbf24;
+  --cu-cat-5: #fb7185;
+  --cu-cat-6: #60a5fa;
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --cu-heat-0: #2a2620;
-    --cu-heat-1: #4a3528;
-    --cu-heat-2: #6e4732;
-    --cu-heat-3: #9c5b39;
-    --cu-heat-4: #c97043;
-    --cu-heat-5: #f59159;
+    --cu-heat-0: #171924;
+    --cu-heat-1: #262450;
+    --cu-heat-2: #3b3580;
+    --cu-heat-3: #5747c9;
+    --cu-heat-4: #7e63f2;
+    --cu-heat-5: #b9a5ff;
 
-    --cu-cat-1: #db8460;
-    --cu-cat-2: #7c9ad9;
-    --cu-cat-3: #5bae85;
-    --cu-cat-4: #d49a45;
-    --cu-cat-5: #a98ad6;
-    --cu-cat-6: #b8af9f;
+    --cu-cat-1: #8b5cf6;
+    --cu-cat-2: #22d3ee;
+    --cu-cat-3: #34d399;
+    --cu-cat-4: #fbbf24;
+    --cu-cat-5: #fb7185;
+    --cu-cat-6: #60a5fa;
   }
 }
 

@@ -3,6 +3,7 @@ import type { HeatmapDatum } from './Heatmap';
 import type { SmallMultiplesItem } from './SmallMultiples';
 import type { SparkPoint } from './Sparkline';
 import type { StackBarSegment } from './StackBar';
+import type { StackedAreaSeries } from './StackedAreaChart';
 import type { TreemapDatum } from './Treemap';
 import type { WeekHourCell } from './WeekHourHeatmap';
 
@@ -78,6 +79,71 @@ export function modelsToSmallMultiples(
     });
   }
   return items;
+}
+
+export interface DailyStack {
+  dates: string[];
+  series: StackedAreaSeries[];
+}
+
+/**
+ * Build the hero stacked-area dataset: per-day cost for the top-N models
+ * (by total cost), remaining models rolled into "Other". Day gaps are
+ * zero-filled so the area chart gets a uniform daily x-axis.
+ */
+export function rowsToDailyStack(
+  rows: ReadonlyArray<{ date: Date; model: string; cost: number }>,
+  topN = 5,
+): DailyStack {
+  if (rows.length === 0) return { dates: [], series: [] };
+
+  const modelTotals = new Map<string, number>();
+  let minTs = Number.POSITIVE_INFINITY;
+  let maxTs = Number.NEGATIVE_INFINITY;
+  for (const r of rows) {
+    modelTotals.set(r.model, (modelTotals.get(r.model) ?? 0) + r.cost);
+    const ts = r.date.getTime();
+    if (ts < minTs) minTs = ts;
+    if (ts > maxTs) maxTs = ts;
+  }
+
+  const ranked = Array.from(modelTotals.entries()).sort((a, b) => b[1] - a[1]);
+  const top = ranked.slice(0, topN).map(([m]) => m);
+  const topSet = new Set(top);
+  const hasOther = ranked.length > topN;
+
+  // Uniform daily axis from first to last day (UTC).
+  const DAY = 86_400_000;
+  const startDay = Math.floor(minTs / DAY) * DAY;
+  const endDay = Math.floor(maxTs / DAY) * DAY;
+  const dates: string[] = [];
+  const dayIndex = new Map<string, number>();
+  for (let t = startDay; t <= endDay; t += DAY) {
+    const iso = new Date(t).toISOString().slice(0, 10);
+    dayIndex.set(iso, dates.length);
+    dates.push(iso);
+  }
+
+  const keys = hasOther ? [...top, '__other__'] : top;
+  const grid = new Map<string, number[]>(keys.map((k) => [k, new Array(dates.length).fill(0)]));
+  for (const r of rows) {
+    const iso = r.date.toISOString().slice(0, 10);
+    const idx = dayIndex.get(iso);
+    if (idx === undefined) continue;
+    const key = topSet.has(r.model) ? r.model : '__other__';
+    const arr = grid.get(key);
+    if (arr) arr[idx]! += r.cost;
+  }
+
+  // Stack order: biggest model at the bottom (most stable area), Other on top.
+  const series: StackedAreaSeries[] = keys.map((k, i) => ({
+    id: k,
+    label: k === '__other__' ? `Other · ${ranked.length - topN} models` : k,
+    color: `var(--cu-cat-${Math.min(i + 1, 6)})`,
+    values: grid.get(k) ?? [],
+  }));
+
+  return { dates, series };
 }
 
 /** Aggregate token totals into 4 stack-bar segments. */

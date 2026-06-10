@@ -102,6 +102,9 @@ importers:
       '@fontsource-variable/source-serif-4':
         specifier: ^5.1.1
         version: 5.2.9
+      '@fontsource-variable/space-grotesk':
+        specifier: ^5.2.10
+        version: 5.2.10
       framer-motion:
         specifier: ^11.15.0
         version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -1199,6 +1202,9 @@ packages:
 
   '@fontsource-variable/source-serif-4@5.2.9':
     resolution: {integrity: sha512-PPcxjLFk/fS0WHg79pDM2YNvz61kC+oYZ5cWZZyCS0DHpJncmuYOuiZAsvj4tDxlWPBEvxxcRLQQNmSaRbPkqw==}
+
+  '@fontsource-variable/space-grotesk@5.2.10':
+    resolution: {integrity: sha512-yJQO/o35/hAP3CFnpdFTwQku2yzJOae2HIpBmqkOVoxhhXJaQP3g+b6Jrz7u+eI7A5ZdCIf88uMWpBJdFiGr5w==}
 
   '@gar/promisify@1.1.3':
     resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
@@ -4577,6 +4583,8 @@ snapshots:
   '@fontsource-variable/jetbrains-mono@5.2.8': {}
 
   '@fontsource-variable/source-serif-4@5.2.9': {}
+
+  '@fontsource-variable/space-grotesk@5.2.10': {}
 
   '@gar/promisify@1.1.3': {}
 

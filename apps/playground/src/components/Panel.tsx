@@ -10,13 +10,14 @@ interface PanelProps {
 }
 
 /**
- * Card with a serif title bar + optional right-side action slot.
+ * Card with a display-face title bar + optional right-side action slot.
  *
- * The visual treatment is intentionally restrained: a soft border, a faint
- * inner top highlight (so the card reads as a "raised slab" in dark mode),
- * and a small dot prefix before the title that picks up the active brand
- * accent. Hover bumps the border to the stronger token ? a Bloomberg-style
- * "this is interactive" cue without going full glow.
+ * "Linear Glass" treatment: solid graphite surface that *reads* as glass
+ * via the `--shadow-glass` inset top highlight + soft drop, a 1px border
+ * that brightens on hover, and a small accent dot prefix. Real
+ * backdrop-filter is deliberately NOT used here — dozens of panels with
+ * live blur would tank scroll performance; the highlight trick gives the
+ * same read for free.
  */
 export function Panel({ title, subtitle, action, children, className }: PanelProps) {
   return (
@@ -24,7 +25,7 @@ export function Panel({ title, subtitle, action, children, className }: PanelPro
       className={[
         'group relative border border-[var(--color-border)]',
         'bg-[var(--color-surface)]',
-        'shadow-[0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent)_inset,0_8px_20px_-18px_rgba(0,0,0,0.45)]',
+        'shadow-[var(--shadow-glass)]',
         'transition-colors duration-[180ms]',
         'hover:border-[var(--color-border-strong)]',
         className ?? '',
@@ -39,10 +40,13 @@ export function Panel({ title, subtitle, action, children, className }: PanelPro
           <div className="flex items-baseline gap-2">
             <span
               aria-hidden="true"
-              className="inline-block h-[7px] w-[7px] translate-y-[-2px] rounded-full opacity-80"
-              style={{ background: 'var(--color-accent)' }}
+              className="inline-block h-[7px] w-[7px] translate-y-[-2px] rounded-full opacity-90"
+              style={{
+                background: 'var(--color-accent)',
+                boxShadow: '0 0 8px color-mix(in srgb, var(--color-accent) 65%, transparent)',
+              }}
             />
-            <div className="font-serif text-[17px] tracking-tight">{title}</div>
+            <div className="font-serif text-[17px] font-medium tracking-tight">{title}</div>
           </div>
           {subtitle ? (
             <div className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">

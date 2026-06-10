@@ -1,5 +1,5 @@
 import { type ReactNode, createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { BrandProvider, builtInBrands, cuBloombergBrand } from './BrandProvider';
+import { BrandProvider, builtInBrands, cuLinearGlassBrand } from './BrandProvider';
 import type { BrandTheme } from './types';
 
 export interface BrandSwitcherState {
@@ -32,10 +32,10 @@ export function BrandSwitcherProvider({
     });
   }, [extraBrands]);
 
-  const [activeId, setActiveId] = useState<string>(initialBrandId ?? cuBloombergBrand.id);
+  const [activeId, setActiveId] = useState<string>(initialBrandId ?? cuLinearGlassBrand.id);
 
   const brand = useMemo(
-    () => brands.find((b) => b.id === activeId) ?? cuBloombergBrand,
+    () => brands.find((b) => b.id === activeId) ?? cuLinearGlassBrand,
     [brands, activeId],
   );
 

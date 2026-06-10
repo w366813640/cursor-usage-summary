@@ -1,5 +1,11 @@
 /*
- * Color tokens — light & dark themes for the Scribe writing workbench.
+ * Color tokens — "Linear Glass" system.
+ *
+ * Dark is the primary theme: cool graphite base with a violet accent.
+ * Surfaces are *solid* (not alpha) so stacked panels never accumulate
+ * translucency; the glass read comes from borders + inset highlights +
+ * ambient glows defined in shadow.css. Light is a cool paper-white
+ * counterpart with the same hue logic.
  *
  * Light is applied via :root; dark is applied either via [data-theme="dark"]
  * or via @media (prefers-color-scheme: dark) when [data-theme="system"].
@@ -9,97 +15,106 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: #f7f3ea;
-  --color-surface: #fffaf2;
-  --color-surface-muted: #efe8dc;
+  --color-bg: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef0f6;
   --color-surface-raised: #ffffff;
-  --color-surface-sunken: #ebe3d5;
+  --color-surface-sunken: #e7e9f1;
 
-  --color-text: #2b2926;
-  --color-text-muted: #7b746b;
-  --color-text-subtle: #a8a096;
+  --color-text: #15171e;
+  --color-text-muted: #5b5e6b;
+  --color-text-subtle: #9094a3;
 
-  --color-border: #e2d9cb;
-  --color-border-strong: #cfc4b2;
+  --color-border: #e3e5ee;
+  --color-border-strong: #c9ccda;
 
-  --color-accent: #c96f4a;
-  --color-accent-hover: #b85f3d;
-  --color-accent-soft: #f7e7d9;
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-soft: #f1ebfe;
   --color-accent-text: #ffffff;
 
-  --color-destructive: #d14343;
-  --color-destructive-soft: #fbe7e7;
-  --color-success: #3f9871;
-  --color-warning: #c8862a;
-  --color-info: #5577b8;
+  --color-destructive: #e5484d;
+  --color-destructive-soft: #fdebec;
+  --color-success: #0e9f6e;
+  --color-warning: #d97706;
+  --color-info: #3b82f6;
 
-  --color-user: #33312d;
-  --color-user-bg: #eee7dc;
+  --color-user: #1d1f29;
+  --color-user-bg: #eaecf4;
 
-  --color-ring: rgba(201, 111, 74, 0.45);
-  --color-overlay: rgba(28, 24, 20, 0.42);
+  --color-ring: rgba(124, 58, 237, 0.45);
+  --color-overlay: rgba(21, 23, 30, 0.42);
+
+  /* Ambient page glow — barely-there violet wash at the top of the page. */
+  --cu-ambient-a: rgba(124, 58, 237, 0.07);
+  --cu-ambient-b: rgba(34, 211, 238, 0.05);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-bg: #1d1b17;
-  --color-surface: #25231f;
-  --color-surface-muted: #2e2b25;
-  --color-surface-raised: #36332c;
-  --color-surface-sunken: #161412;
+  --color-bg: #0a0b0f;
+  --color-surface: #12141a;
+  --color-surface-muted: #1a1d26;
+  --color-surface-raised: #1e212c;
+  --color-surface-sunken: #07080b;
 
-  --color-text: #f1ece2;
-  --color-text-muted: #b8af9f;
-  --color-text-subtle: #877e70;
+  --color-text: #edeef4;
+  --color-text-muted: #a5a8b7;
+  --color-text-subtle: #6e7180;
 
-  --color-border: #3c3832;
-  --color-border-strong: #554f45;
+  --color-border: #23262f;
+  --color-border-strong: #343845;
 
-  --color-accent: #db8460;
-  --color-accent-hover: #e9946f;
-  --color-accent-soft: #3f2c22;
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #9d77f8;
+  --color-accent-soft: #221c3d;
   --color-accent-text: #ffffff;
 
-  --color-destructive: #e16868;
-  --color-destructive-soft: #3b1f1f;
-  --color-success: #5bae85;
-  --color-warning: #d49a45;
-  --color-info: #7c9ad9;
+  --color-destructive: #f26d7e;
+  --color-destructive-soft: #371b22;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-info: #60a5fa;
 
-  --color-user: #f1ece2;
-  --color-user-bg: #2e2b25;
+  --color-user: #edeef4;
+  --color-user-bg: #1a1d26;
 
-  --color-ring: rgba(219, 132, 96, 0.55);
-  --color-overlay: rgba(15, 13, 11, 0.64);
+  --color-ring: rgba(139, 92, 246, 0.55);
+  --color-overlay: rgba(5, 6, 10, 0.7);
+
+  --cu-ambient-a: rgba(139, 92, 246, 0.13);
+  --cu-ambient-b: rgba(34, 211, 238, 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
     color-scheme: dark;
 
-    --color-bg: #1d1b17;
-    --color-surface: #25231f;
-    --color-surface-muted: #2e2b25;
-    --color-surface-raised: #36332c;
-    --color-surface-sunken: #161412;
-    --color-text: #f1ece2;
-    --color-text-muted: #b8af9f;
-    --color-text-subtle: #877e70;
-    --color-border: #3c3832;
-    --color-border-strong: #554f45;
-    --color-accent: #db8460;
-    --color-accent-hover: #e9946f;
-    --color-accent-soft: #3f2c22;
+    --color-bg: #0a0b0f;
+    --color-surface: #12141a;
+    --color-surface-muted: #1a1d26;
+    --color-surface-raised: #1e212c;
+    --color-surface-sunken: #07080b;
+    --color-text: #edeef4;
+    --color-text-muted: #a5a8b7;
+    --color-text-subtle: #6e7180;
+    --color-border: #23262f;
+    --color-border-strong: #343845;
+    --color-accent: #8b5cf6;
+    --color-accent-hover: #9d77f8;
+    --color-accent-soft: #221c3d;
     --color-accent-text: #ffffff;
-    --color-destructive: #e16868;
-    --color-destructive-soft: #3b1f1f;
-    --color-success: #5bae85;
-    --color-warning: #d49a45;
-    --color-info: #7c9ad9;
-    --color-user: #f1ece2;
-    --color-user-bg: #2e2b25;
-    --color-ring: rgba(219, 132, 96, 0.55);
-    --color-overlay: rgba(15, 13, 11, 0.64);
+    --color-destructive: #f26d7e;
+    --color-destructive-soft: #371b22;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-info: #60a5fa;
+    --color-user: #edeef4;
+    --color-user-bg: #1a1d26;
+    --color-ring: rgba(139, 92, 246, 0.55);
+    --color-overlay: rgba(5, 6, 10, 0.7);
+    --cu-ambient-a: rgba(139, 92, 246, 0.13);
+    --cu-ambient-b: rgba(34, 211, 238, 0.07);
   }
 }
