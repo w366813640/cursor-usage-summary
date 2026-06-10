@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { builtInDictionaries } from './dictionaries';
+import { enDictionary, loadDictionary } from './dictionaries';
 import type { Dictionary, I18nValue, Locale, TranslateVars } from './types';
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -64,17 +64,35 @@ export function I18nProvider({
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
   }, [locale, syncHtmlLang]);
 
+  // Non-English dictionaries live in lazy chunks (perf plan 4.3). English
+  // ships in the main bundle as the universal fallback; selecting another
+  // locale kicks off the chunk import and re-renders when it lands (the
+  // sub-frame gap shows English, which the fallback chain handles anyway).
+  const [loadedDicts, setLoadedDicts] = useState<Partial<Record<Locale, Dictionary>>>({
+    en: enDictionary,
+  });
+  useEffect(() => {
+    if (loadedDicts[locale]) return;
+    let active = true;
+    void loadDictionary(locale).then((dict) => {
+      if (active) setLoadedDicts((prev) => ({ ...prev, [locale]: dict }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [locale, loadedDicts]);
+
   const dictionary = useMemo<Dictionary>(() => {
-    const base = builtInDictionaries[locale] ?? builtInDictionaries.en;
+    const base = loadedDicts[locale] ?? enDictionary;
     const merged: Dictionary = { ...base };
     const extra = overrides?.[locale];
     if (extra) Object.assign(merged, extra);
     return merged;
-  }, [locale, overrides]);
+  }, [locale, loadedDicts, overrides]);
 
   const t = useCallback(
     (key: string, vars?: TranslateVars) => {
-      const tpl = dictionary[key] ?? builtInDictionaries.en[key] ?? key;
+      const tpl = dictionary[key] ?? enDictionary[key] ?? key;
       return interpolate(tpl, vars);
     },
     [dictionary],
@@ -91,13 +109,12 @@ export function I18nProvider({
 export function useI18n(): I18nValue {
   const ctx = useContext(I18nContext);
   if (ctx) return ctx;
-  const t = (key: string, vars?: TranslateVars) =>
-    interpolate(builtInDictionaries.en[key] ?? key, vars);
+  const t = (key: string, vars?: TranslateVars) => interpolate(enDictionary[key] ?? key, vars);
   return {
     locale: 'en',
     setLocale: () => {},
     t,
-    dictionary: builtInDictionaries.en,
+    dictionary: enDictionary,
   };
 }
 

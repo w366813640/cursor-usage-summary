@@ -10,7 +10,7 @@
  * Keep this file in lockstep with `packages/storage/src/types.ts`.
  */
 
-import type { RowWithCost } from '@cu/data';
+import type { RowWithCost, UsageSummary } from '@cu/data';
 
 export interface ImportBatchInfo {
   filename: string;
@@ -85,6 +85,20 @@ export interface DbCounts {
 
 /** Mirror of `SerializedRowWithCost` from @cu/storage — no `Date` field. */
 export type SerializedRowWithCost = Omit<RowWithCost, 'date'>;
+
+/**
+ * `UsageSummary` as it crosses the bridge: identical except `topBurns`
+ * rows are date-less (rehydrate via `new Date(dateISO)` like all rows).
+ */
+export type SerializedUsageSummary = Omit<UsageSummary, 'topBurns'> & {
+  topBurns: SerializedRowWithCost[];
+};
+
+/** Payload of `db:summaryCosted` — rows + main-process aggregate in one IPC. */
+export interface SummaryCostedResult {
+  rows: SerializedRowWithCost[];
+  summary: SerializedUsageSummary;
+}
 
 export type QueryName =
   | 'counts'
@@ -229,6 +243,8 @@ export interface DesktopBridge {
     importRows: (rows: RowWithCost[], info: ImportBatchInfo) => Promise<ImportResult>;
     previewImport: (rows: RowWithCost[], info: ImportBatchInfo) => Promise<PreviewResult>;
     allRowsCosted: () => Promise<SerializedRowWithCost[]>;
+    /** Optional: absent when the running main process predates perf plan 3.1. */
+    summaryCosted?: () => Promise<SummaryCostedResult>;
     listBatches: () => Promise<BatchSummary[]>;
     undoBatch: (id: number) => Promise<{ removedRows: number }>;
     batchStats: (id: number) => Promise<BatchStats | null>;

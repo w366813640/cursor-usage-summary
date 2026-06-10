@@ -15,16 +15,40 @@ import {
 } from '@cu/icons';
 import { BrandMark, Button, IconButton, Tooltipped, useT, useTheme } from '@cu/ui';
 import { motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
-import { ImportHistoryDrawer } from '../components/ImportHistoryDrawer';
-import { ImportPreviewDrawer } from '../components/ImportPreviewDrawer';
-import { OnboardingTour } from '../components/OnboardingTour';
 import { QuickTipsButton } from '../components/QuickTipsButton';
-import { SettingsDrawer } from '../components/SettingsDrawer';
 import { isDesktop as detectDesktop } from '../electron/bridge';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
 import { useSettings } from '../hooks/useSettings';
+
+// Overlay surfaces load on demand (perf plan 4.1): none of these are
+// needed to paint the first dashboard frame, and SettingsDrawer alone
+// pulls in the whole settings/backup/update stack. The latch below keeps
+// each mounted after first open so AnimatePresence exit animations work.
+const ImportHistoryDrawer = lazy(() =>
+  import('../components/ImportHistoryDrawer').then((m) => ({ default: m.ImportHistoryDrawer })),
+);
+const ImportPreviewDrawer = lazy(() =>
+  import('../components/ImportPreviewDrawer').then((m) => ({ default: m.ImportPreviewDrawer })),
+);
+const OnboardingTour = lazy(() =>
+  import('../components/OnboardingTour').then((m) => ({ default: m.OnboardingTour })),
+);
+const SettingsDrawer = lazy(() =>
+  import('../components/SettingsDrawer').then((m) => ({ default: m.SettingsDrawer })),
+);
+
+/** True once `value` has ever been true — used to keep lazily-mounted
+ * drawers in the tree after their first open (exit animations need the
+ * component to stay mounted while `open` flips back to false). */
+function useLatch(value: boolean): boolean {
+  const [latched, setLatched] = useState(value);
+  useEffect(() => {
+    if (value) setLatched(true);
+  }, [value]);
+  return latched || value;
+}
 
 /**
  * App shell + entry surface.
@@ -155,6 +179,10 @@ function DesktopWelcomePage() {
     desktop.state.status === 'preview' || desktop.state.status === 'committing'
       ? desktop.state
       : null;
+  // Mount-latches for the lazy overlay chunks — first open triggers the
+  // dynamic import; afterwards the component stays mounted for exits.
+  const historyMounted = useLatch(historyOpen);
+  const settingsMounted = useLatch(settingsOpen);
   const pagePadding = pagePaddingForDensity(settings.displayDensity);
 
   useEffect(() => {
@@ -204,58 +232,71 @@ function DesktopWelcomePage() {
         )}
       </main>
 
-      {/* Preview + history drawers ? always mounted so AnimatePresence
-          can choreograph open/close. */}
-      {previewSnapshot ? (
-        <ImportPreviewDrawer
-          open={previewOpen}
-          fileName={
-            previewSnapshot.status === 'preview'
-              ? previewSnapshot.fileName
-              : previewSnapshot.fileName
-          }
-          rowsSeen={previewSnapshot.status === 'preview' ? previewSnapshot.rowsSeen : 0}
-          failures={previewSnapshot.status === 'preview' ? previewSnapshot.failures : 0}
-          preview={
-            previewSnapshot.status === 'preview'
-              ? previewSnapshot.preview
-              : { wouldAdd: 0, wouldSkip: 0, dateMin: null, dateMax: null, isDuplicateFile: false }
-          }
-          committing={desktop.state.status === 'committing'}
-          onConfirm={() => {
-            void desktop.confirmImport();
-          }}
-          onCancel={desktop.cancelImport}
-        />
-      ) : null}
+      {/* Overlay surfaces — lazy chunks behind null fallbacks; the latch
+          keeps them mounted after first open so AnimatePresence can
+          choreograph the close. */}
+      <Suspense fallback={null}>
+        {previewSnapshot ? (
+          <ImportPreviewDrawer
+            open={previewOpen}
+            fileName={
+              previewSnapshot.status === 'preview'
+                ? previewSnapshot.fileName
+                : previewSnapshot.fileName
+            }
+            rowsSeen={previewSnapshot.status === 'preview' ? previewSnapshot.rowsSeen : 0}
+            failures={previewSnapshot.status === 'preview' ? previewSnapshot.failures : 0}
+            preview={
+              previewSnapshot.status === 'preview'
+                ? previewSnapshot.preview
+                : {
+                    wouldAdd: 0,
+                    wouldSkip: 0,
+                    dateMin: null,
+                    dateMax: null,
+                    isDuplicateFile: false,
+                  }
+            }
+            committing={desktop.state.status === 'committing'}
+            onConfirm={() => {
+              void desktop.confirmImport();
+            }}
+            onCancel={desktop.cancelImport}
+          />
+        ) : null}
 
-      <ImportHistoryDrawer
-        open={historyOpen}
-        loadBatches={desktop.loadBatches}
-        onUndo={desktop.undoBatchById}
-        onClose={() => setHistoryOpen(false)}
-      />
+        {historyMounted ? (
+          <ImportHistoryDrawer
+            open={historyOpen}
+            loadBatches={desktop.loadBatches}
+            onUndo={desktop.undoBatchById}
+            onClose={() => setHistoryOpen(false)}
+          />
+        ) : null}
 
-      <SettingsDrawer
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onAfterRestore={async () => {
-          await desktop.hydrateFromDb();
-        }}
-        dataset={
-          success
-            ? { summary: success.summary, rows: success.rows, fileName: success.fileName }
-            : null
-        }
-        onOpenImport={onPick}
-        onOpenHistory={() => setHistoryOpen(true)}
-      />
+        {settingsMounted ? (
+          <SettingsDrawer
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            onAfterRestore={async () => {
+              await desktop.hydrateFromDb();
+            }}
+            dataset={
+              success
+                ? { summary: success.summary, rows: success.rows, fileName: success.fileName }
+                : null
+            }
+            onOpenImport={onPick}
+            onOpenHistory={() => setHistoryOpen(true)}
+          />
+        ) : null}
 
-      {/* Commercial-polish chrome: floating help button + first-run
-          tour. Mount on every state (welcome + dashboard) so a user
-          can summon shortcuts / changelog before they've imported. */}
+        {/* First-run tour — internal localStorage gate decides visibility. */}
+        {success ? <OnboardingTour /> : null}
+      </Suspense>
+
+      {/* Floating help button stays eager: visible on every state. */}
       <QuickTipsButton onOpenSettings={() => setSettingsOpen(true)} />
-      {success ? <OnboardingTour /> : null}
     </PageChrome>
   );
 }
@@ -315,12 +356,12 @@ function PageChrome({
   const brand = useBrand();
   return (
     <div
+      // Transparent wrapper: the ambient washes are painted ONCE by the
+      // fixed `body::before` layer (styles.css). This div used to stack a
+      // second pair of viewport-sized radial gradients on top — same
+      // visual job done twice per frame (perf plan 2.2).
       className="relative min-h-screen w-full"
-      style={{
-        background:
-          'radial-gradient(1200px 600px at 80% -10%, color-mix(in oklab, var(--color-accent) 8%, transparent), transparent 60%), radial-gradient(800px 500px at -10% 30%, color-mix(in oklab, var(--color-accent) 5%, transparent), transparent 70%), var(--color-bg)',
-        color: 'var(--color-text)',
-      }}
+      style={{ color: 'var(--color-text)' }}
     >
       <header
         className="app-drag sticky top-0 z-50 flex h-12 items-center justify-between border-b border-[var(--color-border)] px-6"

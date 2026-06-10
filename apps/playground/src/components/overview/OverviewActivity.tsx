@@ -16,10 +16,11 @@ import {
   rowsToDailyStack,
   tokensToStackSegments,
 } from '@cu/charts';
-import { type RowWithCost, type UsageSummary, detectAllAnomalies } from '@cu/data';
+import type { DetectAllResult, RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
 import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { ExportButton } from '../../export/ExportButton';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { MetricToggle, Panel } from '../Panel';
 import { SectionHeader } from '../SectionHeader';
 
@@ -27,6 +28,8 @@ interface OverviewActivityProps {
   summary: UsageSummary;
   rows: ReadonlyArray<RowWithCost>;
   daysSpan: number;
+  /** Precomputed by useOverviewInsights — shared with the rest of Overview. */
+  anomalies: DetectAllResult;
 }
 
 /**
@@ -45,7 +48,8 @@ interface OverviewActivityProps {
  * Section is wrapped in a motion.section that fades in with a small delay
  * so the KPI hero settles first; charts then "appear" with a soft pop.
  */
-export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityProps) {
+export function OverviewActivity({ summary, rows, daysSpan, anomalies }: OverviewActivityProps) {
+  const entrance = useEntrance();
   const [heatMetric, setHeatMetric] = useState<'cost' | 'requests'>('cost');
   // Ref passed to ExportButton so the chosen section can be captured as a
   // PNG without us having to thread DOM IDs through every component.
@@ -100,16 +104,13 @@ export function OverviewActivity({ summary, rows, daysSpan }: OverviewActivityPr
   );
   // Highlight anomaly days on the calendar with an accent outline ring so
   // the eye can find the days the Anomaly inspector flagged without
-  // leaving Overview. The Set is small (typically <10 entries) so memo
-  // is cheap; re-computed alongside the existing calendar memos.
-  const anomalyDates = useMemo(() => {
-    const r = detectAllAnomalies(summary, rows);
-    return new Set(r.all.map((a) => a.date));
-  }, [summary, rows]);
+  // leaving Overview. Detection itself happens once in useOverviewInsights;
+  // here we only project the result into a Set for O(1) lookups.
+  const anomalyDates = useMemo(() => new Set(anomalies.all.map((a) => a.date)), [anomalies]);
 
   return (
     <motion.section
-      initial={{ opacity: 0 }}
+      initial={entrance ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.42, delay: 0.12 }}
       className="flex flex-col gap-4"

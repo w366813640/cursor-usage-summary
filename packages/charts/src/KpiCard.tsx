@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { type SparkPoint, Sparkline } from './Sparkline';
 
 export interface KpiCardProps {
@@ -54,29 +54,52 @@ export interface KpiCardProps {
 }
 
 /**
- * Cheap CSS-friendly count-up: starts from 0 and lands on `to` using an
- * ease-out cubic curve. Internal — no exhaustive options because the UI
- * only needs the one animation profile.
+ * Count-up that writes each frame straight to the DOM node instead of
+ * going through setState (perf plan 1.5): the old version re-rendered the
+ * whole card ~70 times per run — ×4 cards on the Overview hero that was
+ * ~280 React renders during first paint. Now React renders the card once
+ * and the RAF loop mutates `textContent` only.
+ *
+ * While `enabled`, React renders an EMPTY text slot and this hook owns
+ * the node's content outright — that keeps React's reconciler from
+ * holding a text node we'd be clobbering behind its back.
  */
-function useCountUp(to: number, durationMs: number, enabled: boolean): number {
-  const [v, setV] = useState(enabled ? 0 : to);
-  useEffect(() => {
-    if (!enabled || !Number.isFinite(to)) {
-      setV(to);
-      return;
-    }
+function useCountUpRef(
+  to: number | undefined,
+  durationMs: number,
+  enabled: boolean,
+  format: ((n: number) => string) | undefined,
+) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  // The formatter is typically an inline closure — capture the latest via
+  // ref so a parent re-render doesn't restart the animation.
+  const formatRef = useRef(format);
+  formatRef.current = format;
+
+  // Layout effect so the "0" state is committed before first paint —
+  // a plain effect would flash the final value for one frame.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el || typeof to !== 'number' || !Number.isFinite(to)) return;
+    const fmt = formatRef.current ?? String;
     let rafId = 0;
+    el.textContent = fmt(0);
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / durationMs);
       const eased = 1 - (1 - t) ** 3;
-      setV(to * eased);
+      el.textContent = fmt(to * eased);
       if (t < 1) rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      // Land exactly on the final value even if interrupted mid-run.
+      el.textContent = fmt(to);
+    };
   }, [to, durationMs, enabled]);
-  return v;
+
+  return ref;
 }
 
 /**
@@ -128,15 +151,11 @@ export function KpiCard({
   // count-up only kicks in when caller opts in *and* gives us a numeric +
   // formatter pair. Otherwise we fall back to the static `value` string.
   const canAnimateNumeric =
-    animate && typeof numericValue === 'number' && typeof formatValue === 'function';
-  const animatedValue = useCountUp(
-    canAnimateNumeric ? numericValue! : 0,
-    animateDurationMs,
-    canAnimateNumeric,
-  );
-  const displayValue = canAnimateNumeric
-    ? (formatValue as (n: number) => string)(animatedValue)
-    : value;
+    animate &&
+    typeof numericValue === 'number' &&
+    Number.isFinite(numericValue) &&
+    typeof formatValue === 'function';
+  const countUpRef = useCountUpRef(numericValue, animateDurationMs, canAnimateNumeric, formatValue);
 
   return (
     <motion.div
@@ -155,7 +174,12 @@ export function KpiCard({
       whileHover={{ y: -3, transition: { duration: 0.2, ease: [0.2, 0, 0, 1] } }}
       className={[
         'group relative isolate flex flex-col gap-3 overflow-hidden rounded-[14px] border border-[var(--color-border)]',
-        'bg-[var(--color-surface)] p-5 transition-[box-shadow,border-color,background-color] duration-[260ms]',
+        // box-shadow is intentionally NOT in the transition list (perf
+        // plan 2.4): interpolating two multi-layer shadows repaints the
+        // card every frame for 260ms — ×4 cards while framer-motion is
+        // also translating them on hover. The shadow swap is instant;
+        // border/background still ease so the hover read stays soft.
+        'bg-[var(--color-surface)] p-5 transition-[border-color,background-color] duration-[260ms]',
         // Glass pane: inset top highlight + soft drop (see shadow.css).
         'shadow-[var(--shadow-glass)]',
         'hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-raised)]',
@@ -197,18 +221,20 @@ export function KpiCard({
       </div>
       <div className="flex items-baseline gap-2">
         <div
+          ref={countUpRef}
           className={`${valueClass} transition-colors`}
           style={
             accent
               ? {
                   color: 'var(--color-accent)',
-                  textShadow:
-                    '0 0 24px color-mix(in srgb, var(--color-accent) 35%, transparent)',
+                  textShadow: '0 0 24px color-mix(in srgb, var(--color-accent) 35%, transparent)',
                 }
               : undefined
           }
         >
-          {displayValue}
+          {/* While the count-up owns the node, React renders no text child —
+              see useCountUpRef. Static cards render the value directly. */}
+          {canAnimateNumeric ? null : value}
         </div>
         {copyable ? (
           <button

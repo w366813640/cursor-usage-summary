@@ -91,10 +91,10 @@ function buildSeed() {
     const dow = day.getUTCDay();
     const weekday = dow !== 0 && dow !== 6;
     const baseN = weekday ? 9 : 3;
-    const n = baseN + (d * 7) % 5;
+    const n = baseN + ((d * 7) % 5);
     for (let i = 0; i < n; i++) {
       counter++;
-      const hour = weekday ? (9 + ((i * 3 + d) % 11)) : (11 + (i % 6));
+      const hour = weekday ? 9 + ((i * 3 + d) % 11) : 11 + (i % 6);
       const iso = `${day.toISOString().slice(0, 10)}T${String(hour).padStart(2, '0')}:${String((i * 13) % 60).padStart(2, '0')}:00.000Z`;
       const [model, costBase] = models[(i + d) % models.length];
       const maxMode = (i + d) % 9 === 0;

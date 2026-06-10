@@ -1,16 +1,17 @@
-import { type RowWithCost, type UsageSummary, aggregate, parseUsageCsv } from '@cu/data';
+import { type RowWithCost, type UsageSummary, parseUsageCsv } from '@cu/data';
 import { costRows } from '@cu/pricing';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   commitImport,
   getCounts,
   listBatches,
-  loadAllRows,
+  loadSummaryCosted,
   previewImport,
   sha256File,
   undoBatch,
 } from '../electron/desktopStorage';
 import type { BatchSummary, PreviewResult } from '../electron/types';
+import { perfSpan } from '../utils/perf';
 
 /**
  * Desktop ingest state machine — the sole renderer-side data path
@@ -109,19 +110,23 @@ export function useDesktopIngest(): UseDesktopIngest {
   const reset = useCallback(() => setState({ status: 'idle' }), []);
 
   /**
-   * Pulls every row out of the DB and rebuilds a `success` state via
-   * the existing `aggregate` pipeline. Returns `false` when the DB is
-   * empty so the welcome page knows to stay open.
+   * Pulls every row + the main-process aggregate out of the DB in one
+   * IPC call and rebuilds a `success` state. Returns `false` when the
+   * DB is empty so the welcome page knows to stay open.
    */
   const hydrateFromDb = useCallback(async () => {
     try {
+      const endTotal = perfSpan('hydrateFromDb');
       const counts = await getCounts();
       if (counts.rowCount === 0) {
         setState({ status: 'idle' });
         return false;
       }
-      const rows = await loadAllRows();
-      const summary = aggregate(rows, { topBurnsCount: 10 });
+      // Single IPC round-trip: rows + summary aggregated in the main
+      // process, so this thread never runs the O(rows) summarization.
+      const endLoad = perfSpan('hydrate.summaryCosted');
+      const { rows, summary } = await loadSummaryCosted();
+      endLoad(`${rows.length} rows`);
       const batches = await listBatches();
       const sourceFiles = batches.map((b) => b.sourceFilename);
       const lastBatch = batches[0] ?? null;
@@ -138,6 +143,7 @@ export function useDesktopIngest(): UseDesktopIngest {
         lastImportAddedRows: lastBatch?.rowCountAdded ?? null,
         lastImportSkippedRows: lastBatch?.rowCountSkipped ?? null,
       });
+      endTotal(`${rows.length} rows`);
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -205,9 +211,9 @@ export function useDesktopIngest(): UseDesktopIngest {
       });
 
       // After commit, re-pull the whole row set so the dashboard reflects
-      // every batch on disk (not just this file). Cheap for our scale.
-      const allRows = await loadAllRows();
-      const summary = aggregate(allRows, { topBurnsCount: 10 });
+      // every batch on disk (not just this file). Aggregation happens
+      // main-side in the same IPC call.
+      const { rows: allRows, summary } = await loadSummaryCosted();
       const batches = await listBatches();
       const sourceFiles = batches.map((b) => b.sourceFilename);
       const lastBatch = batches[0] ?? null;

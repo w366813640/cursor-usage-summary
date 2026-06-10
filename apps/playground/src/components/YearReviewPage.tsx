@@ -13,6 +13,7 @@ import {
 import { calcCacheSavings } from '@cu/pricing';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { MetricToggle, Panel } from './Panel';
 
 interface YearReviewPageProps {
@@ -34,6 +35,7 @@ interface YearReviewPageProps {
  *      decelerating per model, with one row per model.
  */
 export function YearReviewPage({ rows }: YearReviewPageProps) {
+  const entrance = useEntranceOnce('year');
   const availableYears = useMemo(() => {
     const set = new Set<number>();
     for (const r of rows) set.add(new Date(r.dateISO).getUTCFullYear());
@@ -43,7 +45,7 @@ export function YearReviewPage({ rows }: YearReviewPageProps) {
   const [selectedYear, setSelectedYear] = useState(defaultYear);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6${entrance ? '' : ' cu-charts-no-anim'}`}>
       <YearReviewPanel
         year={selectedYear}
         availableYears={availableYears}
@@ -490,6 +492,9 @@ function YearKpi({
 }
 
 function YearMonthBars({ months }: { months: YearReview['byMonth'] }) {
+  // Grow-in plays on the first Year visit per session; revisits render
+  // the bars at full height immediately (perf plan 1.4).
+  const entrance = useEntranceOnce('year-month-bars');
   const max = Math.max(0.0001, ...months.map((m) => m.cost));
   return (
     <div className="flex items-end gap-1.5 h-[140px] pt-2 px-1">
@@ -500,7 +505,7 @@ function YearMonthBars({ months }: { months: YearReview['byMonth'] }) {
           <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
             <div className="relative flex w-full flex-1 items-end">
               <motion.div
-                initial={{ height: '0%' }}
+                initial={entrance ? { height: '0%' } : false}
                 animate={{ height: m.cost > 0 ? `${heightPct}%` : '2%' }}
                 transition={{ duration: 0.65, ease: [0.2, 0, 0, 1] }}
                 className="w-full rounded-t-sm"

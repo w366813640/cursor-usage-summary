@@ -5,6 +5,7 @@ import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { type RefObject, useMemo, useRef } from 'react';
 import { ExportButton } from '../../export/ExportButton';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { SectionHeader } from '../SectionHeader';
 
 interface OverviewBurnsProps {
@@ -25,6 +26,7 @@ interface OverviewBurnsProps {
 export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
   const burnsRef = useRef<HTMLDivElement>(null);
   const t = useT();
+  const entrance = useEntrance();
 
   const top5 = useMemo(() => summary.topBurns.slice(0, 5), [summary.topBurns]);
   const sonnetBaseline = useMemo(() => medianSonnetCost(rows), [rows]);
@@ -41,7 +43,7 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
 
   return (
     <motion.section
-      initial={{ opacity: 0 }}
+      initial={entrance ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.42, delay: 0.18 }}
       className="flex flex-col gap-4"

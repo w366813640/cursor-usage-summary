@@ -70,6 +70,30 @@ export function registerDbIpc(): void {
 
   ipcMain.handle('db:allRowsCosted', () => getDb().allRowsCosted());
 
+  // Rows + aggregate in one round-trip (perf plan 3.1). Aggregating here
+  // keeps the O(rows) summarization off the renderer's UI thread — at
+  // 100k rows that's the difference between a blocked first paint and a
+  // background hiccup. `topBurns` ships date-less like every other row
+  // over this bridge; the renderer rehydrates from `dateISO`.
+  ipcMain.handle('db:summaryCosted', () => {
+    // Lazy-require like @cu/storage above so cold start stays lean.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { aggregate } = require('@cu/data') as typeof import('@cu/data');
+    const serialized = getDb().allRowsCosted();
+    const rows = serialized.map((r) => ({
+      ...r,
+      date: new Date(r.dateISO),
+    })) as import('@cu/data').RowWithCost[];
+    const summary = aggregate(rows, { topBurnsCount: 10 });
+    return {
+      rows: serialized,
+      summary: {
+        ...summary,
+        topBurns: summary.topBurns.map(({ date: _date, ...rest }) => rest),
+      },
+    };
+  });
+
   ipcMain.handle('db:listBatches', () => getDb().listBatches());
 
   ipcMain.handle('db:undoBatch', (_event, id: number) => getDb().undoBatch(id));

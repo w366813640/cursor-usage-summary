@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { getSettings, updateSettings } from '../electron/desktopStorage';
 import type { UserSettings } from '../electron/types';
 
 /**
- * Hook around `bridge.settings.{get,set}`. Loads once on mount, exposes
- * an updater that persists on the main side, and keeps local state in
- * sync so renderers re-render on save without a round-trip refetch.
+ * Singleton settings store behind `bridge.settings.{get,set}` (perf plan 3.3).
+ *
+ * Previously each `useSettings()` call owned its own state + IPC fetch, so
+ * six consumers meant six `settings:get` round-trips on startup and six
+ * refetches after every save (via a window event). Now there is one
+ * module-level store shared through `useSyncExternalStore`: one fetch,
+ * one in-memory update per save, and every consumer re-renders from the
+ * same snapshot.
  *
  * Default value matches `apps/desktop/src/settingsStore.ts:DEFAULT_SETTINGS`
  * so first paint can render the form before the IPC resolves.
@@ -23,7 +28,51 @@ const FALLBACK: UserSettings = {
   budgetNotificationsMuted: false,
 };
 
-const SETTINGS_EVENT = 'cu:settings-change';
+interface SettingsState {
+  settings: UserSettings;
+  loading: boolean;
+  error: string | null;
+}
+
+let state: SettingsState = { settings: FALLBACK, loading: true, error: null };
+const listeners = new Set<() => void>();
+let initialFetchStarted = false;
+
+function setState(partial: Partial<SettingsState>): void {
+  state = { ...state, ...partial };
+  for (const cb of listeners) cb();
+}
+
+function subscribe(cb: () => void): () => void {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+}
+
+function getSnapshot(): SettingsState {
+  return state;
+}
+
+async function reloadSettings(): Promise<void> {
+  setState({ loading: true });
+  try {
+    const next = await getSettings();
+    setState({ settings: next, loading: false, error: null });
+  } catch (err) {
+    setState({ loading: false, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+async function saveSettings(partial: Partial<UserSettings>): Promise<void> {
+  try {
+    const next = await updateSettings(partial);
+    setState({ settings: next, error: null });
+  } catch (err) {
+    setState({ error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
 
 export interface UseSettings {
   settings: UserSettings;
@@ -31,53 +80,26 @@ export interface UseSettings {
   loading: boolean;
   /** Last save error, if any — UI can surface it inline. */
   error: string | null;
-  /** Patches the persisted settings and updates local state. */
+  /** Patches the persisted settings and updates the shared store. */
   save: (partial: Partial<UserSettings>) => Promise<void>;
   /** Force-reload from disk; useful after a backup restore that mutated things externally. */
   reload: () => Promise<void>;
 }
 
 export function useSettings(): UseSettings {
-  const [settings, setSettings] = useState<UserSettings>(FALLBACK);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    try {
-      const next = await getSettings();
-      setSettings(next);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  useEffect(() => {
-    const onSettingsChange = () => {
-      void reload();
-    };
-    window.addEventListener(SETTINGS_EVENT, onSettingsChange);
-    return () => window.removeEventListener(SETTINGS_EVENT, onSettingsChange);
-  }, [reload]);
-
-  const save = useCallback(async (partial: Partial<UserSettings>) => {
-    try {
-      const next = await updateSettings(partial);
-      setSettings(next);
-      setError(null);
-      window.dispatchEvent(new CustomEvent(SETTINGS_EVENT));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      throw err;
-    }
+    if (initialFetchStarted) return;
+    initialFetchStarted = true;
+    void reloadSettings();
   }, []);
 
-  return { settings, loading, error, save, reload };
+  return {
+    settings: snap.settings,
+    loading: snap.loading,
+    error: snap.error,
+    save: saveSettings,
+    reload: reloadSettings,
+  };
 }

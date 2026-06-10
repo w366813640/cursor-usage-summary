@@ -1,13 +1,13 @@
-import type { RowWithCost, UsageSummary } from '@cu/data';
-import { composeWeekSummary } from '@cu/data';
+import type { UsageSummary, WeekSummary } from '@cu/data';
 import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { TrustHint } from '../TrustHint';
 
 interface WeekSummaryCardProps {
   summary: UsageSummary;
-  rows: ReadonlyArray<RowWithCost>;
+  /** Precomputed by useOverviewInsights — shared with the rest of Overview. */
+  week: WeekSummary;
 }
 
 /**
@@ -29,13 +29,13 @@ interface WeekSummaryCardProps {
  *
  *   ⚑  Spend is up 32% — open the Anomalies tab to see what changed.
  */
-export function WeekSummaryCard({ summary, rows }: WeekSummaryCardProps) {
+export function WeekSummaryCard({ summary, week }: WeekSummaryCardProps) {
   const t = useT();
-  const week = useMemo(() => composeWeekSummary(summary, rows, { t }), [summary, rows, t]);
+  const entrance = useEntrance();
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 6 }}
+      initial={entrance ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38, ease: [0.2, 0, 0, 1] }}
       aria-label={t('overview.week.aria')}

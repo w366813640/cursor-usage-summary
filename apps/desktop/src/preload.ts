@@ -1,3 +1,4 @@
+import type { UsageSummary } from '@cu/data';
 import type {
   BatchStats,
   BatchSummary,
@@ -10,6 +11,16 @@ import type {
   SerializedRowWithCost,
 } from '@cu/storage';
 import { contextBridge, ipcRenderer } from 'electron';
+
+/** `UsageSummary` with `topBurns` flattened to the date-less wire shape. */
+type SerializedUsageSummary = Omit<UsageSummary, 'topBurns'> & {
+  topBurns: SerializedRowWithCost[];
+};
+
+interface SummaryCostedResult {
+  rows: SerializedRowWithCost[];
+  summary: SerializedUsageSummary;
+}
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -147,6 +158,12 @@ const bridge = {
      * can't carry it); rehydrate via `new Date(dateISO)` on the renderer.
      */
     allRowsCosted: () => ipcRenderer.invoke('db:allRowsCosted') as Promise<SerializedRowWithCost[]>,
+    /**
+     * Rows + main-process aggregate in a single round-trip (perf plan
+     * 3.1). Preferred over `allRowsCosted` for full hydrates: the
+     * renderer thread never runs the O(rows) summarization.
+     */
+    summaryCosted: () => ipcRenderer.invoke('db:summaryCosted') as Promise<SummaryCostedResult>,
     listBatches: () => ipcRenderer.invoke('db:listBatches') as Promise<BatchSummary[]>,
     undoBatch: (id: number) =>
       ipcRenderer.invoke('db:undoBatch', id) as Promise<{ removedRows: number }>,

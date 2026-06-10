@@ -1,10 +1,11 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { useShortcut, useT } from '@cu/ui';
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, lazy, useMemo, useRef } from 'react';
 import { useBudgetReporter } from '../hooks/useBudgetReporter';
 import { useFocusMode } from '../hooks/useFocusMode';
 import { useSettings } from '../hooks/useSettings';
 import { type AppRoute, useRoute } from '../router/useRoute';
+import { reportRoutePaint } from '../utils/perf';
 import { useExtraPaletteActions } from './CommandPalette';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { KeyboardCheatsheet } from './KeyboardCheatsheet';
@@ -64,6 +65,9 @@ export function DashboardShell({
   onOpenSettings,
 }: DashboardShellProps) {
   const { route, navigate } = useRoute('overview');
+  const lastRouteRef = useRef<string | null>(null);
+  // Dev-only: logs "route a→b painted in Xms" so navigation jank is measurable.
+  reportRoutePaint(route, lastRouteRef);
   const [focusMode, setFocusMode] = useFocusMode();
   const { settings } = useSettings();
   // Resolve the user's saved nav layout (Settings → Navigation). When the
@@ -172,7 +176,9 @@ export function DashboardShell({
         />
 
         <Suspense fallback={<RouteLoadingSkeleton />}>
-          <div key={route}>
+          {/* No key={route} — the conditionals below already unmount the old
+              page; keying the wrapper only forced an extra DOM teardown. */}
+          <div>
             {route === 'overview' ? <OverviewPage summary={summary} rows={rows} /> : null}
             {route === 'year' ? <YearReviewPage rows={rows} /> : null}
             {route === 'anomalies' ? <AnomaliesPage summary={summary} rows={rows} /> : null}

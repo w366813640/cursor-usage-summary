@@ -1,7 +1,8 @@
 import { fmtTokens, fmtUSD } from '@cu/charts';
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { useSavedDetailsFilters } from '../hooks/useSavedDetailsFilters';
 import { Panel } from './Panel';
 import { SectionHeader } from './SectionHeader';
@@ -27,6 +28,7 @@ const PAGE_SIZE = 50;
  * expensive Gemini call I ever made?" without leaving the page.
  */
 export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
+  const entrance = useEntranceOnce('details');
   const [sort, setSort] = useState<SortKey>('cost-desc');
   // Drill-down hint from Models page: when the user clicked
   // "→ requests" on a model row, we land here pre-filtered.
@@ -45,17 +47,31 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
   const [query, setQuery] = useState<string>('');
   const [page, setPage] = useState<number>(0);
 
+  // Keystrokes repaint only the input at urgent priority; the actual
+  // filter pass runs at deferred priority against this lagging value, so
+  // typing stays responsive even on 100k-row datasets (perf plan 1.6).
+  const deferredQuery = useDeferredValue(query);
+
+  // Search haystack built once per dataset instead of per row per
+  // keystroke — the old inline template literal allocated + lowercased
+  // 4 fields × N rows on every input event.
+  const searchIndex = useMemo(
+    () =>
+      rows.map((r) =>
+        `${r.model} ${r.kind} ${r.cloudAgentId ?? ''} ${r.automationId ?? ''}`.toLowerCase(),
+      ),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = rows.filter((r) => {
-      if (modelFilter && r.model !== modelFilter) return false;
-      if (q) {
-        const hay =
-          `${r.model} ${r.kind} ${r.cloudAgentId ?? ''} ${r.automationId ?? ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
+    const q = deferredQuery.trim().toLowerCase();
+    const list: RowWithCost[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i] as RowWithCost;
+      if (modelFilter && r.model !== modelFilter) continue;
+      if (q && !(searchIndex[i] as string).includes(q)) continue;
+      list.push(r);
+    }
     list.sort((a, b) => {
       switch (sort) {
         case 'date-desc':
@@ -67,7 +83,7 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
       }
     });
     return list;
-  }, [rows, modelFilter, query, sort]);
+  }, [rows, searchIndex, modelFilter, deferredQuery, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -80,10 +96,10 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
-      className="flex flex-col gap-4"
+      className={`flex flex-col gap-4${entrance ? '' : ' cu-charts-no-anim'}`}
     >
       <SectionHeader
         sticky
@@ -163,7 +179,7 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
         {/* maxWidth wrapper enables horizontal scroll on narrow viewports without breaking the rounded shell. */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] border-collapse">
-            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-surface-muted)]/80">
+            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]">
               <tr className="border-b border-[var(--color-border)] text-left">
                 {(
                   [

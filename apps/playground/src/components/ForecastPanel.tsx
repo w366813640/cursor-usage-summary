@@ -1,10 +1,5 @@
 import { fmtUSD, fmtUSDCompact } from '@cu/charts';
-import {
-  type ForecastResult,
-  type RowWithCost,
-  fillMissingDays,
-  forecastDailyCost,
-} from '@cu/data';
+import type { ForecastResult } from '@cu/data';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -14,11 +9,11 @@ import {
   TrendingUp,
 } from '@cu/icons';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
 import { Panel } from './Panel';
 
 interface ForecastPanelProps {
-  rows: ReadonlyArray<RowWithCost>;
+  /** Precomputed by useOverviewInsights — shared with the rest of Overview. */
+  forecast: ForecastResult;
 }
 
 /**
@@ -42,9 +37,7 @@ interface ForecastPanelProps {
  *   │  caption: "If your current pattern holds, …"          │
  *   └───────────────────────────────────────────────────────┘
  */
-export function ForecastPanel({ rows }: ForecastPanelProps) {
-  const forecast = useMemo(() => buildForecast(rows), [rows]);
-
+export function ForecastPanel({ forecast }: ForecastPanelProps) {
   if (forecast.historical.length < 7) {
     return (
       <Panel
@@ -86,29 +79,6 @@ export function ForecastPanel({ rows }: ForecastPanelProps) {
       />
     </Panel>
   );
-}
-
-/* -------------------------------------------------------------- *
- *  Build inputs from RowWithCost
- * -------------------------------------------------------------- */
-
-function buildForecast(rows: ReadonlyArray<RowWithCost>): ForecastResult {
-  if (rows.length === 0) {
-    return forecastDailyCost([]);
-  }
-  // Roll cost up by day so the regression sees a clean univariate series.
-  const dayMap = new Map<string, number>();
-  for (const r of rows) {
-    const day = r.dateISO.slice(0, 10);
-    dayMap.set(day, (dayMap.get(day) ?? 0) + r.cost);
-  }
-  const raw = [...dayMap.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, value]) => ({ date, value }));
-  // Pad missing days with zeros so the regression handles weekend gaps
-  // and import-time holes correctly.
-  const filled = fillMissingDays(raw);
-  return forecastDailyCost(filled, { lookbackDays: 90, horizonDays: 30 });
 }
 
 function recentDailyAverage(series: ReadonlyArray<{ value: number }>, n: number): number {

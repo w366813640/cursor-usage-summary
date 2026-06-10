@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/quality.md", "reason": "Frontend quality gate — lint/typecheck/test expectations for renderer changes"}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Verify refactors don't reintroduce context-churn / stale-closure / effect-loop pitfalls"}
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "Cross-cutting code quality checklist"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Phase 3 spans renderer/preload/main — cross-layer data flow must stay consistent"}
+{"file": ".trellis/tasks/06-10-perf-optimization/prd.md", "reason": "Acceptance criteria (Phase 0 budgets) to verify against"}

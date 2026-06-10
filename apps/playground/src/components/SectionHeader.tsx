@@ -28,8 +28,9 @@ interface SectionHeaderProps {
  *
  * Set `sticky` on the first header of a route so users keep the section
  * title + metric toggle in view while scrolling through long lists or
- * tables. Backdrop blur + translucent surface tint avoid the "ghosted
- * text" effect from scroll content bleeding through.
+ * tables. The sticky band uses an opaque page background — deliberately
+ * NOT backdrop-blur — so scrolling never re-rasterizes the content
+ * underneath (see perf plan 2.1).
  */
 export function SectionHeader({ title, subtitle, action, sticky = false }: SectionHeaderProps) {
   const stickyClasses = sticky
@@ -37,8 +38,9 @@ export function SectionHeader({ title, subtitle, action, sticky = false }: Secti
       // Bump z so panel borders / table sticky thead don't fight us. The
       // -mx-1/-px-1 pair pulls the strip flush with the page-top padding
       // so the sticky band visually owns the full content width without
-      // creating a fringe gap.
-      'sticky top-[88px] z-30 -mx-1 px-1 pt-3 pb-3 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-bg)_70%,transparent)] bg-[var(--color-bg)]'
+      // creating a fringe gap. Solid bg, no backdrop-blur (perf plan 2.1):
+      // stacked blur bands re-rasterize the scroll content every frame.
+      'sticky top-[88px] z-30 -mx-1 px-1 pt-3 pb-3 bg-[var(--color-bg)]'
     : 'pt-2';
   return (
     <div className={`flex flex-col gap-2 ${stickyClasses}`}>

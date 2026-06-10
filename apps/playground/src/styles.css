@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "@cu/tokens/css";
 @import "@cu/ui/styles.css";
+/* Latin-only subsets — see fonts.css for why we don't import the
+   @fontsource index.css (it ships every script subset). */
+@import "./fonts.css";
 
 /*
  * Tailwind v4 only auto-scans files under the app root. The workspace
@@ -12,10 +15,6 @@
 @source "../../../packages/charts/src";
 @source "../../../packages/brand/src";
 @source "../../../packages/icons/src";
-
-@import "@fontsource-variable/inter/index.css";
-@import "@fontsource-variable/space-grotesk/index.css";
-@import "@fontsource-variable/jetbrains-mono/index.css";
 
 /* Make sure body inherits theme bg painted by the pre-React inline script. */
 html,
@@ -47,8 +46,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(900px 480px at 18% -12%, var(--cu-ambient-a), transparent 64%),
+  background: radial-gradient(900px 480px at 18% -12%, var(--cu-ambient-a), transparent 64%),
     radial-gradient(720px 420px at 86% -16%, var(--cu-ambient-b), transparent 60%);
 }
 

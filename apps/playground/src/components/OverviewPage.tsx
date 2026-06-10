@@ -1,7 +1,9 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { EntranceContext, useEntranceOnce } from '../hooks/useEntranceOnce';
 import { useFocusMode } from '../hooks/useFocusMode';
+import { useOverviewInsights } from '../hooks/useOverviewInsights';
 import { useSettings } from '../hooks/useSettings';
 import { CompareRangesPanel } from './CompareRangesPanel';
 import { ForecastPanel } from './ForecastPanel';
@@ -51,77 +53,98 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
   // historical baseline for one frame before the real value lands.
   const { settings } = useSettings();
 
+  // Every heavy analysis (anomalies, efficiency, week narrative, forecast,
+  // action feed) is computed exactly once here and handed down as props —
+  // see useOverviewInsights for the dedupe + cross-route cache rationale.
+  const insights = useOverviewInsights(summary, rows, settings.monthlyRequestBudget);
+
   // Focus mode hides context panels and keeps only the high-signal acts:
   // week summary, KPI hero, and efficiency. The user toggles it from the
   // FileToolbar; localStorage-persisted (see useFocusMode).
   const [focusMode] = useFocusMode();
 
+  // Entrance animations play on the first Overview visit per session only;
+  // revisits render everything settled (perf plan 1.4 — route switches
+  // remount the page, and replaying the full stagger cascade every time
+  // both costs frames and reads as a reload).
+  const entrance = useEntranceOnce('overview');
+
   return (
-    <div className="flex flex-col" style={{ gap: 'var(--cu-density-section-gap)' }}>
-      {/* Budget urgency banner (PR6) — auto-hides for safe months and
-          when the user dismisses; sits above everything because urgency
-          should win the first eye-second on the page. */}
-      <BudgetUrgencyBanner summary={summary} rows={rows} />
+    <EntranceContext.Provider value={entrance}>
+      <div
+        className={`flex flex-col${entrance ? '' : ' cu-charts-no-anim'}`}
+        style={{ gap: 'var(--cu-density-section-gap)' }}
+      >
+        {/* Budget urgency banner (PR6) — auto-hides for safe months and
+            when the user dismisses; sits above everything because urgency
+            should win the first eye-second on the page. */}
+        <BudgetUrgencyBanner summary={summary} rows={rows} />
 
-      <WeekSummaryCard summary={summary} rows={rows} />
+        <WeekSummaryCard summary={summary} week={insights.week} />
 
-      <ActionFeed summary={summary} rows={rows} />
+        <ActionFeed insights={insights.actionInsights} />
 
-      <GoalProgressPanel summary={summary} settings={settings} />
+        <GoalProgressPanel summary={summary} settings={settings} />
 
-      <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
+        <OverviewKpiHero summary={summary} rows={rows} daysSpan={daysSpan} />
 
-      {/* Efficiency (PR3) — placed early in focus mode so the "where can
-          I cut" surface stays visible even when context panels collapse. */}
-      <EfficiencyCard summary={summary} rows={rows} />
+        {/* Efficiency (PR3) — placed early in focus mode so the "where can
+            I cut" surface stays visible even when context panels collapse. */}
+        <EfficiencyCard report={insights.efficiency} />
 
-      {focusMode ? null : (
-        <>
-          {/* Plan budget — sits between hero and system view because it's the
-              single most actionable "are you about to overspend?" question. */}
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
-          >
-            <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
-          </motion.section>
+        {focusMode ? null : (
+          <>
+            {/* Plan budget — sits between hero and system view because it's the
+                single most actionable "are you about to overspend?" question. */}
+            <motion.section
+              initial={entrance ? { opacity: 0, y: 8 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
+            >
+              <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
+            </motion.section>
 
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
-          >
-            <CompareRangesPanel rows={rows} />
-          </motion.section>
+            <motion.section
+              initial={entrance ? { opacity: 0, y: 12 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
+            >
+              <CompareRangesPanel rows={rows} />
+            </motion.section>
 
-          {/* Forecast (PR24) — sits right after Compare Ranges because once
-              you've seen the "how am I doing today vs the last 30 days"
-              comparison, the next instinct is "where am I heading?". */}
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
-          >
-            <ForecastPanel rows={rows} />
-          </motion.section>
+            {/* Forecast (PR24) — sits right after Compare Ranges because once
+                you've seen the "how am I doing today vs the last 30 days"
+                comparison, the next instinct is "where am I heading?". */}
+            <motion.section
+              initial={entrance ? { opacity: 0, y: 12 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
+            >
+              <ForecastPanel forecast={insights.forecast} />
+            </motion.section>
 
-          <motion.section
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
-          >
-            <ScenarioPlannerPanel
+            <motion.section
+              initial={entrance ? { opacity: 0, y: 12 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
+            >
+              <ScenarioPlannerPanel
+                summary={summary}
+                rows={rows}
+                monthlyRequestBudget={settings.monthlyRequestBudget}
+              />
+            </motion.section>
+
+            <OverviewActivity
               summary={summary}
               rows={rows}
-              monthlyRequestBudget={settings.monthlyRequestBudget}
+              daysSpan={daysSpan}
+              anomalies={insights.anomalies}
             />
-          </motion.section>
-
-          <OverviewActivity summary={summary} rows={rows} daysSpan={daysSpan} />
-          <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />
-        </>
-      )}
-    </div>
+            <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />
+          </>
+        )}
+      </div>
+    </EntranceContext.Provider>
   );
 }

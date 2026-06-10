@@ -8,6 +8,7 @@ import { AlertTriangle, Clock, Target, X } from '@cu/icons';
 import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { useSettings } from '../../hooks/useSettings';
 
 interface BudgetUrgencyBannerProps {
@@ -62,6 +63,7 @@ const SEVERITY_TONE: Record<
 export function BudgetUrgencyBanner({ summary }: BudgetUrgencyBannerProps) {
   const { settings } = useSettings();
   const t = useT();
+  const entrance = useEntrance();
   const urgency = useMemo(
     () => computeBudgetUrgency(summary, settings.monthlyRequestBudget, { t }),
     [summary, settings.monthlyRequestBudget, t],
@@ -101,7 +103,7 @@ export function BudgetUrgencyBanner({ summary }: BudgetUrgencyBannerProps) {
 
   return (
     <motion.aside
-      initial={{ opacity: 0, y: -8 }}
+      initial={entrance ? { opacity: 0, y: -8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.2, 0, 0, 1] }}
       role="alert"

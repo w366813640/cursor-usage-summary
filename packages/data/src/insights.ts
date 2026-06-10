@@ -1,7 +1,7 @@
 import type { RowWithCost, UsageSummary } from './aggregators';
-import { detectAllAnomalies } from './anomalies';
+import { type DetectAllResult, detectAllAnomalies } from './anomalies';
 import { computeBudgetUrgency } from './budgetGuard';
-import { computeEfficiency } from './efficiency';
+import { type EfficiencyReport, computeEfficiency } from './efficiency';
 import { fillMissingDays, forecastDailyCost } from './forecast';
 import { type Translator, translate } from './i18n';
 
@@ -41,6 +41,17 @@ export interface ComputeActionInsightsOptions {
    * `narrative.insight.*` keys.
    */
   t?: Translator;
+  /**
+   * Already-computed analyses to reuse instead of recomputing (perf).
+   * The Overview page runs `detectAllAnomalies` / `computeEfficiency`
+   * once for its own panels — injecting them here avoids a second full
+   * pass over `rows`. Caller is responsible for passing results derived
+   * from the same `summary` / `rows` / translator.
+   */
+  precomputed?: {
+    anomalies?: DetectAllResult;
+    efficiency?: EfficiencyReport;
+  };
 }
 
 const PRIORITY_SCORE: Record<ActionInsightPriority, number> = {
@@ -67,8 +78,8 @@ export function computeActionInsights(
   const insights: ActionInsight[] = [];
 
   addBudgetInsight(insights, summary, budget, t, options.asOf);
-  addAnomalyInsight(insights, summary, rows, t);
-  addEfficiencyInsights(insights, summary, rows, t);
+  addAnomalyInsight(insights, summary, rows, t, options.precomputed?.anomalies);
+  addEfficiencyInsights(insights, summary, rows, t, options.precomputed?.efficiency);
   addForecastInsight(insights, summary, t);
   addCacheInsight(insights, summary, t);
   addTopBurnInsight(insights, summary, t);
@@ -152,8 +163,9 @@ function addAnomalyInsight(
   summary: UsageSummary,
   rows: ReadonlyArray<RowWithCost>,
   t: Translator | undefined,
+  precomputed?: DetectAllResult,
 ): void {
-  const anomalies = detectAllAnomalies(summary, rows, { t });
+  const anomalies = precomputed ?? detectAllAnomalies(summary, rows, { t });
   const high = anomalies.bySeverity.high[0];
   const medium = anomalies.bySeverity.medium[0];
   const picked = high ?? medium;
@@ -182,8 +194,9 @@ function addEfficiencyInsights(
   summary: UsageSummary,
   rows: ReadonlyArray<RowWithCost>,
   t: Translator | undefined,
+  precomputed?: EfficiencyReport,
 ): void {
-  const report = computeEfficiency(summary, rows, { t });
+  const report = precomputed ?? computeEfficiency(summary, rows, { t });
   for (const rec of report.recommendations) {
     if (rec.kind === 'good-news') continue;
     out.push({

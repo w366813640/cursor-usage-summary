@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 export interface StackedAreaSeries {
   id: string;
@@ -45,10 +45,111 @@ const PAD_LEFT = 8;
 const PAD_RIGHT = 8;
 
 /**
+ * Static chart body — gradients, grid, stacked areas, topline. Memoized
+ * so hover-driven re-renders of the parent skip this subtree entirely;
+ * `geo` is referentially stable between data changes (single useMemo).
+ *
+ * The topline "glow" is two extra strokes at growing width / falling
+ * opacity instead of the old `blur(4px)` SVG filter: a filter forces an
+ * offscreen rasterization pass on every repaint of the layer, which on
+ * Windows GPUs showed up as measurable paint cost for a purely
+ * decorative halo.
+ */
+const GeometrySvg = memo(function GeometrySvg({
+  geo,
+  gradPrefix,
+  width,
+  height,
+  ariaLabel,
+}: {
+  geo: Geometry;
+  gradPrefix: string;
+  width: number;
+  height: number;
+  ariaLabel: string;
+}) {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <title>{ariaLabel}</title>
+      <defs>
+        {geo.visible.map((s, i) => (
+          <linearGradient key={s.id} id={`${gradPrefix}-g${i}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={s.color} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={s.color} stopOpacity={0.06} />
+          </linearGradient>
+        ))}
+      </defs>
+
+      {geo.gridYs.map((g) => (
+        <line
+          key={g.value}
+          x1={PAD_LEFT}
+          x2={width - PAD_RIGHT}
+          y1={g.y}
+          y2={g.y}
+          stroke="var(--color-border)"
+          strokeOpacity={0.6}
+          strokeWidth={1}
+        />
+      ))}
+
+      {geo.areaPaths.map((d, i) => (
+        <path
+          key={geo.visible[i]!.id}
+          d={d}
+          fill={`url(#${gradPrefix}-g${i})`}
+          stroke={geo.visible[i]!.color}
+          strokeOpacity={0.5}
+          strokeWidth={1}
+        />
+      ))}
+
+      {/* Pseudo-glow topline — layered strokes, no SVG filter. */}
+      {geo.linePath ? (
+        <g>
+          <path
+            d={geo.linePath}
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth={6}
+            strokeOpacity={0.1}
+            strokeLinejoin="round"
+          />
+          <path
+            d={geo.linePath}
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth={3}
+            strokeOpacity={0.22}
+            strokeLinejoin="round"
+          />
+          <path
+            d={geo.linePath}
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+          />
+        </g>
+      ) : null}
+    </svg>
+  );
+});
+
+/**
  * Hero chart — multi-series stacked area with gradient fills, hover
- * crosshair + tooltip, and an optional glowing topline. Geometry is a
- * single memo; hover state only moves a lightweight overlay layer, so
- * mouse-tracking never re-tessellates paths.
+ * crosshair + tooltip, and a glowing topline. Geometry is a single memo
+ * AND a `memo`ized SVG subtree (perf plan 2.3): hover moves only re-render
+ * a separate overlay SVG + the tooltip, never the gradient/path stack.
+ * Pointer tracking is rAF-coalesced so a fast mouse can't queue more than
+ * one state update per frame.
  *
  * The SVG scales to its container width via viewBox + preserveAspectRatio
  * "none" on a fixed internal coordinate system — cheaper than a
@@ -69,6 +170,10 @@ export function StackedAreaChart({
   const gradPrefix = useId().replace(/[:]/g, '');
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  // rAF coalescing for pointermove — the handler can fire several times
+  // per frame on high-polling-rate mice; one setState per frame is enough.
+  const rafRef = useRef(0);
+  const pendingXRef = useRef<number | null>(null);
 
   const geo: Geometry = useMemo(() => {
     const visible = series.filter((s) => !hiddenIds?.has(s.id));
@@ -131,6 +236,25 @@ export function StackedAreaChart({
     return Math.max(0, Math.min(dates.length - 1, idx));
   }
 
+  // Latest resolver in a ref so the stable rAF callback never closes over
+  // stale `dates` / `width` after a data refresh.
+  const idxFromClientXRef = useRef(idxFromClientX);
+  idxFromClientXRef.current = idxFromClientX;
+
+  const onPointerMove = useCallback((clientX: number) => {
+    pendingXRef.current = clientX;
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      const x = pendingXRef.current;
+      if (x === null) return;
+      const idx = idxFromClientXRef.current(x);
+      setHoverIdx((prev) => (idx === prev ? prev : idx));
+    });
+  }, []);
+
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
   const hover = hoverIdx !== null && geo.xs[hoverIdx] !== undefined ? hoverIdx : null;
 
   // Tooltip rows: per-series value at the hovered day, largest first.
@@ -150,111 +274,54 @@ export function StackedAreaChart({
         ref={wrapRef}
         className="relative w-full"
         style={{ height, cursor: onSelectDate ? 'pointer' : 'crosshair' }}
-        onPointerMove={(e) => {
-          const idx = idxFromClientX(e.clientX);
-          if (idx !== hoverIdx) setHoverIdx(idx);
+        onPointerMove={(e) => onPointerMove(e.clientX)}
+        onPointerLeave={() => {
+          pendingXRef.current = null;
+          setHoverIdx(null);
         }}
-        onPointerLeave={() => setHoverIdx(null)}
         onClick={() => {
           if (onSelectDate && hover !== null) onSelectDate(dates[hover]!);
         }}
       >
-        <svg
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
-          role="img"
-          aria-label={ariaLabel}
-        >
-          <title>{ariaLabel}</title>
-          <defs>
-            {geo.visible.map((s, i) => (
-              <linearGradient
-                key={s.id}
-                id={`${gradPrefix}-g${i}`}
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop offset="0%" stopColor={s.color} stopOpacity={0.5} />
-                <stop offset="100%" stopColor={s.color} stopOpacity={0.06} />
-              </linearGradient>
-            ))}
-          </defs>
+        <GeometrySvg
+          geo={geo}
+          gradPrefix={gradPrefix}
+          width={width}
+          height={height}
+          ariaLabel={ariaLabel}
+        />
 
-          {geo.gridYs.map((g) => (
+        {/* Hover overlay lives in its own tiny SVG so crosshair moves
+            never touch the gradient/path stack above. */}
+        {hover !== null ? (
+          <svg
+            className="pointer-events-none absolute inset-0"
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${width} ${height}`}
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
             <line
-              key={g.value}
-              x1={PAD_LEFT}
-              x2={width - PAD_RIGHT}
-              y1={g.y}
-              y2={g.y}
-              stroke="var(--color-border)"
-              strokeOpacity={0.6}
+              x1={geo.xs[hover]}
+              x2={geo.xs[hover]}
+              y1={PAD_TOP - 4}
+              y2={height - PAD_BOTTOM}
+              stroke="var(--color-text-muted)"
               strokeWidth={1}
+              strokeDasharray="3 3"
+              opacity={0.7}
             />
-          ))}
-
-          {geo.areaPaths.map((d, i) => (
-            <path
-              key={geo.visible[i]!.id}
-              d={d}
-              fill={`url(#${gradPrefix}-g${i})`}
-              stroke={geo.visible[i]!.color}
-              strokeOpacity={0.5}
-              strokeWidth={1}
+            <circle
+              cx={geo.xs[hover]}
+              cy={PAD_TOP + (height - PAD_TOP - PAD_BOTTOM) * (1 - geo.totals[hover]! / geo.yMax)}
+              r={3.5}
+              fill="var(--color-accent)"
+              stroke="var(--color-bg)"
+              strokeWidth={1.5}
             />
-          ))}
-
-          {/* Glowing total line — duplicated stroke, blurred underneath. */}
-          {geo.linePath ? (
-            <g>
-              <path
-                d={geo.linePath}
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth={4}
-                strokeOpacity={0.28}
-                style={{ filter: 'blur(4px)' }}
-              />
-              <path
-                d={geo.linePath}
-                fill="none"
-                stroke="var(--color-accent)"
-                strokeWidth={1.8}
-                strokeLinejoin="round"
-              />
-            </g>
-          ) : null}
-
-          {hover !== null ? (
-            <g pointerEvents="none">
-              <line
-                x1={geo.xs[hover]}
-                x2={geo.xs[hover]}
-                y1={PAD_TOP - 4}
-                y2={height - PAD_BOTTOM}
-                stroke="var(--color-text-muted)"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                opacity={0.7}
-              />
-              <circle
-                cx={geo.xs[hover]}
-                cy={
-                  PAD_TOP +
-                  (height - PAD_TOP - PAD_BOTTOM) * (1 - geo.totals[hover]! / geo.yMax)
-                }
-                r={3.5}
-                fill="var(--color-accent)"
-                stroke="var(--color-bg)"
-                strokeWidth={1.5}
-              />
-            </g>
-          ) : null}
-        </svg>
+          </svg>
+        ) : null}
 
         {/* X labels — first / middle / last keeps it readable at any width. */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-1 font-mono text-[10px] text-[var(--color-text-subtle)]">
@@ -273,7 +340,9 @@ export function StackedAreaChart({
             className="pointer-events-none absolute z-10 min-w-[168px] rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2 shadow-[var(--shadow-popover)]"
             style={{
               top: 8,
-              ...(hoverXFrac > 0.62 ? { right: `${(1 - hoverXFrac) * 100}%`, marginRight: 12 } : { left: `${hoverXFrac * 100}%`, marginLeft: 12 }),
+              ...(hoverXFrac > 0.62
+                ? { right: `${(1 - hoverXFrac) * 100}%`, marginRight: 12 }
+                : { left: `${hoverXFrac * 100}%`, marginLeft: 12 }),
             }}
           >
             <div className="mb-1.5 flex items-baseline justify-between gap-4">

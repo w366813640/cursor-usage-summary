@@ -3,6 +3,7 @@ import type { RowWithCost, UsageSummary } from '@cu/data';
 import { calcCacheSavings } from '@cu/pricing';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 
 interface OverviewKpiHeroProps {
   summary: UsageSummary;
@@ -23,6 +24,9 @@ interface OverviewKpiHeroProps {
  * lands on the headline number first, then the shape of the spend curve.
  */
 export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProps) {
+  // First visit per session: staggered card entrance + number count-up.
+  // Revisits render settled numbers instantly (perf plan 1.4).
+  const entrance = useEntrance();
   const totalSpark = useMemo(() => daysToSparkline(summary, 'cost'), [summary]);
 
   // Two projections — keep both so we can show "actual past 30d" vs "if you
@@ -57,7 +61,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
 
   return (
     <motion.section
-      initial="initial"
+      initial={entrance ? 'initial' : false}
       animate="enter"
       variants={{
         initial: {},
@@ -71,7 +75,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         numericValue={summary.totalCost}
         formatValue={fmtUSD}
         accent
-        animate
+        animate={entrance}
         copyable
         copyText={fmtUSD(summary.totalCost)}
         meta={
@@ -102,7 +106,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         value={hottest ? fmtUSD(hottest.cost) : '—'}
         numericValue={hottest?.cost}
         formatValue={fmtUSD}
-        animate={!!hottest}
+        animate={entrance && !!hottest}
         copyable={!!hottest}
         copyText={hottest ? fmtUSD(hottest.cost) : undefined}
         meta={
@@ -161,7 +165,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         value={fmtUSD(cacheSavings.savings)}
         numericValue={cacheSavings.savings}
         formatValue={fmtUSD}
-        animate
+        animate={entrance}
         copyable
         copyText={fmtUSD(cacheSavings.savings)}
         badge={

@@ -1,20 +1,14 @@
 import { fmtUSD } from '@cu/charts';
-import {
-  type ActionInsight,
-  type RowWithCost,
-  type UsageSummary,
-  computeActionInsights,
-} from '@cu/data';
+import type { ActionInsight } from '@cu/data';
 import { AlertTriangle, Database, Flame, Lightbulb, Target, TrendingUp } from '@cu/icons';
 import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
-import { useSettings } from '../../hooks/useSettings';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { Panel } from '../Panel';
 
 interface ActionFeedProps {
-  summary: UsageSummary;
-  rows: ReadonlyArray<RowWithCost>;
+  /** Precomputed by useOverviewInsights — shared with the rest of Overview. */
+  insights: ReadonlyArray<ActionInsight>;
 }
 
 /**
@@ -22,24 +16,14 @@ interface ActionFeedProps {
  * confidence, and estimated savings. This is the "what should I do next?"
  * layer over the existing charts.
  */
-export function ActionFeed({ summary, rows }: ActionFeedProps) {
-  const { settings } = useSettings();
+export function ActionFeed({ insights }: ActionFeedProps) {
   const t = useT();
-  const insights = useMemo(
-    () =>
-      computeActionInsights(summary, rows, {
-        monthlyRequestBudget: settings.monthlyRequestBudget,
-        maxItems: 4,
-        t,
-      }),
-    [summary, rows, settings.monthlyRequestBudget, t],
-  );
-
+  const entrance = useEntrance();
   const primary = insights[0] ?? null;
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 8 }}
+      initial={entrance ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
     >

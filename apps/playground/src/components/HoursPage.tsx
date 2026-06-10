@@ -5,6 +5,7 @@ import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuditedRows } from '../hooks/useAuditedRows';
+import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import {
   type DayAnswer,
   type DayComparison,
@@ -56,6 +57,7 @@ const DETAIL_CAP = 500;
  */
 export function DayPage({ summary, rows }: DayPageProps) {
   const t = useT();
+  const entrance = useEntranceOnce('day');
   const [metric, setMetric] = useState<'cost' | 'rows'>('cost');
   const [filter, setFilter] = useState<DateFilter>(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -149,10 +151,10 @@ export function DayPage({ summary, rows }: DayPageProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
-      className="flex flex-col gap-4"
+      className={`flex flex-col gap-4${entrance ? '' : ' cu-charts-no-anim'}`}
     >
       <SectionHeader
         sticky
@@ -196,7 +198,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
                   }`}
                 >
                   <motion.div
-                    initial={{ height: 0 }}
+                    initial={entrance ? { height: 0 } : false}
                     animate={{
                       height: `${Math.max(ratio * 100, h.value > 0 ? 1 : 0)}%`,
                     }}
@@ -555,7 +557,7 @@ function SelectionDetailPanel({
       <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent)]">
         <div ref={scrollRef} className="max-h-[460px] overflow-auto">
           <table className="w-full min-w-[680px] border-collapse text-left font-mono text-[11px]">
-            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-surface-muted)]/80">
+            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]">
               <tr className="border-b border-[var(--color-border)]">
                 {(
                   [

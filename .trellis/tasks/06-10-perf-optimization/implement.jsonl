@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend layer entry — pre-development checklist + quality gate for renderer changes"}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "Re-render / hooks pitfalls directly relevant to Phase 1 (context churn, memo, RAF state)"}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "Hook conventions — needed for useOverviewInsights / SettingsProvider refactors"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "State conventions — settings provider singleton + cross-route insight cache placement"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "Component conventions for chart/panel splits (memoized SVG layers)"}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "CSS/token conventions — backdrop-blur removal and shadow changes must stay on-token"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "IPC conventions for Phase 3 aggregate-in-main / db:summary channel"}
+{"file": ".trellis/spec/backend/database.md", "reason": "better-sqlite3 conventions for Phase 3 SQL aggregation"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "Shared TS conventions (strictness, noUncheckedIndexedAccess patterns used in data layer)"}
+{"file": ".trellis/tasks/06-10-perf-optimization/prd.md", "reason": "The performance review + phased optimization plan this task implements"}

@@ -145,31 +145,16 @@ export function Heatmap({
           onSelectDate={onSelectDate}
           onHoverChange={setHover}
         />
-        {outlierDates && outlierDates.size > 0
-          ? days.map((day, i) => {
-              const iso = day.toISOString().slice(0, 10);
-              if (!outlierDates.has(iso)) return null;
-              const week = Math.floor(i / 7);
-              const weekday = day.getUTCDay();
-              const x = labelW + week * (cellSize + cellGap);
-              const y = headerH + weekday * (cellSize + cellGap);
-              return (
-                <rect
-                  key={`outlier-${iso}`}
-                  x={x - 1.25}
-                  y={y - 1.25}
-                  width={cellSize + 2.5}
-                  height={cellSize + 2.5}
-                  rx={3}
-                  ry={3}
-                  fill="none"
-                  stroke="var(--color-accent)"
-                  strokeWidth={1.5}
-                  pointerEvents="none"
-                />
-              );
-            })
-          : null}
+        {outlierDates && outlierDates.size > 0 ? (
+          <OutlierRects
+            days={days}
+            outlierDates={outlierDates}
+            labelW={labelW}
+            headerH={headerH}
+            cellSize={cellSize}
+            cellGap={cellGap}
+          />
+        ) : null}
       </svg>
       {hover && renderTooltip ? (
         <div
@@ -210,6 +195,54 @@ export function Heatmap({
     </div>
   );
 }
+
+/**
+ * Anomaly outline rings — memoized so hover-driven parent re-renders
+ * don't re-walk the full day range (365 iterations per crosshair move).
+ */
+const OutlierRects = memo(function OutlierRects({
+  days,
+  outlierDates,
+  labelW,
+  headerH,
+  cellSize,
+  cellGap,
+}: {
+  days: ReadonlyArray<Date>;
+  outlierDates: ReadonlySet<string>;
+  labelW: number;
+  headerH: number;
+  cellSize: number;
+  cellGap: number;
+}) {
+  return (
+    <>
+      {days.map((day, i) => {
+        const iso = day.toISOString().slice(0, 10);
+        if (!outlierDates.has(iso)) return null;
+        const week = Math.floor(i / 7);
+        const weekday = day.getUTCDay();
+        const x = labelW + week * (cellSize + cellGap);
+        const y = headerH + weekday * (cellSize + cellGap);
+        return (
+          <rect
+            key={`outlier-${iso}`}
+            x={x - 1.25}
+            y={y - 1.25}
+            width={cellSize + 2.5}
+            height={cellSize + 2.5}
+            rx={3}
+            ry={3}
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth={1.5}
+            pointerEvents="none"
+          />
+        );
+      })}
+    </>
+  );
+});
 
 const HeatmapCells = memo(function HeatmapCells({
   days,

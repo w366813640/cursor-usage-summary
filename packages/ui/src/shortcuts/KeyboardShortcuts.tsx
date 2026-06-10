@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 /**
@@ -42,7 +43,7 @@ import {
  *     fire so `Cmd+H` works inside the editor.
  *
  * Use the `useShortcut` hook to register from any component. The
- * `useShortcuts` hook (note: plural) exposes the full registry to the
+ * `useShortcutList` hook exposes a reactive registry snapshot to the
  * cheatsheet renderer. The provider mounts the listener and a single
  * cheatsheet modal trigger keyed on `?`.
  */
@@ -85,12 +86,26 @@ interface ShortcutsContextValue {
   register: (def: ShortcutDef) => () => void;
   /** Snapshot of currently registered defs, ordered for cheatsheet. */
   list: () => readonly ShortcutDef[];
+  /** Subscribe to registry mutations (used by useShortcutList). */
+  subscribe: (cb: () => void) => () => void;
   /** Open / close the cheatsheet modal. */
   cheatsheetOpen: boolean;
   setCheatsheetOpen: (open: boolean) => void;
 }
 
-const ShortcutsContext = createContext<ShortcutsContextValue | null>(null);
+/**
+ * Perf note (perf plan 1.3): the registry API lives in its own context
+ * whose value is created once and NEVER changes identity. Registering or
+ * unregistering a shortcut mutates a ref and pings subscribers — it does
+ * not set React state — so the dozens of `useShortcut` consumers across
+ * the app no longer re-render on every registration storm (mount, route
+ * change, modal open). Only the cheatsheet open/close flag stays in a
+ * separate, rarely-changing context.
+ */
+type ShortcutsApi = Omit<ShortcutsContextValue, 'cheatsheetOpen'>;
+
+const ShortcutsApiContext = createContext<ShortcutsApi | null>(null);
+const CheatsheetOpenContext = createContext(false);
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
@@ -163,21 +178,30 @@ export function KeyboardShortcutsProvider({ children }: KeyboardShortcutsProvide
   // Registry kept in a ref so the keydown listener is attached once
   // and reads the latest set on each event. Storing as an array
   // (instead of a Map) preserves insertion order — newest wins via
-  // reverse iteration for duplicate combos.
+  // reverse iteration for duplicate combos. Mutations rebuild the array
+  // (never splice in place) so useSyncExternalStore snapshots compare
+  // by reference.
   const registry = useRef<ShortcutDef[]>([]);
-  const [tick, setTick] = useState(0);
+  const listeners = useRef<Set<() => void>>(new Set());
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
 
   const register = useCallback((def: ShortcutDef) => {
     registry.current = [...registry.current.filter((d) => d.id !== def.id), def];
-    setTick((t) => t + 1);
+    for (const cb of listeners.current) cb();
     return () => {
       registry.current = registry.current.filter((d) => d.id !== def.id);
-      setTick((t) => t + 1);
+      for (const cb of listeners.current) cb();
     };
   }, []);
 
   const list = useCallback((): readonly ShortcutDef[] => registry.current, []);
+
+  const subscribe = useCallback((cb: () => void) => {
+    listeners.current.add(cb);
+    return () => {
+      listeners.current.delete(cb);
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -204,28 +228,43 @@ export function KeyboardShortcutsProvider({ children }: KeyboardShortcutsProvide
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // tick is a tripwire so consumers re-render after register/unregister
-  // (the cheatsheet renders the list).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tick triggers re-derive
-  const value = useMemo<ShortcutsContextValue>(
-    () => ({
-      register,
-      list,
-      cheatsheetOpen,
-      setCheatsheetOpen,
-    }),
-    [register, list, cheatsheetOpen, tick],
+  // All four members are useCallback([])-stable, so this object is
+  // created exactly once for the provider's lifetime — `useShortcut`
+  // consumers never re-render because of registry traffic.
+  const api = useMemo<ShortcutsApi>(
+    () => ({ register, list, subscribe, setCheatsheetOpen }),
+    [register, list, subscribe],
   );
 
-  return <ShortcutsContext.Provider value={value}>{children}</ShortcutsContext.Provider>;
+  return (
+    <ShortcutsApiContext.Provider value={api}>
+      <CheatsheetOpenContext.Provider value={cheatsheetOpen}>
+        {children}
+      </CheatsheetOpenContext.Provider>
+    </ShortcutsApiContext.Provider>
+  );
 }
 
 export function useShortcutRegistry(): ShortcutsContextValue {
-  const ctx = useContext(ShortcutsContext);
-  if (!ctx) {
+  const api = useContext(ShortcutsApiContext);
+  const cheatsheetOpen = useContext(CheatsheetOpenContext);
+  if (!api) {
     throw new Error('useShortcutRegistry must be used within <KeyboardShortcutsProvider>');
   }
-  return ctx;
+  return useMemo(() => ({ ...api, cheatsheetOpen }), [api, cheatsheetOpen]);
+}
+
+/**
+ * Reactive snapshot of the registered shortcuts. Re-renders the caller
+ * whenever a shortcut registers/unregisters — intended for the cheatsheet
+ * renderer only; everything else should use `useShortcut` / the registry.
+ */
+export function useShortcutList(): readonly ShortcutDef[] {
+  const api = useContext(ShortcutsApiContext);
+  if (!api) {
+    throw new Error('useShortcutList must be used within <KeyboardShortcutsProvider>');
+  }
+  return useSyncExternalStore(api.subscribe, api.list, api.list);
 }
 
 /**
@@ -233,20 +272,15 @@ export function useShortcutRegistry(): ShortcutsContextValue {
  * `useCallback`; the registration re-fires only when `id`, `combo`, or
  * the deps change.
  *
- * IMPORTANT: We deliberately keep the registration ref out of the
- * effect's dependency array. The provider's context value is rebuilt
- * whenever `tick` bumps (any register/unregister bumps it), so listing
- * `ctx` in the deps would create a cleanup→register→tick→ctx-change→...
- * infinite loop — innocuous in React 18 (which absorbed the churn) but
- * fatal in React 19, which throws "Maximum update depth exceeded".
- *
- * The provider mounts once at app start and never unmounts in
- * practice; `register` itself is `useCallback([])`-stable, so capturing
- * it via `useContext` inside the effect (without adding it to the
- * deps) is safe.
+ * The api context value is provider-lifetime stable (registrations
+ * mutate a ref instead of bumping state — see ShortcutsApiContext), so
+ * registering N shortcuts no longer cascades re-renders through every
+ * other useShortcut consumer. We still read the context via a ref inside
+ * the effect to stay robust against a (very rare) provider remount
+ * without listing `ctx` in the deps.
  */
 export function useShortcut(def: ShortcutDef, deps: readonly unknown[] = []) {
-  const ctx = useContext(ShortcutsContext);
+  const ctx = useContext(ShortcutsApiContext);
   // Capture latest handler in a ref so the registration doesn't churn
   // on every render even when the consumer forgot to memoize.
   const handlerRef = useRef(def.handler);

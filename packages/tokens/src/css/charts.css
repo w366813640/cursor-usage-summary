@@ -145,3 +145,19 @@
     stroke-dashoffset: 0;
   }
 }
+
+/*
+ * Entrance-animation opt-out (perf plan 1.4): pages set this class on
+ * their root when the user has already seen the entrance this session
+ * (route remounts otherwise replay every cell/line stagger — hundreds of
+ * compositor animations per navigation). Mirrors the reduced-motion
+ * block above.
+ */
+.cu-charts-no-anim .cu-heatmap-cell,
+.cu-charts-no-anim .cu-sparkline-line,
+.cu-charts-no-anim .cu-sparkline-area,
+.cu-charts-no-anim .cu-sparkline-dot {
+  animation: none;
+  opacity: 1;
+  stroke-dashoffset: 0;
+}

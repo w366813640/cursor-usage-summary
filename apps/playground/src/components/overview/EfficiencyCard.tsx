@@ -1,19 +1,14 @@
 import { fmtUSD } from '@cu/charts';
-import {
-  type EfficiencyRecommendation,
-  type RowWithCost,
-  type UsageSummary,
-  computeEfficiency,
-} from '@cu/data';
+import type { EfficiencyRecommendation, EfficiencyReport } from '@cu/data';
 import { Layers, Lightbulb, Sparkles, ThermometerSun, TrendingDown } from '@cu/icons';
 import { useT } from '@cu/ui';
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useEntrance } from '../../hooks/useEntranceOnce';
 import { Panel } from '../Panel';
 
 interface EfficiencyCardProps {
-  summary: UsageSummary;
-  rows: ReadonlyArray<RowWithCost>;
+  /** Precomputed by useOverviewInsights — shared with the rest of Overview. */
+  report: EfficiencyReport;
 }
 
 /**
@@ -24,13 +19,13 @@ interface EfficiencyCardProps {
  * recommendations from {@link computeEfficiency}. Each rec carries a
  * priority pill so heavy hitters (>= $20 estimated savings) read first.
  */
-export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
+export function EfficiencyCard({ report }: EfficiencyCardProps) {
   const t = useT();
-  const report = useMemo(() => computeEfficiency(summary, rows, { t }), [summary, rows, t]);
+  const entrance = useEntrance();
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 8 }}
+      initial={entrance ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
     >
@@ -53,7 +48,7 @@ export function EfficiencyCard({ summary, rows }: EfficiencyCardProps) {
   );
 }
 
-function StatRow({ report }: { report: ReturnType<typeof computeEfficiency> }) {
+function StatRow({ report }: { report: EfficiencyReport }) {
   const t = useT();
   const cheapestSavings = report.scenarios.cheapestMix.savings;
   const noMaxSavings = report.scenarios.noMaxMode.savings;

@@ -100,10 +100,11 @@ export function FileToolbar({
       // route at any scroll position. top-12 = app header height (48px);
       // z-40 sits below modal/drawer overlays (z-[60]) and the app
       // header (z-50) but above every Panel border and the sticky
-      // SectionHeader (z-30). The faint backdrop blur + bg color
-      // avoid the "ghosted text" effect from scrolling content
-      // bleeding through a transparent bar.
-      className="sticky top-12 z-40 -mx-1 flex items-center justify-end gap-2 px-1 py-2 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-bg)_72%,transparent)]"
+      // SectionHeader (z-30). Near-opaque solid bg instead of
+      // backdrop-blur (perf plan 2.1): every always-on blur band forces
+      // per-frame rasterization of everything scrolling beneath it —
+      // the top app bar keeps the app's single blur.
+      className="sticky top-12 z-40 -mx-1 flex items-center justify-end gap-2 px-1 py-2 bg-[color-mix(in_oklab,var(--color-bg)_96%,transparent)]"
     >
       <ToolbarButton
         icon={

@@ -3,6 +3,7 @@ import type { RowWithCost, UsageSummary } from '@cu/data';
 import { ChevronRight } from '@cu/icons';
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { SectionHeader } from './SectionHeader';
 
 interface ModelsPageProps {
@@ -51,6 +52,7 @@ const STALE_KEEP_IF_COST_OVER = 1;
  * row to expand into a detail card with broken-out token buckets.
  */
 export function ModelsPage({ summary, rows }: ModelsPageProps) {
+  const entrance = useEntranceOnce('models');
   const [sortKey, setSortKey] = useState<SortKey>('cost');
   const [expanded, setExpanded] = useState<string | null>(null);
   // Default-on filter that hides deprecated / barely-used models. Power
@@ -158,10 +160,10 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
-      className="flex flex-col gap-4"
+      className={`flex flex-col gap-4${entrance ? '' : ' cu-charts-no-anim'}`}
     >
       <SectionHeader
         sticky
@@ -248,7 +250,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
       <div className="overflow-hidden rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[inset_0_1px_0_color-mix(in_oklab,var(--color-text)_3%,transparent),0_10px_28px_-22px_rgba(0,0,0,0.55)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left">
-            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-surface-muted)]/80">
+            <thead className="sticky top-0 z-[1] bg-[var(--color-surface-muted)]">
               <tr className="border-b border-[var(--color-border)]">
                 {(
                   [

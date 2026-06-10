@@ -1,4 +1,4 @@
-import type { RowWithCost } from '@cu/data';
+import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
 import { getBridge } from './bridge';
 import type {
   BatchStats,
@@ -52,6 +52,31 @@ export async function getCounts(): Promise<DbCounts> {
 export async function loadAllRows(): Promise<RowWithCost[]> {
   const serialized = await bridge().db.allRowsCosted();
   return hydrateRows(serialized);
+}
+
+export interface SummaryCostedPayload {
+  rows: RowWithCost[];
+  summary: UsageSummary;
+}
+
+/**
+ * Full hydrate in one IPC round-trip: every costed row plus the
+ * `aggregate()` summary computed in the *main* process (perf plan 3.1),
+ * so the renderer thread never blocks on the O(rows) summarization.
+ * Falls back to renderer-side aggregation when the running main process
+ * predates `db:summaryCosted` (dev-time version skew).
+ */
+export async function loadSummaryCosted(): Promise<SummaryCostedPayload> {
+  const db = bridge().db;
+  if (typeof db.summaryCosted !== 'function') {
+    const rows = await loadAllRows();
+    return { rows, summary: aggregate(rows, { topBurnsCount: 10 }) };
+  }
+  const payload = await db.summaryCosted();
+  return {
+    rows: hydrateRows(payload.rows),
+    summary: { ...payload.summary, topBurns: hydrateRows(payload.summary.topBurns) },
+  };
 }
 
 export async function previewImport(

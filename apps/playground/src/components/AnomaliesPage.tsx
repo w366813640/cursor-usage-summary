@@ -1,18 +1,18 @@
 import { fmtUSD } from '@cu/charts';
-import {
-  type Anomaly,
-  type CacheHitDropAnomaly,
-  type CostPerReqShiftAnomaly,
-  type CostSpikeAnomaly,
-  type RowWithCost,
-  type Severity,
-  type UsageSummary,
-  detectAllAnomalies,
+import type {
+  Anomaly,
+  CacheHitDropAnomaly,
+  CostPerReqShiftAnomaly,
+  CostSpikeAnomaly,
+  RowWithCost,
+  Severity,
+  UsageSummary,
 } from '@cu/data';
 import { AlertTriangle, ChevronRight, Database, Flame, Layers } from '@cu/icons';
-import { useT } from '@cu/ui';
+import { useI18n, useT } from '@cu/ui';
 import { motion } from 'framer-motion';
 import { useMemo } from 'react';
+import { getCachedAnomalies } from '../hooks/useOverviewInsights';
 import { Panel } from './Panel';
 
 interface AnomaliesPageProps {
@@ -36,9 +36,11 @@ interface AnomaliesPageProps {
  * overview heatmap drill).
  */
 export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
-  const t = useT();
+  const { locale, t } = useI18n();
   const { all, bySeverity, costSpikes, cprShifts, cacheDrops } = useMemo(() => {
-    const detection = detectAllAnomalies(summary, rows, { t });
+    // Shared cross-route cache — if the user came from Overview this is
+    // a lookup, not a recompute (see useOverviewInsights).
+    const detection = getCachedAnomalies(summary, rows, locale, t);
     const costSpikes = detection.all.filter((a): a is CostSpikeAnomaly => a.kind === 'cost-spike');
     const cprShifts = detection.all.filter(
       (a): a is CostPerReqShiftAnomaly => a.kind === 'costperreq-shift',
@@ -53,7 +55,7 @@ export function AnomaliesPage({ summary, rows }: AnomaliesPageProps) {
       cprShifts,
       cacheDrops,
     };
-  }, [summary, rows, t]);
+  }, [summary, rows, locale, t]);
 
   const hasAny = all.length > 0;
 

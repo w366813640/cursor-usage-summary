@@ -1,5 +1,12 @@
 import { X } from '@cu/icons';
-import { type ShortcutDef, formatCombo, useShortcut, useShortcutRegistry, useT } from '@cu/ui';
+import {
+  type ShortcutDef,
+  formatCombo,
+  useShortcut,
+  useShortcutList,
+  useShortcutRegistry,
+  useT,
+} from '@cu/ui';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
@@ -38,7 +45,10 @@ export function KeyboardCheatsheet() {
     [registry.setCheatsheetOpen, t],
   );
 
-  const grouped = useMemo(() => groupShortcuts(registry.list()), [registry]);
+  // Reactive snapshot — re-derives when shortcuts register/unregister
+  // (e.g. our own Esc binding lands right after the modal opens).
+  const shortcuts = useShortcutList();
+  const grouped = useMemo(() => groupShortcuts(shortcuts), [shortcuts]);
   const open = registry.cheatsheetOpen;
 
   return (
