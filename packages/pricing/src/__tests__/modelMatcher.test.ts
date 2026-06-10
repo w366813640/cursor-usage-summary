@@ -78,6 +78,54 @@ describe('matchModel', () => {
     expect(r.pricing.key).toBe('composer-2-fast');
   });
 
+  // ── 2026-06-10 pricing sync additions ─────────────────────────────────
+
+  it('matches CSV-form claude-opus-4-8-thinking-high → claude-4.8-opus', () => {
+    const r = matchModel('claude-opus-4-8-thinking-high');
+    expect(r.estimated).toBe(false);
+    expect(r.pricing.key).toBe('claude-4.8-opus');
+    expect(r.pricing.unitPrice.input).toBe(5);
+  });
+
+  it('matches claude-opus-4-8-fast at the cheaper 2x fast tier (not 6x)', () => {
+    const r = matchModel('claude-opus-4-8-fast');
+    expect(r.estimated).toBe(false);
+    expect(r.pricing.key).toBe('claude-4.8-opus-fast');
+    expect(r.pricing.unitPrice.input).toBe(10);
+    expect(r.pricing.unitPrice.output).toBe(50);
+  });
+
+  it('matches claude-fable-5-thinking-high → claude-fable-5', () => {
+    const r = matchModel('claude-fable-5-thinking-high');
+    expect(r.estimated).toBe(false);
+    expect(r.pricing.key).toBe('claude-fable-5');
+    expect(r.pricing.unitPrice.input).toBe(10);
+    expect(r.pricing.unitPrice.output).toBe(50);
+  });
+
+  it('matches composer-2.5 directly and composer-2.5-fast via prefix', () => {
+    const direct = matchModel('composer-2.5');
+    expect(direct.estimated).toBe(false);
+    expect(direct.pricing.key).toBe('composer-2.5');
+
+    const fast = matchModel('composer-2.5-fast');
+    expect(fast.estimated).toBe(false);
+    expect(fast.pricing.unitPrice.input).toBe(0.5);
+    expect(fast.pricing.unitPrice.output).toBe(2.5);
+  });
+
+  it('matches kimi-k2.5 directly', () => {
+    const r = matchModel('kimi-k2.5');
+    expect(r.estimated).toBe(false);
+    expect(r.pricing.key).toBe('kimi-k2.5');
+    expect(r.pricing.provider).toBe('Moonshot');
+  });
+
+  it('reflects the corrected Gemini 3.x cache-read rate', () => {
+    expect(matchModel('gemini-3-pro').pricing.unitPrice.cacheRead).toBe(0.2);
+    expect(matchModel('gemini-3.1-pro').pricing.unitPrice.cacheRead).toBe(0.2);
+  });
+
   it('matches auto', () => {
     const r = matchModel('auto');
     expect(r.estimated).toBe(false);
