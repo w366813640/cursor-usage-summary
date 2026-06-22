@@ -1,4 +1,4 @@
-import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
+import type { RowWithCost, UsageSummary } from '@cu/data';
 import { getBridge } from './bridge';
 import type {
   BatchStats,
@@ -64,12 +64,14 @@ export interface SummaryCostedPayload {
  * `aggregate()` summary computed in the *main* process (perf plan 3.1),
  * so the renderer thread never blocks on the O(rows) summarization.
  * Falls back to renderer-side aggregation when the running main process
- * predates `db:summaryCosted` (dev-time version skew).
+ * predates `db:summaryCosted` (dev-time version skew) — that path
+ * dynamically imports `aggregate` so the aggregator (only otherwise
+ * reached from the lazy Day route) stays off the first-paint chunk.
  */
 export async function loadSummaryCosted(): Promise<SummaryCostedPayload> {
   const db = bridge().db;
   if (typeof db.summaryCosted !== 'function') {
-    const rows = await loadAllRows();
+    const [{ aggregate }, rows] = await Promise.all([import('@cu/data'), loadAllRows()]);
     return { rows, summary: aggregate(rows, { topBurnsCount: 10 }) };
   }
   const payload = await db.summaryCosted();
