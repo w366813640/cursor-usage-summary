@@ -73,6 +73,9 @@ export async function parseAndCostAsync(text: string): Promise<ParseAndCostResul
       // Fall through to the main-thread path below.
     }
   }
+  if (import.meta.env.DEV) {
+    console.warn('[cu/import] parse worker unavailable — parsing on the main thread');
+  }
   const { parseAndCost } = await import('./importEngineImpl');
   return parseAndCost(text);
 }

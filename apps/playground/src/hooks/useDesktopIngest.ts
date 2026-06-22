@@ -191,8 +191,12 @@ export function useDesktopIngest(): UseDesktopIngest {
       const text = await file.text();
       // Parse + cost off the main thread (worker), with a main-thread
       // fallback baked into parseAndCostAsync if the worker can't spawn.
+      // Timed via perfSpan so the import cost shows up alongside the other
+      // [cu/perf] spans in dev (the main thread stays free during it).
       const { parseAndCostAsync } = await loadImportEngine();
+      const endParse = perfSpan('import.parse+cost');
       const { rows: costed, failures, rowsSeen } = await parseAndCostAsync(text);
+      endParse(`${costed.length} rows`);
       const fileSha256 = await sha256File(file);
       const preview = await previewImport(costed, {
         filename: file.name,
