@@ -6,7 +6,7 @@ import { useFocusMode } from '../hooks/useFocusMode';
 import { useSettings } from '../hooks/useSettings';
 import { type AppRoute, useRoute } from '../router/useRoute';
 import { reportRoutePaint } from '../utils/perf';
-import { useExtraPaletteActions } from './CommandPalette';
+import { CommandPaletteProvider, useExtraPaletteActions } from './CommandPalette';
 import { type DesktopActions, FileToolbar } from './FileToolbar';
 import { KeyboardCheatsheet } from './KeyboardCheatsheet';
 import { OverviewPage } from './OverviewPage';
@@ -78,8 +78,21 @@ interface DashboardShellProps {
  * Routing is hash-based (no react-router dep). Page switches are intentionally
  * static: the year heatmap and trend tables already carry hundreds of SVG
  * nodes, so route-level animation only adds jank without adding meaning.
+ *
+ * The Cmd/Ctrl+K command palette provider is mounted here (not at the app
+ * root) so the kbar core ships in this lazy chunk instead of the first-paint
+ * bundle — the palette only ever drives dashboard navigation/actions, all of
+ * which live in this subtree.
  */
-export function DashboardShell({
+export function DashboardShell(props: DashboardShellProps) {
+  return (
+    <CommandPaletteProvider>
+      <DashboardShellInner {...props} />
+    </CommandPaletteProvider>
+  );
+}
+
+function DashboardShellInner({
   summary,
   rows,
   fileName,

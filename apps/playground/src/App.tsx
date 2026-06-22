@@ -11,7 +11,6 @@ import {
 } from '@cu/ui';
 import { LazyMotion, MotionConfig } from 'framer-motion';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { CommandPaletteProvider } from './components/CommandPalette';
 import { WelcomePage } from './pages/WelcomePage';
 
 /**
@@ -38,17 +37,18 @@ export function App() {
                       the expanded rail with the chevron toggle (persisted via
                       SidebarStateProvider's localStorage backing). */}
                   <SidebarStateProvider>
-                    {/* The palette wraps everything below so Cmd/Ctrl+K
-                        works on both the welcome screen and the dashboard. */}
-                    <CommandPaletteProvider>
-                      <LazyMotion features={loadMotionFeatures} strict>
-                        <MotionConfig reducedMotion="user">
-                          <AppErrorBoundary>
-                            <WelcomePage />
-                          </AppErrorBoundary>
-                        </MotionConfig>
-                      </LazyMotion>
-                    </CommandPaletteProvider>
+                    {/* The Cmd/Ctrl+K command palette lives inside the lazy
+                        DashboardShell — its actions are all dashboard routes
+                        and dashboard-only commands, so mounting kbar here
+                        would only drag its core onto the first-paint upload
+                        screen where it has nothing to navigate to. */}
+                    <LazyMotion features={loadMotionFeatures} strict>
+                      <MotionConfig reducedMotion="user">
+                        <AppErrorBoundary>
+                          <WelcomePage />
+                        </AppErrorBoundary>
+                      </MotionConfig>
+                    </LazyMotion>
                   </SidebarStateProvider>
                 </KeyboardShortcutsProvider>
               </ModalStackProvider>
