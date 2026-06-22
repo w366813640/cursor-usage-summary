@@ -86,7 +86,15 @@ export default defineConfig({
           // heavy feature code back onto the critical path, so we let Rollup
           // separate the static core from the async feature chunk.
           if (id.includes('@radix-ui')) return 'vendor-radix';
-          if (id.includes('lucide-react')) return 'vendor-icons';
+          // lucide-react is intentionally NOT pinned to a manual chunk. A
+          // single `vendor-icons` chunk forced *every* icon used anywhere in
+          // the app onto first paint, because the welcome hero references a
+          // handful (upload, theme toggle, proof badges). Letting Rollup
+          // co-locate each icon with its consumer keeps the ~15 welcome icons
+          // eager while the dashboard/route/settings icons ride their own lazy
+          // chunks. Total JS is unchanged (ESM dedup → no duplication); this
+          // just moves ~15 kB raw / 3.2 kB gzip of dashboard-only icons off
+          // the critical path. Cheap for an Electron app served from file://.
           // d3 is split by first-paint need. The eager KPI hero pulls
           // d3-array/scale/shape (sparkline) + d3-format (number fmt);
           // scaleTime also drags in d3-time and d3-time-format, so all of
