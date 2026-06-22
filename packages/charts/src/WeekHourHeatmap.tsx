@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { bucketize, fmtUSD, quantileBreakpoints } from './utils';
 
 export interface WeekHourCell {
@@ -68,6 +68,9 @@ export function WeekHourHeatmap({
   );
 
   const [hover, setHover] = useState<WeekHourCell | null>(null);
+  // Stable so the memoized cell grid below never re-renders on hover — only
+  // the footer readout + the single overlay highlight rect do.
+  const onHover = useCallback((cell: WeekHourCell | null) => setHover(cell), []);
 
   // Container width tracking for responsive sizing. We track in pixels and
   // recompute cell size, but cap to [minCellSize, maxCellSize] so the grid
@@ -143,40 +146,32 @@ export function WeekHourHeatmap({
             {label}
           </text>
         ))}
-        {Array.from({ length: 7 }, (_, wd) =>
-          Array.from({ length: 24 }, (_, h) => {
-            const c = lookup.get(`${wd}:${h}`);
-            const value = c?.value ?? 0;
-            const level = value > 0 ? bucketize(value, breakpoints) : 0;
-            const x = labelW + h * (cellSize + cellGap);
-            const y = headerH + wd * (cellSize + cellGap);
-            const datum: WeekHourCell = c ?? { weekday: wd, hour: h, value: 0 };
-            const isHover = hover && hover.weekday === wd && hover.hour === h;
-            return (
-              <rect
-                // 7×24 fixed grid — wd/h are semantic identifiers, not list indexes.
-                // biome-ignore lint/suspicious/noArrayIndexKey: stable weekday × hour key
-                key={`wd${wd}h${h}`}
-                x={x}
-                y={y}
-                width={cellSize}
-                height={cellSize}
-                rx={2}
-                ry={2}
-                fill={`var(--cu-heat-${level})`}
-                stroke={isHover ? 'var(--color-accent)' : 'transparent'}
-                strokeWidth={1}
-                onMouseEnter={() => setHover(datum)}
-                onMouseLeave={() => setHover(null)}
-              >
-                <title>
-                  {WEEKDAYS[wd]} {String(h).padStart(2, '0')}:00 · {fmtUSD(value)}
-                  {c?.meta ? ` · ${c.meta}` : ''}
-                </title>
-              </rect>
-            );
-          }),
-        )}
+        <WeekHourCells
+          lookup={lookup}
+          breakpoints={breakpoints}
+          cellSize={cellSize}
+          cellGap={cellGap}
+          labelW={labelW}
+          headerH={headerH}
+          onHover={onHover}
+        />
+        {/* Single overlay highlight — drawn over the (memoized) grid so the
+            168 cells never re-render on hover. pointer-events:none keeps the
+            cells underneath receiving the enter/leave events. */}
+        {hover ? (
+          <rect
+            x={labelW + hover.hour * (cellSize + cellGap)}
+            y={headerH + hover.weekday * (cellSize + cellGap)}
+            width={cellSize}
+            height={cellSize}
+            rx={2}
+            ry={2}
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth={1}
+            pointerEvents="none"
+          />
+        ) : null}
       </svg>
       <div className="flex items-center gap-3 pt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
         <span>{metricLabel}</span>
@@ -193,3 +188,65 @@ export function WeekHourHeatmap({
     </div>
   );
 }
+
+/**
+ * The 168 grid cells, isolated behind `memo` so hover state changes in the
+ * parent (which only drive the footer readout + a single overlay rect) don't
+ * re-walk every weekday × hour cell. All props are referentially stable
+ * across hovers (`lookup`/`breakpoints` are memoized, geometry is numeric,
+ * `onHover` is a stable callback), so this subtree renders once per data /
+ * resize change.
+ */
+const WeekHourCells = memo(function WeekHourCells({
+  lookup,
+  breakpoints,
+  cellSize,
+  cellGap,
+  labelW,
+  headerH,
+  onHover,
+}: {
+  lookup: ReadonlyMap<string, WeekHourCell>;
+  breakpoints: ReadonlyArray<number>;
+  cellSize: number;
+  cellGap: number;
+  labelW: number;
+  headerH: number;
+  onHover: (cell: WeekHourCell | null) => void;
+}) {
+  return (
+    <>
+      {Array.from({ length: 7 }, (_, wd) =>
+        Array.from({ length: 24 }, (_, h) => {
+          const c = lookup.get(`${wd}:${h}`);
+          const value = c?.value ?? 0;
+          const level = value > 0 ? bucketize(value, breakpoints) : 0;
+          const x = labelW + h * (cellSize + cellGap);
+          const y = headerH + wd * (cellSize + cellGap);
+          const datum: WeekHourCell = c ?? { weekday: wd, hour: h, value: 0 };
+          return (
+            <rect
+              // 7×24 fixed grid — wd/h are semantic identifiers, not list indexes.
+              // biome-ignore lint/suspicious/noArrayIndexKey: stable weekday × hour key
+              key={`wd${wd}h${h}`}
+              x={x}
+              y={y}
+              width={cellSize}
+              height={cellSize}
+              rx={2}
+              ry={2}
+              fill={`var(--cu-heat-${level})`}
+              onMouseEnter={() => onHover(datum)}
+              onMouseLeave={() => onHover(null)}
+            >
+              <title>
+                {WEEKDAYS[wd]} {String(h).padStart(2, '0')}:00 · {fmtUSD(value)}
+                {c?.meta ? ` · ${c.meta}` : ''}
+              </title>
+            </rect>
+          );
+        }),
+      )}
+    </>
+  );
+});

@@ -1,7 +1,7 @@
 import { extent, max } from 'd3-array';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 
 export interface SparkPoint {
   date: string;
@@ -53,8 +53,12 @@ export interface SparklineProps {
  * Tiny inline-trend chart. No axes, no labels — meant to be embedded in
  * KPI cards / dense tables. Curve is `monotoneX` so peaks don't overshoot
  * baseline.
+ *
+ * Wrapped in `memo`: it's rendered N-up (one per model in `SmallMultiples`,
+ * one per KPI card on the Overview hero), so a parent re-render with stable
+ * props should skip the whole grid instead of re-walking every path.
  */
-export function Sparkline({
+export const Sparkline = memo(function Sparkline({
   data,
   width = 160,
   height = 40,
@@ -289,7 +293,7 @@ export function Sparkline({
       ) : null}
     </div>
   );
-}
+});
 
 function defaultFmt(n: number): string {
   if (!Number.isFinite(n)) return '0';
