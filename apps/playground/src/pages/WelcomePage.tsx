@@ -18,7 +18,7 @@ import { m } from 'framer-motion';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QuickTipsButton } from '../components/QuickTipsButton';
 import { isDesktop as detectDesktop } from '../electron/bridge';
-import { useDesktopIngest } from '../hooks/useDesktopIngest';
+import { prefetchImportEngine, useDesktopIngest } from '../hooks/useDesktopIngest';
 import { useSettings } from '../hooks/useSettings';
 
 // The dashboard is the heaviest surface in the app (overview cards,
@@ -136,6 +136,21 @@ function DesktopWelcomePage() {
       setLastSuccess(desktop.state);
     }
   }, [desktop.state]);
+
+  // Warm the import-engine chunk (papaparse + pricing) shortly after boot,
+  // at idle priority so it never competes with first paint. This means the
+  // first CSV import — hero dropzone or, for returning users, the toolbar /
+  // window drop — starts parsing immediately instead of waiting on a cold
+  // dynamic import.
+  useEffect(() => {
+    const warm = () => prefetchImportEngine();
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(warm, { timeout: 2000 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(warm, 1200);
+    return () => clearTimeout(id);
+  }, []);
 
   const onPick = useCallback(() => {
     inputRef.current?.click();
@@ -506,6 +521,11 @@ function WelcomeHero({
           }}
           onDragLeave={() => setDragActive(false)}
           onDrop={onDrop}
+          // Intent prefetch: the moment the pointer enters the dropzone (or
+          // keyboard focus lands on the Choose-CSV button inside it), warm
+          // the import engine so the click→parse handoff is instant.
+          onPointerEnter={() => prefetchImportEngine()}
+          onFocus={() => prefetchImportEngine()}
           className={[
             'relative rounded-[14px] border-2 border-dashed',
             'transition-colors duration-[180ms] p-10 flex flex-col items-center text-center',

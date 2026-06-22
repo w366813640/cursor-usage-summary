@@ -1,5 +1,4 @@
-import { type RowWithCost, type UsageSummary, parseUsageCsv } from '@cu/data';
-import { costRows } from '@cu/pricing';
+import type { RowWithCost, UsageSummary } from '@cu/data';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   commitImport,
@@ -30,6 +29,23 @@ import { perfSpan } from '../utils/perf';
  */
 
 const MAX_BYTES = 16 * 1024 * 1024;
+
+// The CSV parse + cost pipeline (papaparse + the full pricing table) is the
+// heaviest renderer-only dependency, but it's never needed to paint the
+// upload hero or hydrate an existing DB. Load it behind a dynamic import so
+// it stays off the first-paint chunk; `import()` is idempotent, so the
+// prefetch below and the real call in `startImport` share one fetch.
+const loadImportEngine = () => import('../import/importEngine');
+
+/**
+ * Warm the import-engine chunk ahead of an actual import. Safe to call
+ * repeatedly (idle prefetch, dropzone hover, etc.) — failures are
+ * swallowed so a flaky prefetch never surfaces as an unhandled rejection;
+ * the real `startImport` call retries and reports any error.
+ */
+export function prefetchImportEngine(): void {
+  void loadImportEngine().catch(() => {});
+}
 
 export type DesktopIngestState =
   | { status: 'idle' }
@@ -170,8 +186,9 @@ export function useDesktopIngest(): UseDesktopIngest {
 
     try {
       const text = await file.text();
-      const { rows: parsed, failures, rowsSeen } = parseUsageCsv(text);
-      const costed = costRows(parsed);
+      // Parse + cost in the lazily-loaded engine chunk (papaparse + pricing).
+      const { parseAndCost } = await loadImportEngine();
+      const { rows: costed, failures, rowsSeen } = parseAndCost(text);
       const fileSha256 = await sha256File(file);
       const preview = await previewImport(costed, {
         filename: file.name,
@@ -183,7 +200,7 @@ export function useDesktopIngest(): UseDesktopIngest {
         file,
         rows: costed,
         rowsSeen,
-        failures: failures.length,
+        failures,
         fileSha256,
         preview,
       });
