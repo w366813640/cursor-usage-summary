@@ -8,7 +8,7 @@ import {
   Minus,
   TrendingUp,
 } from '@cu/icons';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Panel } from './Panel';
 
 interface ForecastPanelProps {
@@ -188,7 +188,7 @@ function ForecastChart({ forecast }: { forecast: ForecastResult }) {
 
         {/* Confidence band */}
         {bandPath ? (
-          <motion.path
+          <m.path
             d={bandPath}
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.18 }}
@@ -217,7 +217,7 @@ function ForecastChart({ forecast }: { forecast: ForecastResult }) {
         </text>
 
         {/* Historical line */}
-        <motion.path
+        <m.path
           d={histPath}
           fill="none"
           stroke="var(--color-accent)"
@@ -231,7 +231,7 @@ function ForecastChart({ forecast }: { forecast: ForecastResult }) {
 
         {/* Projection line (dashed) */}
         {projPath ? (
-          <motion.path
+          <m.path
             d={projPath}
             fill="none"
             stroke="var(--color-accent)"

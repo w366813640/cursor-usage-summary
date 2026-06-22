@@ -2,7 +2,7 @@ import { WeekHourHeatmap, fmtTokens, fmtUSD, hourWeekdayToCells } from '@cu/char
 import { type RowWithCost, type UsageSummary, aggregate } from '@cu/data';
 import { ArrowDown, ArrowRight, ArrowUp, Check, ChevronRight, Flame } from '@cu/icons';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuditedRows } from '../hooks/useAuditedRows';
 import { useEntranceOnce } from '../hooks/useEntranceOnce';
@@ -150,7 +150,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
   const filterSummary = filterSummaryText(filter, rows.length, filteredSummary.totalRows);
 
   return (
-    <motion.div
+    <m.div
       initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
@@ -197,7 +197,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
                     metric === 'cost' ? fmtUSD(h.value) : `${h.value.toFixed(0)} rows`
                   }`}
                 >
-                  <motion.div
+                  <m.div
                     initial={entrance ? { height: 0 } : false}
                     animate={{
                       height: `${Math.max(ratio * 100, h.value > 0 ? 1 : 0)}%`,
@@ -258,7 +258,7 @@ export function DayPage({ summary, rows }: DayPageProps) {
         scrollRef={tableScrollRef}
         rowRefs={rowRefs}
       />
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -304,7 +304,7 @@ function DayAnswerHero({
   const biggestTime = answer.biggest ? answer.biggest.date.toISOString().slice(11, 16) : null;
 
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
@@ -409,7 +409,7 @@ function DayAnswerHero({
           <span className="truncate">{sameWeekday.referenceLabel}</span>
         </p>
       ) : null}
-    </motion.section>
+    </m.section>
   );
 }
 

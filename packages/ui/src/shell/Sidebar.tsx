@@ -1,5 +1,5 @@
 import { CuMark, FileText, Plus, Search, Sparkles } from '@cu/icons';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import {
   type ComponentType,
   type MouseEvent,
@@ -89,7 +89,7 @@ export function SidebarBrand({
       </span>
       <AnimatePresence initial={false}>
         {expanded ? (
-          <motion.span
+          <m.span
             initial={{ opacity: 0, x: -4 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -4 }}
@@ -97,7 +97,7 @@ export function SidebarBrand({
             className="font-serif text-[17px] leading-none tracking-tight text-[var(--color-text)]"
           >
             {name ?? 'Cursor Usage'}
-          </motion.span>
+          </m.span>
         ) : null}
       </AnimatePresence>
     </div>
@@ -186,7 +186,7 @@ export function SidebarNavItem({
       : null;
 
   const content = (
-    <motion.button
+    <m.button
       type="button"
       onClick={onClick}
       layout
@@ -203,7 +203,7 @@ export function SidebarNavItem({
       )}
     >
       {active ? (
-        <motion.span
+        <m.span
           layoutId="sidebar-nav-active-bar"
           aria-hidden="true"
           className={cn(
@@ -213,15 +213,15 @@ export function SidebarNavItem({
           transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         />
       ) : null}
-      <motion.span
+      <m.span
         layout="position"
         className="inline-flex items-center justify-center h-4 w-4 shrink-0"
       >
         {iconNode}
-      </motion.span>
+      </m.span>
       <AnimatePresence initial={false}>
         {expanded ? (
-          <motion.span
+          <m.span
             key="label"
             initial={{ opacity: 0, width: 0 }}
             animate={{ opacity: 1, width: 'auto' }}
@@ -230,11 +230,11 @@ export function SidebarNavItem({
             className="flex-1 text-left truncate overflow-hidden whitespace-nowrap"
           >
             {label}
-          </motion.span>
+          </m.span>
         ) : null}
       </AnimatePresence>
       {expanded ? trailing : null}
-    </motion.button>
+    </m.button>
   );
 
   if (!expanded) {

@@ -2,7 +2,7 @@ import { BurnStoryCard, fmtUSD, fmtUSDCompact } from '@cu/charts';
 import { type RowWithCost, type Translator, type UsageSummary, translate } from '@cu/data';
 import { formatSonnetEquivalence, medianSonnetCost, ratioOver } from '@cu/pricing';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { type RefObject, useMemo, useRef } from 'react';
 import { ExportButton } from '../../export/ExportButton';
 import { useEntrance } from '../../hooks/useEntranceOnce';
@@ -42,7 +42,7 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
   }, [summary.byDay]);
 
   return (
-    <motion.section
+    <m.section
       initial={entrance ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.42, delay: 0.18 }}
@@ -115,7 +115,7 @@ export function OverviewBurns({ summary, rows, daysSpan }: OverviewBurnsProps) {
           );
         })}
       </div>
-    </motion.section>
+    </m.section>
   );
 }
 

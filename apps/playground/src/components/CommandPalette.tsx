@@ -1,16 +1,24 @@
-import {
-  type Action,
-  KBarAnimator,
-  KBarPortal,
-  KBarPositioner,
-  KBarProvider,
-  KBarResults,
-  KBarSearch,
-  useMatches,
-  useRegisterActions,
-} from 'kbar';
-import { type ReactNode, useMemo } from 'react';
+// kbar ships as CommonJS with no `sideEffects: false`, so importing anything
+// from the package barrel (`'kbar'`) drags its entire module graph — including
+// the heavy results UI plus `fuse.js` (fuzzy match) and `react-virtual` — onto
+// the first-paint critical path. We import only the lightweight *core* (the
+// provider, the `mod+k` handler and action registration) from deep module
+// paths here, and load the heavy UI from its own deep paths inside the lazy
+// `CommandPaletteUI` chunk. Deep paths are safe: kbar exposes no `exports`
+// map and the version is pinned.
+import { KBarProvider } from 'kbar/lib/KBarContextProvider';
+import { type Action, VisualState } from 'kbar/lib/types';
+import { useKBar } from 'kbar/lib/useKBar';
+import { useRegisterActions } from 'kbar/lib/useRegisterActions';
+import { type ReactNode, Suspense, lazy, useEffect, useMemo } from 'react';
 import { ALL_ROUTES, type AppRoute } from '../router/useRoute';
+
+/**
+ * The palette's portal/animator/search/results — and its `fuse.js` +
+ * `react-virtual` dependencies — are split into a chunk that only loads
+ * once the palette is first opened. See `PaletteMount` below.
+ */
+const PaletteUI = lazy(() => import('./CommandPaletteUI'));
 
 /**
  * Global Cmd/Ctrl-K command palette. Powers:
@@ -67,8 +75,46 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      <PaletteUI />
+      <PaletteMount />
     </KBarProvider>
+  );
+}
+
+/**
+ * Gates the heavy palette UI behind kbar's visual state so the chunk only
+ * loads when the palette is actually opened — keeping ~30 kB of kbar UI +
+ * fuse.js + react-virtual off the first-paint critical path.
+ *
+ * To keep the *first* open instant (and its entrance animation smooth), the
+ * chunk is prefetched during browser idle time after mount, well off the
+ * critical path. By the time the user reaches for Cmd/Ctrl+K it is warm.
+ */
+function PaletteMount() {
+  const { showing } = useKBar((state) => ({
+    showing: state.visualState !== VisualState.hidden,
+  }));
+
+  useEffect(() => {
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const prefetch = () => {
+      void import('./CommandPaletteUI');
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const handle = w.requestIdleCallback(prefetch);
+      return () => w.cancelIdleCallback?.(handle);
+    }
+    const timer = window.setTimeout(prefetch, 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (!showing) return null;
+  return (
+    <Suspense fallback={null}>
+      <PaletteUI />
+    </Suspense>
   );
 }
 
@@ -81,135 +127,5 @@ export function useExtraPaletteActions(actions: Action[]) {
   useRegisterActions(actions, [actions]);
 }
 
-function PaletteUI() {
-  return (
-    <KBarPortal>
-      <KBarPositioner
-        style={{
-          background: 'color-mix(in oklab, var(--color-bg) 70%, transparent)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          zIndex: 9999,
-          // Bias upward — the palette feels less cramped pushed off center.
-          paddingTop: '15vh',
-          alignItems: 'flex-start',
-        }}
-      >
-        <KBarAnimator
-          style={{
-            width: 'min(640px, 92vw)',
-            background: 'var(--color-surface-raised)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-border-strong)',
-            borderRadius: 12,
-            boxShadow:
-              '0 24px 64px -16px rgba(0,0,0,0.45), 0 8px 16px -8px rgba(0,0,0,0.18), inset 0 1px 0 color-mix(in oklab, var(--color-text) 6%, transparent)',
-            overflow: 'hidden',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          <KBarSearch
-            style={{
-              width: '100%',
-              padding: '14px 18px',
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--color-text)',
-              fontSize: 15,
-              fontFamily: 'var(--font-sans)',
-              borderBottom: '1px solid var(--color-border)',
-            }}
-            placeholder="Jump to · search actions"
-            defaultPlaceholder="Jump to · search actions"
-          />
-          <PaletteResults />
-        </KBarAnimator>
-      </KBarPositioner>
-    </KBarPortal>
-  );
-}
-
-function PaletteResults() {
-  const { results } = useMatches();
-  return (
-    <KBarResults
-      items={results}
-      onRender={({ item, active }) => {
-        if (typeof item === 'string') {
-          return (
-            <div
-              style={{
-                padding: '10px 18px 4px',
-                fontSize: 10,
-                fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                color: 'var(--color-text-subtle)',
-              }}
-            >
-              {item}
-            </div>
-          );
-        }
-        return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '12px 18px',
-              cursor: 'pointer',
-              background: active ? 'var(--color-surface-muted)' : 'transparent',
-              borderLeft: `2px solid ${active ? 'var(--color-accent)' : 'transparent'}`,
-              transition: 'background 120ms ease, border-color 120ms ease',
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14, color: 'var(--color-text)' }}>{item.name}</span>
-              {item.subtitle ? (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--color-text-subtle)',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  {item.subtitle}
-                </span>
-              ) : null}
-            </div>
-            {item.shortcut && item.shortcut.length > 0 ? (
-              <div style={{ display: 'flex', gap: 4 }}>
-                {item.shortcut.map((s, i) => (
-                  <span
-                    key={`${item.id}-shortcut-${i}`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minWidth: 20,
-                      height: 20,
-                      padding: '0 6px',
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10,
-                      textTransform: 'uppercase',
-                      color: 'var(--color-text-subtle)',
-                      background: 'var(--color-surface-muted)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 4,
-                    }}
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        );
-      }}
-    />
-  );
-}
 // Re-export for ergonomics — callers shouldn't have to import ALL_ROUTES separately.
 export { ALL_ROUTES };

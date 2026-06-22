@@ -7,7 +7,7 @@ import {
   useShortcutRegistry,
   useT,
 } from '@cu/ui';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useMemo } from 'react';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
 
@@ -54,7 +54,7 @@ export function KeyboardCheatsheet() {
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -63,7 +63,7 @@ export function KeyboardCheatsheet() {
           role="presentation"
           onClick={() => registry.setCheatsheetOpen(false)}
         >
-          <motion.div
+          <m.div
             ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -122,8 +122,8 @@ export function KeyboardCheatsheet() {
                 ))
               )}
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );

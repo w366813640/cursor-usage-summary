@@ -1,6 +1,6 @@
 import type { UsageSummary, WeekSummary } from '@cu/data';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useEntrance } from '../../hooks/useEntranceOnce';
 import { TrustHint } from '../TrustHint';
 
@@ -34,7 +34,7 @@ export function WeekSummaryCard({ summary, week }: WeekSummaryCardProps) {
   const entrance = useEntrance();
 
   return (
-    <motion.section
+    <m.section
       initial={entrance ? { opacity: 0, y: 6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.38, ease: [0.2, 0, 0, 1] }}
@@ -126,6 +126,6 @@ export function WeekSummaryCard({ summary, week }: WeekSummaryCardProps) {
           <span>{week.suggestion}</span>
         </div>
       ) : null}
-    </motion.section>
+    </m.section>
   );
 }

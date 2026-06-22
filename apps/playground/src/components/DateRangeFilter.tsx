@@ -1,5 +1,5 @@
 import type { RowWithCost } from '@cu/data';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 
 /**
@@ -230,7 +230,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
               const isEdge =
                 value.kind === 'range' && (d.iso === value.start || d.iso === value.end);
               return (
-                <motion.button
+                <m.button
                   type="button"
                   key={d.iso}
                   onClick={(e) => handleDayClick(d.iso, e)}
@@ -275,7 +275,7 @@ export function DateRangeFilter({ rows, value, onChange }: DateRangeFilterProps)
                       style={{ background: 'var(--color-accent)' }}
                     />
                   ) : null}
-                </motion.button>
+                </m.button>
               );
             })}
           </div>

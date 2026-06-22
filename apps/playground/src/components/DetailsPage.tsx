@@ -1,6 +1,6 @@
 import { fmtTokens, fmtUSD } from '@cu/charts';
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { useSavedDetailsFilters } from '../hooks/useSavedDetailsFilters';
@@ -95,7 +95,7 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
   }, [summary.byModel]);
 
   return (
-    <motion.div
+    <m.div
       initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
@@ -371,7 +371,7 @@ export function DetailsPage({ summary, rows, onJumpToDay }: DetailsPageProps) {
           </PageButton>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 

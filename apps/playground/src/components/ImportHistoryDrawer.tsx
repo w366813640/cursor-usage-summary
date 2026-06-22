@@ -1,5 +1,6 @@
 import { Clock, FileSpreadsheet, History, Loader2, Sliders, Trash2, X } from '@cu/icons';
-import { AnimatePresence, motion } from 'framer-motion';
+import { drawerContent, drawerItem, drawerPanelRight, drawerScrim } from '@cu/motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import type { BatchSummary } from '../electron/types';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
@@ -76,21 +77,21 @@ export function ImportHistoryDrawer({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+        <m.div
+          variants={drawerScrim}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={onClose}
         >
-          <motion.aside
+          <m.aside
             ref={dialogRef as React.Ref<HTMLDivElement>}
-            initial={{ x: 80, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 60, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
+            variants={drawerPanelRight}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -165,10 +166,16 @@ export function ImportHistoryDrawer({
                   </span>
                 </div>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <m.ul
+                  variants={drawerContent}
+                  initial="hidden"
+                  animate="visible"
+                  className="flex flex-col gap-2"
+                >
                   {batches.map((b) => (
-                    <li
+                    <m.li
                       key={b.id}
+                      variants={drawerItem}
                       className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 py-3"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -252,9 +259,9 @@ export function ImportHistoryDrawer({
                           </button>
                         </div>
                       )}
-                    </li>
+                    </m.li>
                   ))}
-                </ul>
+                </m.ul>
               )}
 
               <p className="mt-auto border-t border-[var(--color-border)] pt-3 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
@@ -270,8 +277,8 @@ export function ImportHistoryDrawer({
                 onClose={() => setCompareOpen(false)}
               />
             </div>
-          </motion.aside>
-        </motion.div>
+          </m.aside>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );

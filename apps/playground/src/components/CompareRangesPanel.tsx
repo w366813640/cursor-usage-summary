@@ -1,7 +1,7 @@
 import { fmtTokens, fmtUSD } from '@cu/charts';
 import type { RowWithCost } from '@cu/data';
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from '@cu/icons';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { Panel } from './Panel';
 
@@ -205,7 +205,7 @@ function DailyMiniBars({ range, tone, maxValue }: DailyMiniBarsProps) {
               className="group relative flex-1"
               title={`${d.iso} · ${fmtUSD(d.value)}`}
             >
-              <motion.div
+              <m.div
                 initial={{ height: 0 }}
                 animate={{ height: `${Math.max(ratio * 100, d.value > 0 ? 2 : 0)}%` }}
                 transition={{

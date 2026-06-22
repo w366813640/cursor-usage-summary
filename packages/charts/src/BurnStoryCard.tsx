@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { fmtPercent, fmtTokens, fmtUSD } from './utils';
 
@@ -84,7 +84,7 @@ export function BurnStoryCard({
   const isHero = rank === 1;
 
   return (
-    <motion.article
+    <m.article
       initial={{ opacity: 0, y: 14, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -205,6 +205,6 @@ export function BurnStoryCard({
           {caption}
         </p>
       ) : null}
-    </motion.article>
+    </m.article>
   );
 }

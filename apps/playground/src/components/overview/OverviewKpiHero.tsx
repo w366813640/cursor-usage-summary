@@ -1,7 +1,7 @@
 import { KpiCard, daysToSparkline, fmtTokens, fmtUSD, fmtUSDCompact } from '@cu/charts';
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { calcCacheSavings } from '@cu/pricing';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo } from 'react';
 import { useEntrance } from '../../hooks/useEntranceOnce';
 
@@ -60,7 +60,7 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
   const hottest = summary.topBurns[0];
 
   return (
-    <motion.section
+    <m.section
       initial={entrance ? 'initial' : false}
       animate="enter"
       variants={{
@@ -205,6 +205,6 @@ export function OverviewKpiHero({ summary, rows, daysSpan }: OverviewKpiHeroProp
         }
         trend={cacheSavingsSpark}
       />
-    </motion.section>
+    </m.section>
   );
 }

@@ -9,10 +9,18 @@ import {
   TooltipProvider,
   useT,
 } from '@cu/ui';
-import { MotionConfig } from 'framer-motion';
+import { LazyMotion, MotionConfig } from 'framer-motion';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { CommandPaletteProvider } from './components/CommandPalette';
 import { WelcomePage } from './pages/WelcomePage';
+
+/**
+ * Defer the Framer Motion feature bundle (`domMax`) off the first-paint
+ * critical path. `m` components render statically until this resolves, then
+ * animate — so the dashboard becomes interactive without waiting on ~30 kB of
+ * gesture/layout code. See `motionFeatures.ts`.
+ */
+const loadMotionFeatures = () => import('./motionFeatures').then((mod) => mod.default);
 
 export function App() {
   return (
@@ -33,11 +41,13 @@ export function App() {
                     {/* The palette wraps everything below so Cmd/Ctrl+K
                         works on both the welcome screen and the dashboard. */}
                     <CommandPaletteProvider>
-                      <MotionConfig reducedMotion="user">
-                        <AppErrorBoundary>
-                          <WelcomePage />
-                        </AppErrorBoundary>
-                      </MotionConfig>
+                      <LazyMotion features={loadMotionFeatures} strict>
+                        <MotionConfig reducedMotion="user">
+                          <AppErrorBoundary>
+                            <WelcomePage />
+                          </AppErrorBoundary>
+                        </MotionConfig>
+                      </LazyMotion>
                     </CommandPaletteProvider>
                   </SidebarStateProvider>
                 </KeyboardShortcutsProvider>

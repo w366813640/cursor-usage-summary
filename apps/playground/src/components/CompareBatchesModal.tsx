@@ -9,7 +9,7 @@ import {
   X,
   Zap,
 } from '@cu/icons';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { loadBatchStats } from '../electron/desktopStorage';
 import type { BatchStats, BatchSummary } from '../electron/types';
@@ -70,7 +70,7 @@ export function CompareBatchesModal({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -79,7 +79,7 @@ export function CompareBatchesModal({
           role="presentation"
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ opacity: 0, y: 14, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -144,8 +144,8 @@ export function CompareBatchesModal({
                 Pick two batches to compare.
               </div>
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );
@@ -235,7 +235,7 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
       ? (stats.batch.dateMin ?? '—')
       : `${stats.batch.dateMin ?? '—'} → ${stats.batch.dateMax ?? '—'}`;
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, x: side === 'left' ? -6 : 6 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
@@ -308,7 +308,7 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
           />
         </div>
       ) : null}
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -340,7 +340,7 @@ function DeltaCard({ left, right }: { left: BatchStats; right: BatchStats }) {
   const intersection = right.topModels.filter((m) => leftModels.has(m.model)).slice(0, 3);
 
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.2, 0, 0, 1], delay: 0.08 }}
@@ -372,7 +372,7 @@ function DeltaCard({ left, right }: { left: BatchStats; right: BatchStats }) {
         <Calendar size={9} className="mr-1 inline-block" aria-hidden="true" />
         {left.batch.importedAt < right.batch.importedAt ? 'A is older' : 'A is newer'}
       </div>
-    </motion.section>
+    </m.section>
   );
 }
 

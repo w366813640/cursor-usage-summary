@@ -56,6 +56,11 @@ interface SideNavProps {
   current: AppRoute;
   onNavigate: (route: AppRoute) => void;
   /**
+   * Warm a route's lazy chunk on pointer/focus intent so the click feels
+   * instant. No-op for routes that ship in the entry bundle.
+   */
+  onPrefetch?: (route: AppRoute) => void;
+  /**
    * Optional per-user nav layout — order + visibility. Sourced from
    * settings.navigation when present; SideNav falls back to the static
    * ROUTE_GROUPS when undefined so unconfigured installs still get the
@@ -79,7 +84,7 @@ interface SideNavProps {
  *     don't animate layout for the surrounding page (would compete
  *     with the dense charts on Year / Day).
  */
-export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
+export function SideNav({ current, onNavigate, onPrefetch, routeLayout }: SideNavProps) {
   const { expanded, toggle } = useSidebarState();
   const orderedRoutes = useNavRouteLayout(routeLayout);
   const t = useT();
@@ -120,6 +125,8 @@ export function SideNav({ current, onNavigate, routeLayout }: SideNavProps) {
                     <button
                       type="button"
                       onClick={() => onNavigate(route)}
+                      onPointerEnter={() => onPrefetch?.(route)}
+                      onFocus={() => onPrefetch?.(route)}
                       aria-current={isActive ? 'page' : undefined}
                       aria-label={label}
                       title={!expanded ? label : undefined}

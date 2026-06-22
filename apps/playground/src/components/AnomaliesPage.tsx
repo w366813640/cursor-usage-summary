@@ -10,7 +10,7 @@ import type {
 } from '@cu/data';
 import { AlertTriangle, ChevronRight, Database, Flame, Layers } from '@cu/icons';
 import { useI18n, useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo } from 'react';
 import { getCachedAnomalies } from '../hooks/useOverviewInsights';
 import { Panel } from './Panel';
@@ -135,7 +135,7 @@ interface SummaryBarProps {
 function SummaryBar({ totalDays, anomalies, high, medium, low }: SummaryBarProps) {
   const t = useT();
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
@@ -152,7 +152,7 @@ function SummaryBar({ totalDays, anomalies, high, medium, low }: SummaryBarProps
       <Metric label={t('severity.high')} value={String(high)} tone="high" />
       <Metric label={t('severity.medium')} value={String(medium)} tone="medium" />
       <Metric label={t('severity.low')} value={String(low)} tone="low" />
-    </motion.div>
+    </m.div>
   );
 }
 

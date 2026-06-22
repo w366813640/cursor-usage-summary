@@ -1,7 +1,7 @@
 import { Sparkline, fmtTokens, fmtUSD } from '@cu/charts';
 import type { RowWithCost, UsageSummary } from '@cu/data';
 import { ChevronRight } from '@cu/icons';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { SectionHeader } from './SectionHeader';
@@ -159,7 +159,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
   }, [stats, partition.visible, sortKey, hideLowActivity]);
 
   return (
-    <motion.div
+    <m.div
       initial={entrance ? { opacity: 0, y: 12 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
@@ -292,7 +292,7 @@ export function ModelsPage({ summary, rows }: ModelsPageProps) {
           </table>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -472,7 +472,7 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
           boxShadow: 'inset 3px 0 0 var(--color-accent)',
         }}
       >
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
@@ -492,7 +492,7 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
                 const pct = tokenTotal > 0 ? seg.value / tokenTotal : 0;
                 if (pct === 0) return null;
                 return (
-                  <motion.div
+                  <m.div
                     key={seg.id}
                     initial={{ width: 0 }}
                     animate={{ width: `${pct * 100}%` }}
@@ -537,7 +537,7 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
               <Sparkline data={s.trend} width={520} height={48} strokeVar="--color-accent" />
             </div>
           </div>
-        </motion.div>
+        </m.div>
       </td>
     </tr>
   );

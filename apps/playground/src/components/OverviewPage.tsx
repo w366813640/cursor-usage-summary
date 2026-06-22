@@ -1,22 +1,23 @@
 import type { RowWithCost, UsageSummary } from '@cu/data';
-import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { Suspense, lazy, useMemo } from 'react';
 import { EntranceContext, useEntranceOnce } from '../hooks/useEntranceOnce';
 import { useFocusMode } from '../hooks/useFocusMode';
 import { useOverviewInsights } from '../hooks/useOverviewInsights';
 import { useSettings } from '../hooks/useSettings';
-import { CompareRangesPanel } from './CompareRangesPanel';
-import { ForecastPanel } from './ForecastPanel';
-import { MonthlyBudgetPanel } from './MonthlyBudgetPanel';
 import { ActionFeed } from './overview/ActionFeed';
 import { BudgetUrgencyBanner } from './overview/BudgetUrgencyBanner';
 import { EfficiencyCard } from './overview/EfficiencyCard';
 import { GoalProgressPanel } from './overview/GoalProgressPanel';
-import { OverviewActivity } from './overview/OverviewActivity';
-import { OverviewBurns } from './overview/OverviewBurns';
 import { OverviewKpiHero } from './overview/OverviewKpiHero';
-import { ScenarioPlannerPanel } from './overview/ScenarioPlannerPanel';
 import { WeekSummaryCard } from './overview/WeekSummaryCard';
+
+/**
+ * Below-the-fold context panels (plan budget, compare ranges, forecast,
+ * scenario planner, activity, burns) are split into their own chunk so their
+ * chart/analysis code stays out of the initial dashboard bundle. They render
+ * only outside focus mode, beneath the hero — see OverviewSecondaryPanels.
+ */
+const OverviewSecondaryPanels = lazy(() => import('./overview/OverviewSecondaryPanels'));
 
 export interface OverviewPageProps {
   summary: UsageSummary;
@@ -93,58 +94,39 @@ export function OverviewPage({ summary, rows }: OverviewPageProps) {
         <EfficiencyCard report={insights.efficiency} />
 
         {focusMode ? null : (
-          <>
-            {/* Plan budget — sits between hero and system view because it's the
-                single most actionable "are you about to overspend?" question. */}
-            <motion.section
-              initial={entrance ? { opacity: 0, y: 8 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.42, delay: 0.1, ease: [0.2, 0, 0, 1] }}
-            >
-              <MonthlyBudgetPanel summary={summary} planCap={settings.monthlyRequestBudget} />
-            </motion.section>
-
-            <motion.section
-              initial={entrance ? { opacity: 0, y: 12 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
-            >
-              <CompareRangesPanel rows={rows} />
-            </motion.section>
-
-            {/* Forecast (PR24) — sits right after Compare Ranges because once
-                you've seen the "how am I doing today vs the last 30 days"
-                comparison, the next instinct is "where am I heading?". */}
-            <motion.section
-              initial={entrance ? { opacity: 0, y: 12 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.42, delay: 0.16, ease: [0.2, 0, 0, 1] }}
-            >
-              <ForecastPanel forecast={insights.forecast} />
-            </motion.section>
-
-            <motion.section
-              initial={entrance ? { opacity: 0, y: 12 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.42, delay: 0.18, ease: [0.2, 0, 0, 1] }}
-            >
-              <ScenarioPlannerPanel
-                summary={summary}
-                rows={rows}
-                monthlyRequestBudget={settings.monthlyRequestBudget}
-              />
-            </motion.section>
-
-            <OverviewActivity
+          <Suspense fallback={<SecondaryPanelsSkeleton />}>
+            <OverviewSecondaryPanels
               summary={summary}
               rows={rows}
               daysSpan={daysSpan}
+              entrance={entrance}
+              monthlyRequestBudget={settings.monthlyRequestBudget}
+              forecast={insights.forecast}
               anomalies={insights.anomalies}
             />
-            <OverviewBurns summary={summary} rows={rows} daysSpan={daysSpan} />
-          </>
+          </Suspense>
         )}
       </div>
     </EntranceContext.Provider>
+  );
+}
+
+/**
+ * Placeholder while the below-the-fold panel chunk streams in. Reserves a
+ * little vertical space (the panels sit under the hero, so this is rarely in
+ * view) and matches the route skeleton's shimmer language for continuity.
+ */
+function SecondaryPanelsSkeleton() {
+  return (
+    <div
+      className="flex flex-col"
+      style={{ gap: 'var(--cu-density-section-gap)' }}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading overview panels"
+    >
+      <div className="cu-shimmer h-40 rounded-[14px]" />
+      <div className="cu-shimmer h-40 rounded-[14px]" style={{ animationDelay: '120ms' }} />
+    </div>
   );
 }

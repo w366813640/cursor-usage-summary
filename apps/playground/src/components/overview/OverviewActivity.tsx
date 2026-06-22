@@ -17,7 +17,7 @@ import {
   tokensToStackSegments,
 } from '@cu/charts';
 import type { DetectAllResult, RowWithCost, UsageSummary } from '@cu/data';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { type RefObject, useCallback, useMemo, useRef, useState } from 'react';
 import { ExportButton } from '../../export/ExportButton';
 import { useEntrance } from '../../hooks/useEntranceOnce';
@@ -45,7 +45,7 @@ interface OverviewActivityProps {
  *    · Spend by model Treemap (slices < 1% rolled into "Other")
  *    · Top 8 models · daily cost SmallMultiples
  *
- * Section is wrapped in a motion.section that fades in with a small delay
+ * Section is wrapped in a m.section that fades in with a small delay
  * so the KPI hero settles first; charts then "appear" with a soft pop.
  */
 export function OverviewActivity({ summary, rows, daysSpan, anomalies }: OverviewActivityProps) {
@@ -109,7 +109,7 @@ export function OverviewActivity({ summary, rows, daysSpan, anomalies }: Overvie
   const anomalyDates = useMemo(() => new Set(anomalies.all.map((a) => a.date)), [anomalies]);
 
   return (
-    <motion.section
+    <m.section
       initial={entrance ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.42, delay: 0.12 }}
@@ -232,6 +232,6 @@ export function OverviewActivity({ summary, rows, daysSpan, anomalies }: Overvie
       <Panel title="Top 8 models · daily cost" subtitle="Shared y-axis · easy lateral comparison">
         <SmallMultiples items={multiples} columns={4} />
       </Panel>
-    </motion.section>
+    </m.section>
   );
 }

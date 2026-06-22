@@ -1,7 +1,7 @@
 import { type RowWithCost, type UsageSummary, redactedFileName } from '@cu/data';
 import { Eye, EyeOff, Settings2 } from '@cu/icons';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useFocusMode } from '../hooks/useFocusMode';
 
 /**
@@ -92,7 +92,7 @@ export function FileToolbar({
   void desktopActions;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
@@ -121,7 +121,7 @@ export function FileToolbar({
         onClick={onOpenSettings}
         title={`${t('toolbar.manageDataTooltip')} · ${tooltip}`}
       />
-    </motion.div>
+    </m.div>
   );
 }
 

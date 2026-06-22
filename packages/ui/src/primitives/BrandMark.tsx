@@ -1,5 +1,5 @@
 import { CuMark } from '@cu/icons';
-import { motion, useReducedMotion } from 'framer-motion';
+import { m, useReducedMotion } from 'framer-motion';
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '../utils';
 
@@ -68,7 +68,7 @@ export function BrandMark({
 
   if (onClick) {
     return (
-      <motion.button
+      <m.button
         type="button"
         onClick={onClick}
         aria-label={ariaLabel}
@@ -81,12 +81,12 @@ export function BrandMark({
         {...motionProps}
       >
         {inner}
-      </motion.button>
+      </m.button>
     );
   }
 
   return (
-    <motion.span
+    <m.span
       aria-hidden="true"
       className={cn(
         'inline-flex items-center justify-center text-[var(--color-brand-mark,var(--color-accent))]',
@@ -96,6 +96,6 @@ export function BrandMark({
       {...motionProps}
     >
       {inner}
-    </motion.span>
+    </m.span>
   );
 }

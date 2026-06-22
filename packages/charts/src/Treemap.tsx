@@ -4,7 +4,7 @@ import {
   hierarchy,
   treemapSquarify,
 } from 'd3-hierarchy';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { fmtPercent, fmtUSD } from './utils';
 
@@ -91,7 +91,7 @@ export function Treemap({
           // significant tiles read before tiny slivers fill in.
           const growDelay = 0.08 + Math.min(i, 18) * 0.045;
           return (
-            <motion.g
+            <m.g
               key={leaf.id}
               transform={`translate(${leaf.x}, ${leaf.y})`}
               style={{ cursor: onSelect ? 'pointer' : 'default' }}
@@ -102,7 +102,7 @@ export function Treemap({
               onMouseLeave={() => setHover(null)}
               onClick={() => onSelect?.(leaf.id)}
             >
-              <motion.rect
+              <m.rect
                 width={leaf.w}
                 height={leaf.h}
                 rx={3}
@@ -120,7 +120,7 @@ export function Treemap({
                 }}
               />
               {showLabel ? (
-                <motion.text
+                <m.text
                   x={8}
                   y={16}
                   fill="var(--color-bg)"
@@ -135,10 +135,10 @@ export function Treemap({
                   {leaf.label.length > Math.floor(leaf.w / 7)
                     ? `${leaf.label.slice(0, Math.max(2, Math.floor(leaf.w / 7) - 1))}…`
                     : leaf.label}
-                </motion.text>
+                </m.text>
               ) : null}
               {showSub ? (
-                <motion.g
+                <m.g
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.25, delay: growDelay + 0.46 }}
@@ -163,9 +163,9 @@ export function Treemap({
                   >
                     {fmtPercent(leaf.pct, 1)}
                   </text>
-                </motion.g>
+                </m.g>
               ) : null}
-            </motion.g>
+            </m.g>
           );
         })}
       </svg>

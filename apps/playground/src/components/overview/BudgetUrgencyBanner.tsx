@@ -6,7 +6,7 @@ import {
 } from '@cu/data';
 import { AlertTriangle, Clock, Target, X } from '@cu/icons';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { useEntrance } from '../../hooks/useEntranceOnce';
 import { useSettings } from '../../hooks/useSettings';
@@ -102,7 +102,7 @@ export function BudgetUrgencyBanner({ summary }: BudgetUrgencyBannerProps) {
   const usedPct = urgency.budget > 0 ? Math.min(100, (urgency.used / urgency.budget) * 100) : 0;
 
   return (
-    <motion.aside
+    <m.aside
       initial={entrance ? { opacity: 0, y: -8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: [0.2, 0, 0, 1] }}
@@ -166,7 +166,7 @@ export function BudgetUrgencyBanner({ summary }: BudgetUrgencyBannerProps) {
       >
         <X className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
-    </motion.aside>
+    </m.aside>
   );
 }
 

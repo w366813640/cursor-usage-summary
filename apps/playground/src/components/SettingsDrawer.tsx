@@ -25,8 +25,9 @@ import {
   Upload,
   X,
 } from '@cu/icons';
+import { drawerContent, drawerItem, drawerPanelRight, drawerScrim } from '@cu/motion';
 import { type Locale, type ThemeMode, useI18n, useT, useTheme } from '@cu/ui';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
   checkForUpdates,
@@ -376,21 +377,21 @@ export function SettingsDrawer({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+        <m.div
+          variants={drawerScrim}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={onClose}
         >
-          <motion.aside
+          <m.aside
             ref={dialogRef as React.Ref<HTMLDivElement>}
-            initial={{ x: 80, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 60, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
+            variants={drawerPanelRight}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -424,7 +425,7 @@ export function SettingsDrawer({
               </button>
             </div>
 
-            <div className="flex flex-col gap-5 px-6 pt-5 pb-6">
+            <m.div variants={drawerContent} className="flex flex-col gap-5 px-6 pt-5 pb-6">
               <StatusBanner status={status} />
 
               <DataManagementSection
@@ -893,9 +894,9 @@ export function SettingsDrawer({
 
               <WhatsNewSection />
               <AboutSection />
-            </div>
-          </motion.aside>
-        </motion.div>
+            </m.div>
+          </m.aside>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );
@@ -910,7 +911,10 @@ interface SectionProps {
 
 function Section({ icon, title, hint, children }: SectionProps) {
   return (
-    <section className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-4 py-3.5">
+    <m.section
+      variants={drawerItem}
+      className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)]/30 px-4 py-3.5"
+    >
       <div className="mb-2 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
         {icon}
         {title}
@@ -921,7 +925,7 @@ function Section({ icon, title, hint, children }: SectionProps) {
         </p>
       ) : null}
       {children}
-    </section>
+    </m.section>
   );
 }
 

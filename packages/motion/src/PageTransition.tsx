@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { durations, easings } from './springs';
 
@@ -17,7 +17,7 @@ export function PageTransition({ pageKey, children, disabled }: PageTransitionPr
   if (disabled) return <>{children}</>;
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <motion.div
+      <m.div
         key={pageKey}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, transition: { duration: durations.base, ease: easings.standard } }}
@@ -25,7 +25,7 @@ export function PageTransition({ pageKey, children, disabled }: PageTransitionPr
         className="h-full w-full"
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }

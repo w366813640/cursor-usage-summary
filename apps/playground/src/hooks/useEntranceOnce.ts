@@ -3,7 +3,7 @@ import { createContext, useContext, useState } from 'react';
 /**
  * Entrance-animation gate (perf plan 1.4).
  *
- * Route switches remount the whole page tree, so every `motion.*`
+ * Route switches remount the whole page tree, so every `m.*`
  * entrance (fade/slide/stagger) and every KPI count-up replayed on each
  * navigation — each replay costs main-thread animation frames on top of
  * the page's real render work, and reads as "the app re-loads itself".

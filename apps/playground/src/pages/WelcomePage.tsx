@@ -14,7 +14,7 @@ import {
   Upload,
 } from '@cu/icons';
 import { BrandMark, Button, IconButton, Tooltipped, useT, useTheme } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardShell } from '../components/DashboardShell';
 import { QuickTipsButton } from '../components/QuickTipsButton';
@@ -444,7 +444,7 @@ function WelcomeHero({
   // Pre-split title so each language can pick its own line break.
   return (
     <>
-      <motion.section
+      <m.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, ease: [0.2, 0, 0, 1] }}
@@ -473,9 +473,9 @@ function WelcomeHero({
             );
           })()}
         </p>
-      </motion.section>
+      </m.section>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.42, delay: 0.08, ease: [0.2, 0, 0, 1] }}
@@ -550,7 +550,7 @@ function WelcomeHero({
             ))}
           </ul>
           {errMsg && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.22, ease: [0.2, 0, 0, 1] }}
@@ -598,14 +598,14 @@ function WelcomeHero({
                   try again
                 </button>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </div>
-      </motion.div>
+      </m.div>
 
       <OnboardingProofStrip />
 
-      <motion.section
+      <m.section
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.42, delay: 0.16 }}
@@ -635,14 +635,14 @@ function WelcomeHero({
             valueClass="font-mono text-[18px] leading-[1.4] tracking-tight"
           />
         </div>
-      </motion.section>
+      </m.section>
     </>
   );
 }
 
 function OnboardingProofStrip() {
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.42, delay: 0.14, ease: [0.2, 0, 0, 1] }}
@@ -664,7 +664,7 @@ function OnboardingProofStrip() {
         label="Undo by batch"
         body="Every import becomes an auditable batch in SQLite and can be rolled back later."
       />
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -695,7 +695,7 @@ function ProofCard({
  */
 function BootGate() {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18 }}
@@ -707,7 +707,7 @@ function BootGate() {
       <span className="ml-3 font-mono text-[11px] uppercase tracking-[0.1em]">
         Restoring local session?
       </span>
-    </motion.div>
+    </m.div>
   );
 }
 

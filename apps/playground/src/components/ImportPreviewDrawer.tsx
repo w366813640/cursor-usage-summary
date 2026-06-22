@@ -7,7 +7,8 @@ import {
   SkipForward,
   X,
 } from '@cu/icons';
-import { AnimatePresence, motion } from 'framer-motion';
+import { drawerContent, drawerItem, drawerPanelRight, drawerScrim } from '@cu/motion';
+import { AnimatePresence, m } from 'framer-motion';
 import type { PreviewResult } from '../electron/types';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
 
@@ -57,23 +58,23 @@ export function ImportPreviewDrawer({
   return (
     <AnimatePresence>
       {open ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+        <m.div
+          variants={drawerScrim}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="fixed inset-0 z-[60] flex items-stretch justify-end bg-[rgba(0,0,0,0.45)]"
           role="presentation"
           onClick={() => {
             if (!committing) onCancel();
           }}
         >
-          <motion.aside
+          <m.aside
             ref={dialogRef as React.Ref<HTMLDivElement>}
-            initial={{ x: 80, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 60, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.2, 0, 0, 1] }}
+            variants={drawerPanelRight}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -112,16 +113,21 @@ export function ImportPreviewDrawer({
                 <X size={14} aria-hidden="true" />
               </button>
             </div>
-            <div className="flex flex-1 flex-col gap-5 px-6 pt-5 pb-6">
-              {preview.isDuplicateFile ? (
-                <DuplicateFileNotice fileName={fileName} />
-              ) : preview.wouldAdd === 0 ? (
-                <NoNewRowsNotice rowsSeen={rowsSeen} />
-              ) : (
-                <PreviewSummary preview={preview} rowsSeen={rowsSeen} failures={failures} />
-              )}
+            <m.div variants={drawerContent} className="flex flex-1 flex-col gap-5 px-6 pt-5 pb-6">
+              <m.div variants={drawerItem}>
+                {preview.isDuplicateFile ? (
+                  <DuplicateFileNotice fileName={fileName} />
+                ) : preview.wouldAdd === 0 ? (
+                  <NoNewRowsNotice rowsSeen={rowsSeen} />
+                ) : (
+                  <PreviewSummary preview={preview} rowsSeen={rowsSeen} failures={failures} />
+                )}
+              </m.div>
 
-              <div className="mt-auto flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4">
+              <m.div
+                variants={drawerItem}
+                className="mt-auto flex items-center justify-end gap-2 border-t border-[var(--color-border)] pt-4"
+              >
                 <button
                   type="button"
                   onClick={onCancel}
@@ -150,10 +156,10 @@ export function ImportPreviewDrawer({
                     {committing ? 'Importing…' : `Import ${preview.wouldAdd.toLocaleString()} rows`}
                   </button>
                 ) : null}
-              </div>
-            </div>
-          </motion.aside>
-        </motion.div>
+              </m.div>
+            </m.div>
+          </m.aside>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );

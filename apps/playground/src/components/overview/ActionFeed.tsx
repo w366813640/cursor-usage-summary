@@ -2,7 +2,7 @@ import { fmtUSD } from '@cu/charts';
 import type { ActionInsight } from '@cu/data';
 import { AlertTriangle, Database, Flame, Lightbulb, Target, TrendingUp } from '@cu/icons';
 import { useT } from '@cu/ui';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useEntrance } from '../../hooks/useEntranceOnce';
 import { Panel } from '../Panel';
 
@@ -22,7 +22,7 @@ export function ActionFeed({ insights }: ActionFeedProps) {
   const primary = insights[0] ?? null;
 
   return (
-    <motion.section
+    <m.section
       initial={entrance ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.36, ease: [0.2, 0, 0, 1] }}
@@ -45,7 +45,7 @@ export function ActionFeed({ insights }: ActionFeedProps) {
           </div>
         </div>
       </Panel>
-    </motion.section>
+    </m.section>
   );
 }
 

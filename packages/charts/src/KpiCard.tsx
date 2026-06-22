@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { type SparkPoint, Sparkline } from './Sparkline';
 
@@ -158,8 +158,8 @@ export function KpiCard({
   const countUpRef = useCountUpRef(numericValue, animateDurationMs, canAnimateNumeric, formatValue);
 
   return (
-    <motion.div
-      // Named variants so a parent <motion.section> can orchestrate
+    <m.div
+      // Named variants so a parent <m.section> can orchestrate
       // staggerChildren / delayChildren. We deliberately omit `initial`/`animate`
       // here so the parent's variant labels propagate down.
       variants={{
@@ -272,6 +272,6 @@ export function KpiCard({
           />
         </div>
       ) : null}
-    </motion.div>
+    </m.div>
   );
 }

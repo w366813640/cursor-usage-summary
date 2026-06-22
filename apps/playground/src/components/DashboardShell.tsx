@@ -12,17 +12,44 @@ import { KeyboardCheatsheet } from './KeyboardCheatsheet';
 import { OverviewPage } from './OverviewPage';
 import { SideNav } from './SideNav';
 
+// Route chunk loaders, shared between React.lazy (click-time) and the
+// SideNav intent prefetch (hover/focus-time). Calling these early warms
+// the module cache so the subsequent lazy render resolves with no network
+// wait — import() is idempotent, so repeated hovers cost nothing.
+const importYearReview = () => import('./YearReviewPage');
+const importAnomalies = () => import('./AnomaliesPage');
+const importModels = () => import('./ModelsPage');
+const importDetails = () => import('./DetailsPage');
+const importDay = () => import('./HoursPage');
+
 const YearReviewPage = lazy(() =>
-  import('./YearReviewPage').then((mod) => ({ default: mod.YearReviewPage })),
+  importYearReview().then((mod) => ({ default: mod.YearReviewPage })),
 );
-const AnomaliesPage = lazy(() =>
-  import('./AnomaliesPage').then((mod) => ({ default: mod.AnomaliesPage })),
-);
-const ModelsPage = lazy(() => import('./ModelsPage').then((mod) => ({ default: mod.ModelsPage })));
-const DetailsPage = lazy(() =>
-  import('./DetailsPage').then((mod) => ({ default: mod.DetailsPage })),
-);
-const DayPage = lazy(() => import('./HoursPage').then((mod) => ({ default: mod.DayPage })));
+const AnomaliesPage = lazy(() => importAnomalies().then((mod) => ({ default: mod.AnomaliesPage })));
+const ModelsPage = lazy(() => importModels().then((mod) => ({ default: mod.ModelsPage })));
+const DetailsPage = lazy(() => importDetails().then((mod) => ({ default: mod.DetailsPage })));
+const DayPage = lazy(() => importDay().then((mod) => ({ default: mod.DayPage })));
+
+// `overview` ships in the entry bundle (landing route) so it has no chunk
+// to prefetch. The rest map to their loader above.
+const ROUTE_PREFETCHERS: Partial<Record<AppRoute, () => Promise<unknown>>> = {
+  year: importYearReview,
+  anomalies: importAnomalies,
+  models: importModels,
+  details: importDetails,
+  day: importDay,
+};
+const prefetched = new Set<AppRoute>();
+
+function prefetchRoute(route: AppRoute) {
+  if (prefetched.has(route)) return;
+  const load = ROUTE_PREFETCHERS[route];
+  if (!load) return;
+  prefetched.add(route);
+  // Swallow rejections: a failed prefetch must never surface as an
+  // unhandled rejection; the real click-time import will retry + report.
+  void load().catch(() => prefetched.delete(route));
+}
 
 interface DashboardShellProps {
   summary: UsageSummary;
@@ -159,7 +186,12 @@ export function DashboardShell({
   return (
     <div className="flex gap-5">
       <KeyboardCheatsheet />
-      <SideNav current={route} onNavigate={navigate} routeLayout={navLayout} />
+      <SideNav
+        current={route}
+        onNavigate={navigate}
+        onPrefetch={prefetchRoute}
+        routeLayout={navLayout}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <FileToolbar

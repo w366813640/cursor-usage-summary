@@ -91,7 +91,7 @@ export function useFocusTrap(open: boolean, ref: React.RefObject<HTMLElement | n
  * ref to attach to the dialog container. Consumers just do:
  *
  *   const dialogRef = useDrawerA11y(open, onClose);
- *   <motion.aside ref={dialogRef} ...>
+ *   <m.aside ref={dialogRef} ...>
  */
 export function useDrawerA11y(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLElement | null>(null);

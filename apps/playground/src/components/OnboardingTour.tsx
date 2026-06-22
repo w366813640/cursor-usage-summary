@@ -1,6 +1,6 @@
 import { ArrowRight, ChevronLeft, X } from '@cu/icons';
 import { useT } from '@cu/ui';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useDrawerA11y } from '../hooks/useDrawerA11y';
 
@@ -70,7 +70,7 @@ export function OnboardingTour() {
   return (
     <AnimatePresence>
       {open && current ? (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -79,7 +79,7 @@ export function OnboardingTour() {
           role="presentation"
           onClick={finish}
         >
-          <motion.div
+          <m.div
             ref={dialogRef as React.Ref<HTMLDivElement>}
             initial={{ opacity: 0, y: 12, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -159,8 +159,8 @@ export function OnboardingTour() {
                 </button>
               )}
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       ) : null}
     </AnimatePresence>
   );

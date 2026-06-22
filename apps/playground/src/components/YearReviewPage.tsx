@@ -11,7 +11,7 @@ import {
   Zap,
 } from '@cu/icons';
 import { calcCacheSavings } from '@cu/pricing';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
 import { useEntranceOnce } from '../hooks/useEntranceOnce';
 import { MetricToggle, Panel } from './Panel';
@@ -498,33 +498,33 @@ function YearMonthBars({ months }: { months: YearReview['byMonth'] }) {
   const max = Math.max(0.0001, ...months.map((m) => m.cost));
   return (
     <div className="flex items-end gap-1.5 h-[140px] pt-2 px-1">
-      {months.map((m) => {
-        const heightPct = (m.cost / max) * 100;
-        const monthShort = m.month.slice(5);
+      {months.map((mo) => {
+        const heightPct = (mo.cost / max) * 100;
+        const monthShort = mo.month.slice(5);
         return (
-          <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+          <div key={mo.month} className="flex flex-1 flex-col items-center gap-1">
             <div className="relative flex w-full flex-1 items-end">
-              <motion.div
+              <m.div
                 initial={entrance ? { height: '0%' } : false}
-                animate={{ height: m.cost > 0 ? `${heightPct}%` : '2%' }}
+                animate={{ height: mo.cost > 0 ? `${heightPct}%` : '2%' }}
                 transition={{ duration: 0.65, ease: [0.2, 0, 0, 1] }}
                 className="w-full rounded-t-sm"
                 style={{
-                  background: m.isCurrent
+                  background: mo.isCurrent
                     ? 'var(--color-accent)'
-                    : m.cost > 0
+                    : mo.cost > 0
                       ? 'color-mix(in oklab, var(--color-accent) 55%, transparent)'
                       : 'var(--color-border)',
-                  minHeight: m.cost > 0 ? 4 : 2,
+                  minHeight: mo.cost > 0 ? 4 : 2,
                 }}
-                title={`${m.month} · ${fmtUSD(m.cost)}`}
+                title={`${mo.month} · ${fmtUSD(mo.cost)}`}
               />
             </div>
             <div className="font-mono text-[11px] uppercase tracking-[0.04em] text-[var(--color-text-subtle)]">
               {monthShort}
             </div>
             <div className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
-              {m.cost > 0 ? fmtUSDCompact(m.cost) : '—'}
+              {mo.cost > 0 ? fmtUSDCompact(mo.cost) : '—'}
             </div>
           </div>
         );

@@ -1,6 +1,6 @@
 import { Sparkline, fmtUSD } from '@cu/charts';
 import type { UsageSummary } from '@cu/data';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useMemo } from 'react';
 import { Panel } from './Panel';
 
@@ -204,23 +204,23 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
         </div>
 
         <div className="flex h-full items-end gap-[6px]">
-          {monthly.map((m, i) => {
-            const ratio = m.requestUnits / domainMax;
+          {monthly.map((mb, i) => {
+            const ratio = mb.requestUnits / domainMax;
             const tone =
-              m.requestUnits > planCap
+              mb.requestUnits > planCap
                 ? 'over'
-                : m.requestUnits / planCap >= 0.8
+                : mb.requestUnits / planCap >= 0.8
                   ? 'warn'
                   : 'default';
             return (
               <div
-                key={m.ym}
+                key={mb.ym}
                 className="group relative flex h-full flex-1 flex-col items-center justify-end"
-                title={`${m.label} · ${m.requestUnits.toLocaleString()} requests (${pct(
-                  m.requestUnits / planCap,
-                )} of cap) · ${fmtUSD(m.cost)} · $${m.costPerRequest.toFixed(3)} / req`}
+                title={`${mb.label} · ${mb.requestUnits.toLocaleString()} requests (${pct(
+                  mb.requestUnits / planCap,
+                )} of cap) · ${fmtUSD(mb.cost)} · $${mb.costPerRequest.toFixed(3)} / req`}
               >
-                <motion.div
+                <m.div
                   initial={{ height: 0 }}
                   animate={{ height: `${Math.max(ratio * 100, 1)}%` }}
                   transition={{
@@ -235,7 +235,7 @@ export function MonthlyBudgetPanel({ summary, planCap = 500 }: MonthlyBudgetPane
                   className="pointer-events-none mt-1 truncate font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--color-text-subtle)]"
                   style={{ maxWidth: '100%' }}
                 >
-                  {m.label.split(' ')[0]?.slice(0, 3)}
+                  {mb.label.split(' ')[0]?.slice(0, 3)}
                 </span>
               </div>
             );
