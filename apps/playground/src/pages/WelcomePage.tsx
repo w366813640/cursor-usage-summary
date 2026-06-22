@@ -16,11 +16,21 @@ import {
 import { BrandMark, Button, IconButton, Tooltipped, useT, useTheme } from '@cu/ui';
 import { m } from 'framer-motion';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DashboardShell } from '../components/DashboardShell';
 import { QuickTipsButton } from '../components/QuickTipsButton';
 import { isDesktop as detectDesktop } from '../electron/bridge';
 import { useDesktopIngest } from '../hooks/useDesktopIngest';
 import { useSettings } from '../hooks/useSettings';
+
+// The dashboard is the heaviest surface in the app (overview cards,
+// charts/d3, the six route pages, command-palette actions), but the first
+// paint is the upload hero — so it ships in its own chunk instead of the
+// entry bundle. `importDashboard` is also kicked off on mount (in parallel
+// with DB hydration) so returning users with data don't wait on a fetch
+// when the success handoff renders <DashboardShell>.
+const importDashboard = () => import('../components/DashboardShell');
+const DashboardShell = lazy(() =>
+  importDashboard().then((mod) => ({ default: mod.DashboardShell })),
+);
 
 // Overlay surfaces load on demand (perf plan 4.1): none of these are
 // needed to paint the first dashboard frame, and SettingsDrawer alone
@@ -106,6 +116,12 @@ function DesktopWelcomePage() {
 
   useEffect(() => {
     let active = true;
+    // Warm the deferred dashboard chunk in parallel with DB hydration so
+    // the success handoff is instant for returning users (data on disk
+    // skips the hero entirely). First-time users get it prefetched while
+    // they read the upload hero. Failures are swallowed — the real render
+    // path retries the import and surfaces any error.
+    void importDashboard().catch(() => {});
     (async () => {
       await desktop.hydrateFromDb();
       if (active) setBootChecked(true);
@@ -201,22 +217,24 @@ function DesktopWelcomePage() {
         />
 
         {success ? (
-          <DashboardShell
-            summary={success.summary}
-            rows={success.rows}
-            fileName={success.fileName}
-            sourceFiles={success.sourceFiles}
-            rowsSeen={success.rowsSeen}
-            failures={success.failures}
-            elapsedMs={success.elapsedMs}
-            lastIngestedAt={success.lastIngestedAt}
-            desktopActions={{
-              onOpenImport: onPick,
-              onOpenHistory: () => setHistoryOpen(true),
-              storageHint: 'Saved locally in cursor-usage.db (better-sqlite3, main process)',
-            }}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
+          <Suspense fallback={<BootGate />}>
+            <DashboardShell
+              summary={success.summary}
+              rows={success.rows}
+              fileName={success.fileName}
+              sourceFiles={success.sourceFiles}
+              rowsSeen={success.rowsSeen}
+              failures={success.failures}
+              elapsedMs={success.elapsedMs}
+              lastIngestedAt={success.lastIngestedAt}
+              desktopActions={{
+                onOpenImport: onPick,
+                onOpenHistory: () => setHistoryOpen(true),
+                storageHint: 'Saved locally in cursor-usage.db (better-sqlite3, main process)',
+              }}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          </Suspense>
         ) : !bootChecked ? (
           <BootGate />
         ) : (
