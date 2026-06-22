@@ -30,21 +30,24 @@ import { perfSpan } from '../utils/perf';
 
 const MAX_BYTES = 16 * 1024 * 1024;
 
-// The CSV parse + cost pipeline (papaparse + the full pricing table) is the
-// heaviest renderer-only dependency, but it's never needed to paint the
-// upload hero or hydrate an existing DB. Load it behind a dynamic import so
-// it stays off the first-paint chunk; `import()` is idempotent, so the
-// prefetch below and the real call in `startImport` share one fetch.
+// The CSV parse + cost pipeline (papaparse + the full pricing table) runs
+// in a dedicated worker so a large import never freezes the UI, and it's
+// never needed to paint the upload hero or hydrate an existing DB. Load the
+// worker driver behind a dynamic import so neither it nor the worker bundle
+// touches the first-paint chunk; `import()` is idempotent, so the prefetch
+// below and the real call in `startImport` share one fetch.
 const loadImportEngine = () => import('../import/importEngine');
 
 /**
- * Warm the import-engine chunk ahead of an actual import. Safe to call
- * repeatedly (idle prefetch, dropzone hover, etc.) — failures are
- * swallowed so a flaky prefetch never surfaces as an unhandled rejection;
- * the real `startImport` call retries and reports any error.
+ * Warm the parse worker ahead of an actual import. Safe to call repeatedly
+ * (idle prefetch, dropzone hover, etc.) — failures are swallowed so a flaky
+ * prefetch never surfaces as an unhandled rejection; the real `startImport`
+ * call falls back to a main-thread parse if the worker is unavailable.
  */
 export function prefetchImportEngine(): void {
-  void loadImportEngine().catch(() => {});
+  void loadImportEngine()
+    .then((mod) => mod.prefetchImportEngine())
+    .catch(() => {});
 }
 
 export type DesktopIngestState =
@@ -186,9 +189,10 @@ export function useDesktopIngest(): UseDesktopIngest {
 
     try {
       const text = await file.text();
-      // Parse + cost in the lazily-loaded engine chunk (papaparse + pricing).
-      const { parseAndCost } = await loadImportEngine();
-      const { rows: costed, failures, rowsSeen } = parseAndCost(text);
+      // Parse + cost off the main thread (worker), with a main-thread
+      // fallback baked into parseAndCostAsync if the worker can't spawn.
+      const { parseAndCostAsync } = await loadImportEngine();
+      const { rows: costed, failures, rowsSeen } = await parseAndCostAsync(text);
       const fileSha256 = await sha256File(file);
       const preview = await previewImport(costed, {
         filename: file.name,
