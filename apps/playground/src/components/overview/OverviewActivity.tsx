@@ -226,7 +226,7 @@ export function OverviewActivity({ summary, rows, daysSpan, anomalies }: Overvie
         title="Spend by model"
         subtitle={`${summary.byModel.length} models · slices < 1% rolled into "Other"`}
       >
-        <Treemap data={treemap} width={1200} height={340} />
+        <Treemap data={treemap} height={340} />
       </Panel>
 
       <Panel title="Top 8 models · daily cost" subtitle="Shared y-axis · easy lateral comparison">

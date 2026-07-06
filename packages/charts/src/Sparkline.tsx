@@ -2,6 +2,7 @@ import { extent, max } from 'd3-array';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { area, curveMonotoneX, line } from 'd3-shape';
 import { memo, useMemo, useState } from 'react';
+import { useContainerWidth } from './useContainerWidth';
 
 export interface SparkPoint {
   date: string;
@@ -10,6 +11,10 @@ export interface SparkPoint {
 
 export interface SparklineProps {
   data: ReadonlyArray<SparkPoint>;
+  /**
+   * Width in px. In `responsive` mode this is only the pre-measurement
+   * fallback — the chart re-lays out at its container's measured width.
+   */
   width?: number;
   height?: number;
   strokeWidth?: number;
@@ -47,6 +52,14 @@ export interface SparklineProps {
    * `onPointClick` is set; can also be enabled standalone via `showHover`.
    */
   showHover?: boolean;
+  /**
+   * Fill the container width instead of using a fixed `width`. The chart
+   * re-lays out at the measured pixel width (crisp dots/text, hover stays
+   * accurate since there's no `viewBox` scaling) and never overflows its
+   * parent. Use this whenever the sparkline lives in a flexible/`1fr`/`w-full`
+   * container; leave it off for fixed-size cells. Defaults to false.
+   */
+  responsive?: boolean;
 }
 
 /**
@@ -72,9 +85,15 @@ export const Sparkline = memo(function Sparkline({
   onPointClick,
   formatValue,
   showHover,
+  responsive = false,
 }: SparklineProps) {
   const interactive = !!onPointClick || !!showHover;
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  // In responsive mode we lay out at the container's measured width so the
+  // sparkline fills (and never overflows) its parent; `width` is the fallback
+  // for the single pre-measurement render.
+  const { ref: wrapRef, width: measuredWidth } = useContainerWidth<HTMLDivElement>();
+  const renderWidth = responsive ? (measuredWidth ?? width) : width;
 
   const { linePath, areaPath, peak, last, refY, points } = useMemo(() => {
     if (data.length === 0) {
@@ -92,7 +111,7 @@ export const Sparkline = memo(function Sparkline({
     );
     const x = scaleTime()
       .domain(xExt)
-      .range([2, width - 2]);
+      .range([2, renderWidth - 2]);
     const y = scaleLinear()
       .domain([0, yMax])
       .range([height - 2, 2]);
@@ -126,7 +145,7 @@ export const Sparkline = memo(function Sparkline({
           : null,
       points: pts,
     };
-  }, [data, width, height, referenceValue]);
+  }, [data, renderWidth, height, referenceValue]);
 
   /** Map a mouse X coordinate to the nearest data-point index. */
   function nearestIdx(clientX: number, rect: DOMRect): number | null {
@@ -149,24 +168,41 @@ export const Sparkline = memo(function Sparkline({
 
   if (data.length === 0) {
     return (
-      <svg width={width} height={height} role="img" aria-label="Empty trend">
-        <title>Empty trend</title>
-        <line
-          x1={2}
-          x2={width - 2}
-          y1={height - 2}
-          y2={height - 2}
-          stroke="var(--color-border)"
-          strokeDasharray="2 2"
-        />
-      </svg>
+      <div
+        ref={responsive ? wrapRef : undefined}
+        className={responsive ? 'block' : 'inline-block'}
+        style={{ width: responsive ? '100%' : width, height }}
+      >
+        <svg
+          className="block"
+          width={renderWidth}
+          height={height}
+          role="img"
+          aria-label="Empty trend"
+        >
+          <title>Empty trend</title>
+          <line
+            x1={2}
+            x2={renderWidth - 2}
+            y1={height - 2}
+            y2={height - 2}
+            stroke="var(--color-border)"
+            strokeDasharray="2 2"
+          />
+        </svg>
+      </div>
     );
   }
 
   return (
-    <div className="relative inline-block" style={{ width, height }}>
+    <div
+      ref={responsive ? wrapRef : undefined}
+      className={responsive ? 'relative block' : 'relative inline-block'}
+      style={{ width: responsive ? '100%' : width, height }}
+    >
       <svg
-        width={width}
+        className="block"
+        width={renderWidth}
         height={height}
         role={interactive ? 'button' : 'img'}
         aria-label={interactive ? 'Interactive trend sparkline' : 'Trend sparkline'}
@@ -203,7 +239,7 @@ export const Sparkline = memo(function Sparkline({
           <g>
             <line
               x1={2}
-              x2={width - 2}
+              x2={renderWidth - 2}
               y1={refY}
               y2={refY}
               stroke="var(--color-text-subtle)"
@@ -213,7 +249,7 @@ export const Sparkline = memo(function Sparkline({
             />
             {referenceLabel ? (
               <text
-                x={width - 4}
+                x={renderWidth - 4}
                 y={Math.max(8, refY - 3)}
                 textAnchor="end"
                 fontSize={8}
@@ -282,7 +318,7 @@ export const Sparkline = memo(function Sparkline({
         <div
           className="pointer-events-none absolute z-10 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-1.5 py-1 font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--color-text)] shadow-md whitespace-nowrap"
           style={{
-            left: Math.min(width - 90, Math.max(0, hoverPt.x + 6)),
+            left: Math.min(renderWidth - 90, Math.max(0, hoverPt.x + 6)),
             top: Math.max(0, hoverPt.y - 26),
           }}
         >

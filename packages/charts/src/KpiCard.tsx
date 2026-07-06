@@ -266,6 +266,7 @@ export function KpiCard({
             data={trend}
             width={260}
             height={36}
+            responsive
             strokeVar="--color-accent"
             referenceValue={trendReference}
             referenceLabel={trendReferenceLabel}

@@ -301,6 +301,7 @@ function BatchCard({ side, stats }: { side: 'left' | 'right'; stats: BatchStats 
             data={stats.byDay.map((d) => ({ date: d.date, value: d.cost }))}
             width={280}
             height={36}
+            responsive
             strokeWidth={1.2}
             fillArea
             showLastPoint

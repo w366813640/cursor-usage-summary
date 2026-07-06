@@ -620,6 +620,7 @@ function CrossMonthTrendsPanel({ rows }: CrossMonthTrendsPanelProps) {
                 data={data.rolling30d}
                 width={620}
                 height={120}
+                responsive
                 showLastPoint
                 showPeak
                 fillArea

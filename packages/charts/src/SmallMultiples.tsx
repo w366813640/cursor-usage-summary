@@ -58,6 +58,7 @@ export function SmallMultiples({
             data={item.trend}
             width={220}
             height={36}
+            responsive
             strokeVar={item.strokeVar ?? '--color-accent'}
           />
           {item.sub ? (

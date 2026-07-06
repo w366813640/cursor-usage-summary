@@ -534,7 +534,13 @@ function ModelExpansion({ stats: s }: { stats: ModelStats }) {
                   {s.trend.length} {s.trend.length === 1 ? 'day' : 'days'}
                 </span>
               </div>
-              <Sparkline data={s.trend} width={520} height={48} strokeVar="--color-accent" />
+              <Sparkline
+                data={s.trend}
+                width={520}
+                height={48}
+                responsive
+                strokeVar="--color-accent"
+              />
             </div>
           </div>
         </m.div>

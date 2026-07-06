@@ -6,6 +6,7 @@ import {
 } from 'd3-hierarchy';
 import { m } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import { useContainerWidth } from './useContainerWidth';
 import { fmtPercent, fmtUSD } from './utils';
 
 export interface TreemapDatum {
@@ -19,6 +20,11 @@ export interface TreemapDatum {
 
 export interface TreemapProps {
   data: ReadonlyArray<TreemapDatum>;
+  /**
+   * Fallback width used only for the single pre-measurement render. The map
+   * always lays itself out at its container's measured width so it fills the
+   * panel without ever overflowing it.
+   */
   width?: number;
   height?: number;
   onSelect?: (id: string) => void;
@@ -48,6 +54,10 @@ export function Treemap({
   formatValue = fmtUSD,
 }: TreemapProps) {
   const [hover, setHover] = useState<string | null>(null);
+  // Lay out at the container's measured width so the map fills its panel and
+  // never overflows it (the `width` prop is only a pre-measurement fallback).
+  const { ref: wrapRef, width: measuredWidth } = useContainerWidth<HTMLDivElement>();
+  const layoutWidth = measuredWidth ?? width;
 
   const leaves = useMemo(() => {
     const total = data.reduce((acc, d) => acc + d.value, 0);
@@ -57,7 +67,7 @@ export function Treemap({
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     const laid = d3Treemap<Node>()
       .tile(treemapSquarify)
-      .size([width, height])
+      .size([layoutWidth, height])
       .paddingInner(2)
       .paddingOuter(0)(root) as HierarchyRectangularNode<Node>;
     return laid.leaves().map((leaf) => {
@@ -73,11 +83,17 @@ export function Treemap({
         pct: total > 0 ? d.value / total : 0,
       };
     });
-  }, [data, width, height]);
+  }, [data, layoutWidth, height]);
 
   return (
-    <div className="relative" style={{ width, height }}>
-      <svg width={width} height={height} role="img" aria-label="Cost share treemap">
+    <div ref={wrapRef} className="relative" style={{ width: '100%', height }}>
+      <svg
+        className="block"
+        width={layoutWidth}
+        height={height}
+        role="img"
+        aria-label="Cost share treemap"
+      >
         {leaves.map((leaf, i) => {
           const color =
             leaf.color ??
